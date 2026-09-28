@@ -405,6 +405,10 @@ class CP_IGSync {
 		// self-reported number), so the arrow always reflects real movement.
 		$new  = (int) $r['followers'];
 		$last = get_post_meta( $id, '_cp_followers_synced', true );
+		if ( '' === $last && get_post_meta( $id, '_cp_ig_synced', true ) && 'ok' === get_post_meta( $id, '_cp_ig_status', true ) ) {
+			// Synced before trend tracking existed: the stored count came from that sync.
+			$last = get_post_meta( $id, '_cp_followers', true );
+		}
 		if ( '' !== $last && (int) $last > 0 && $new > 0 ) {
 			update_post_meta( $id, '_cp_followers_prev', (int) $last );
 			update_post_meta( $id, '_cp_followers_delta', $new - (int) $last );
@@ -1098,7 +1102,7 @@ class CP_IGSync {
 								<option value="<?php echo (int) $d; ?>" <?php selected( (int) $s['interval'], $d ); ?>><?php echo esc_html( $lab ); ?></option>
 							<?php endforeach; ?>
 						</select>
-						<p class="cpw-muted"><?php esc_html_e( 'New bloggers are checked right away. Up to 60 bloggers are refreshed per hour to stay within Instagram’s limits. Each refresh compares followers with the previous one (green ↑ / red ↓ on the Bloggers page and in the app). Deactivated and blocked bloggers are skipped.', 'hypeit' ); ?></p>
+						<p class="cpw-muted"><?php esc_html_e( 'New bloggers are checked right away. Up to 60 bloggers are refreshed per hour to stay within Instagram’s limits. Each refresh compares followers with the previous one (green ▲ / red ▼ on the Bloggers page and in the app). Deactivated and blocked bloggers are skipped.', 'hypeit' ); ?></p>
 					</div>
 					<label class="cpw-switchrow">
 						<span class="cpw-switch"><input type="checkbox" name="bio_verify" value="1" <?php checked( $s['bio_verify'] ); ?> /><span class="cpw-slider" aria-hidden="true"></span></span>

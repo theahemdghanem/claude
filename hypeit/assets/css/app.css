@@ -452,7 +452,7 @@ img.avatar { object-fit: cover; background: var(--s3); }
 .vtick-big.is-off { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
 
 /* 2.2 — follower trend, deactivated bloggers, profile completeness */
-.ftrend { display: inline-block; margin-left: 3px; font-weight: 900; font-size: .95em; line-height: 1; }
+.ftrend { display: inline-block; margin-left: 5px; font-size: 1.05em; line-height: 1; vertical-align: -.05em; }
 .ftrend.up { color: var(--green); }
 .ftrend.down { color: var(--red); }
 .fcount { white-space: nowrap; color: var(--text); font-weight: 600; }

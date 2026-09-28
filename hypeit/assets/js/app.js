@@ -31,12 +31,12 @@
 	var compactFmt = null;
 	try { compactFmt = new Intl.NumberFormat( undefined, { notation: 'compact', maximumFractionDigits: 1 } ); } catch ( e ) {}
 	function compact( n ) { n = Number( n || 0 ); return compactFmt ? compactFmt.format( n ) : num( n ); }
-	// Follower change at the last Instagram sync: green ↑ / red ↓, nothing when unchanged.
+	// Follower change at the last Instagram sync: green ▲ / red ▼, nothing when unchanged.
 	function ftrend( d ) {
 		d = parseInt( d, 10 ) || 0;
 		if ( ! d ) { return ''; }
 		var tip = d > 0 ? t( 'fUp', num( d ) ) : t( 'fDown', num( -d ) );
-		return '<span class="ftrend ' + ( d > 0 ? 'up' : 'down' ) + '" title="' + esc( tip ) + '" aria-label="' + esc( tip ) + '">' + ( d > 0 ? '↑' : '↓' ) + '</span>';
+		return '<span class="ftrend ' + ( d > 0 ? 'up' : 'down' ) + '" title="' + esc( tip ) + '" aria-label="' + esc( tip ) + '">' + ( d > 0 ? '▲' : '▼' ) + '</span>';
 	}
 	function lc( s ) { return String( s || '' ).toLowerCase(); }
 	function debounce( fn, ms ) { var tm; return function () { var a = arguments, s = this; clearTimeout( tm ); tm = setTimeout( function () { fn.apply( s, a ); }, ms ); }; }
@@ -972,7 +972,7 @@
 	/* ================================================================ Blogger filters (shared) */
 
 	function bloggerSorts() {
-		return [ [ 'newest', t( 'sNewestAdded' ) ], [ 'oldest', t( 'sOldestAdded' ) ], [ 'name', t( 'sName' ) ], [ 'name_desc', t( 'sNameDesc' ) ], [ 'followers_desc', t( 'sFollowersDesc' ) ], [ 'followers_asc', t( 'sFollowersAsc' ) ], [ 'verified', t( 'sVerified' ) ], [ 'latest_done', t( 'sLatestDone' ) ], [ 'most_complete', t( 'sMostComplete' ) ], [ 'least_complete', t( 'sLeastComplete' ) ], [ 'bupd', t( 'sBloggerUpd' ) ], [ 'popular', t( 'sPopular' ) ], [ 'city', t( 'sCity' ) ] ];
+		return [ [ 'newest', t( 'sNewestAdded' ) ], [ 'oldest', t( 'sOldestAdded' ) ], [ 'updated', t( 'sRecentUpd' ) ], [ 'name', t( 'sName' ) ], [ 'name_desc', t( 'sNameDesc' ) ], [ 'followers_desc', t( 'sFollowersDesc' ) ], [ 'followers_asc', t( 'sFollowersAsc' ) ], [ 'verified', t( 'sVerified' ) ], [ 'latest_done', t( 'sLatestDone' ) ], [ 'most_complete', t( 'sMostComplete' ) ], [ 'least_complete', t( 'sLeastComplete' ) ], [ 'bupd', t( 'sBloggerUpd' ) ], [ 'popular', t( 'sPopular' ) ], [ 'city', t( 'sCity' ) ] ];
 	}
 	function sortBloggers( arr, how ) {
 		var byName = function ( a, b ) { return lc( a.name || a.handle ).localeCompare( lc( b.name || b.handle ) ); };
@@ -982,6 +982,7 @@
 				case 'oldest': return String( a.date || '' ).localeCompare( String( b.date || '' ) );
 				case 'name_desc': return byName( b, a );
 				case 'latest_done': return ( b.done_at || 0 ) - ( a.done_at || 0 ) || newest( a, b );
+				case 'updated': return ( b.upd || 0 ) - ( a.upd || 0 ) || newest( a, b );
 				case 'bupd': return ( b.bupd || 0 ) - ( a.bupd || 0 ) || newest( a, b );
 				case 'followers_desc': return ( b.followers || 0 ) - ( a.followers || 0 );
 				case 'followers_asc': return ( a.followers || 0 ) - ( b.followers || 0 );
@@ -1205,8 +1206,11 @@
 			var cpct = Math.max( 0, Math.min( 100, b.complete || 0 ) );
 			h += '<div class="section"><h3>' + esc( t( 'completeness' ) ) + '</h3><span class="small">' + cpct + '%</span></div><div class="card ccard">' +
 				'<div class="cmeter"><i style="width:' + cpct + '%"></i></div>' +
-				( b.missing && b.missing.length ? '<p class="small muted">' + esc( t( 'missingX', b.missing.join( ', ' ) ) ) + '</p>' : '' ) +
-				'<div class="item" style="padding:12px 0 0"><div class="item-main"><b>' + esc( t( 'markComplete' ) ) + '</b><small>' + esc( b.complete_manual && ! b.manual_ready ? t( 'needsFollowers' ) : t( 'markCompleteHint' ) ) + '</small></div>' + sw( 'bd-manual', !! b.complete_manual ) + '</div></div>';
+				( cpct < 100 && b.missing && b.missing.length ? '<p class="small muted">' + esc( t( 'missingX', b.missing.join( ', ' ) ) ) + '</p>' : '' ) +
+				( cpct >= 100 && ! b.complete_manual
+					// Every detail filled in: complete automatically.
+					? '<div class="item" style="padding:12px 0 0"><div class="item-main"><b><span class="ver">✓</span> ' + esc( t( 'autoComplete' ) ) + '</b><small>' + esc( t( 'autoCompleteHint' ) ) + '</small></div>' + sw( 'bd-manual', true, ' disabled' ) + '</div></div>'
+					: '<div class="item" style="padding:12px 0 0"><div class="item-main"><b>' + esc( t( 'markComplete' ) ) + '</b><small>' + esc( b.complete_manual && ! b.manual_ready ? t( 'needsFollowers' ) : t( 'markCompleteHint' ) ) + '</small></div>' + sw( 'bd-manual', !! b.complete_manual ) + '</div></div>' );
 			var priv = kv( t( 'email' ), b.email ) + kv( t( 'birthday' ), b.birthday ) + kv( t( 'phone' ), b.phone ) + kv( t( 'whatsapp' ), b.whatsapp ) + kv( t( 'source' ), b.source );
 			if ( priv ) { h += '<div class="section"><h3>' + esc( t( 'private' ) ) + '</h3></div><div class="kvs">' + priv + '</div>'; }
 			if ( ins && ins.included ) {
@@ -1456,8 +1460,8 @@
 					'<div class="dimrow"><div class="dimtop"><span>' + esc( t( 'verified' ) ) + '</span><b>' + ( L.verified_pct || 0 ) + '%</b></div><div class="barline"><i style="width:' + ( L.verified_pct || 0 ) + '%"></i></div></div>' +
 					'<div class="dimrow"><div class="dimtop"><span>' + esc( t( 'completeProfiles' ) ) + '</span><b>' + ( L.complete_pct || 0 ) + '%</b></div><div class="barline blue"><i style="width:' + ( L.complete_pct || 0 ) + '%"></i></div></div>' +
 					'<div class="tiles t3" style="margin:12px 0 0"><div class="tile"><b>' + esc( compact( L.reach || 0 ) ) + '</b><span>' + esc( t( 'followers' ) ) + '</span></div>' +
-					'<div class="tile green"><b>↑ ' + num( L.growing || 0 ) + '</b><span>' + esc( t( 'growing' ) ) + '</span></div>' +
-					'<div class="tile red"><b>↓ ' + num( L.shrinking || 0 ) + '</b><span>' + esc( t( 'shrinking' ) ) + '</span></div></div></div>';
+					'<div class="tile green"><b>▲ ' + num( L.growing || 0 ) + '</b><span>' + esc( t( 'growing' ) ) + '</span></div>' +
+					'<div class="tile red"><b>▼ ' + num( L.shrinking || 0 ) + '</b><span>' + esc( t( 'shrinking' ) ) + '</span></div></div></div>';
 			}
 
 			// What clients pick.

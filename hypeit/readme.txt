@@ -2,7 +2,7 @@
 Contributors: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: GPL-2.0-or-later
 
 Blogger management for agencies: a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want.
@@ -18,6 +18,11 @@ Blogger management for agencies: a blogger library with onboarding, verification
 * Email notifications: right away, daily digest or weekly digest.
 
 == Changelog ==
+
+= 2.2.1 =
+* Profiles with every detail filled in (100%) show as complete automatically — the tick appears without marking them by hand.
+* New sort: Recently updated (any change made in the admin, the app or the form).
+* Follower trend arrows now use ▲ / ▼ and appear from the very next Instagram sync (the count from the previous sync is used as the starting point).
 
 = 2.2.0 =
 * Deactivate bloggers instead of deleting them: they disappear from campaigns, client selections, lists, the app and the public count, but their profile and campaign records are kept. Reactivate any time (row action, bulk action, Status tab or the app).

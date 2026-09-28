@@ -776,8 +776,8 @@ class CP_Insights {
 					</div>
 					<div class="cpi-minis">
 						<div><b><?php echo esc_html( $compact( $lib['reach'] ) ); ?></b><span><?php esc_html_e( 'Total followers', 'hypeit' ); ?></span></div>
-						<div><b class="cpi-up">↑ <?php echo (int) $lib['growing']; ?></b><span><?php esc_html_e( 'Growing', 'hypeit' ); ?></span></div>
-						<div><b class="cpi-down">↓ <?php echo (int) $lib['shrinking']; ?></b><span><?php esc_html_e( 'Shrinking', 'hypeit' ); ?></span></div>
+						<div><b class="cpi-up">▲ <?php echo (int) $lib['growing']; ?></b><span><?php esc_html_e( 'Growing', 'hypeit' ); ?></span></div>
+						<div><b class="cpi-down">▼ <?php echo (int) $lib['shrinking']; ?></b><span><?php esc_html_e( 'Shrinking', 'hypeit' ); ?></span></div>
 					</div>
 					<?php if ( $lib['tiers'] ) : ?>
 						<div class="cpi-tiers">

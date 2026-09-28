@@ -611,9 +611,9 @@ body.post-type-cp_blogger.edit-php .wp-list-table thead th, body.post-type-cp_bl
 .cp-pagehead .cp-sub { margin: 0; max-width: 760px; }
 
 /* Follower trend arrows (green ↑ / red ↓ vs the previous sync). */
-.cp-trend { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; font-weight: 800; font-size: 13px; line-height: 1; cursor: help; vertical-align: 1px; }
-.cp-trend.is-up { color: #1b7f4b; }
-.cp-trend.is-down { color: #d63638; }
+.cp-trend { display: inline-block; margin-left: 6px; font-size: 15px; line-height: 1; cursor: help; vertical-align: -1px; }
+.cp-trend.is-up { color: #1fa855; }
+.cp-trend.is-down { color: #e0322b; }
 
 /* Deactivated */
 .cpl-b.is-off, .cpw-tag.is-off { background: #eef0f3; color: #50575e; border: 1px dashed #a7aaad; }
@@ -632,6 +632,8 @@ body.post-type-cp_blogger.edit-php .wp-list-table tr:has(.cpl-b.is-off) .cpl-who
 .cpb-manual strong { display: block; font-size: 13px; }
 .cpb-manual small { display: block; color: #646970; font-size: 12px; line-height: 1.4; margin-top: 2px; }
 .cpb-manual:has(input:checked) { border-color: #1b7f4b; background: #f0f8f3; }
+.cpb-manual.is-auto { cursor: default; }
+.cpb-manual.is-auto input { accent-color: #1b7f4b; opacity: 1; }
 .cpb-manual-warn { margin: 6px 0 0; font-size: 12px; color: #9a5b00; }
 
 /* =====================================================================

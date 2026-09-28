@@ -276,6 +276,7 @@ $cpa_config = array(
 		'sNameDesc'      => __( 'Name Z–A', 'hypeit' ),
 		'sLatestDone'    => __( 'Latest completed', 'hypeit' ),
 		'sBloggerUpd'    => __( 'Last updated by blogger', 'hypeit' ),
+		'sRecentUpd'     => __( 'Recently updated', 'hypeit' ),
 		// Deactivate + profile completeness + follower trend.
 		'deactivate'     => __( 'Deactivate', 'hypeit' ),
 		'reactivate'     => __( 'Reactivate', 'hypeit' ),
@@ -290,6 +291,8 @@ $cpa_config = array(
 		'markCompleteHint' => __( 'For bloggers you know personally — the basic profile and follower count are enough.', 'hypeit' ),
 		'markedComplete' => __( 'Marked complete', 'hypeit' ),
 		'unmarkedComplete' => __( 'Complete mark removed', 'hypeit' ),
+		'autoComplete'     => __( 'Profile complete', 'hypeit' ),
+		'autoCompleteHint' => __( 'Every detail is filled in, so it’s marked complete automatically.', 'hypeit' ),
 		'needsFollowers' => __( 'Add the Instagram username and follower count — it counts as complete once both are there.', 'hypeit' ),
 		'fUp'            => __( '+%s since the last sync', 'hypeit' ),
 		'fDown'          => __( '−%s since the last sync', 'hypeit' ),

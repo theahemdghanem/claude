@@ -126,6 +126,15 @@ class CP_Bloggers_UI {
 	}
 
 	/**
+	 * Stamp "profile updated now" (admin editor, app, form — not Instagram syncs).
+	 *
+	 * @param int $id Blogger ID.
+	 */
+	public static function touch( $id ) {
+		update_post_meta( (int) $id, '_cp_updated_at', time() );
+	}
+
+	/**
 	 * Has an admin marked this profile complete?
 	 *
 	 * @param int $id Blogger ID.
@@ -148,7 +157,28 @@ class CP_Bloggers_UI {
 		} else {
 			delete_post_meta( $id, self::MANUAL );
 		}
+		self::touch( $id );
 		return self::refresh( $id );
+	}
+
+	/**
+	 * Is the profile complete (every detail filled in, or marked complete)?
+	 *
+	 * @param int $id Blogger ID.
+	 * @return bool
+	 */
+	public static function is_complete( $id ) {
+		return (int) get_post_meta( $id, '_cp_complete', true ) >= 100;
+	}
+
+	/**
+	 * Complete on its own merit (every detail filled in, no manual mark needed)?
+	 *
+	 * @param int $id Blogger ID.
+	 * @return bool
+	 */
+	public static function is_auto_complete( $id ) {
+		return ! self::is_manual( $id ) && self::is_complete( $id );
 	}
 
 	/**
@@ -195,7 +225,7 @@ class CP_Bloggers_UI {
 			number_format_i18n( $prev ),
 			number_format_i18n( $now )
 		);
-		return '<span class="cp-trend ' . ( $d > 0 ? 'is-up' : 'is-down' ) . '" title="' . esc_attr( $tip ) . '" aria-label="' . esc_attr( $tip ) . '">' . ( $d > 0 ? '↑' : '↓' ) . '</span>';
+		return '<span class="cp-trend ' . ( $d > 0 ? 'is-up' : 'is-down' ) . '" title="' . esc_attr( $tip ) . '" aria-label="' . esc_attr( $tip ) . '">' . ( $d > 0 ? '▲' : '▼' ) . '</span>';
 	}
 
 	/**
@@ -218,6 +248,10 @@ class CP_Bloggers_UI {
 			update_post_meta( $id, '_cp_completed_at', $when ? $when : time() );
 		} elseif ( $c['pct'] < 100 && ( $done || '' === $raw ) ) {
 			update_post_meta( $id, '_cp_completed_at', 0 );
+		}
+		// "Recently updated": seed from the post's last change the first time.
+		if ( '' === get_post_meta( $id, '_cp_updated_at', true ) ) {
+			update_post_meta( $id, '_cp_updated_at', (int) get_post_modified_time( 'U', true, $id ) );
 		}
 		// Every blogger carries the key so "Last updated by blogger" can sort everyone.
 		if ( '' === get_post_meta( $id, '_cp_blogger_updated', true ) ) {
@@ -471,6 +505,9 @@ class CP_Bloggers_UI {
 				$gaps = (int) round( ( 100 - $pct ) / 10 );
 				if ( $manual && $pct >= 100 ) {
 					echo '<span class="cpl-sub cpl-manual">✓ ' . esc_html__( 'Marked complete', 'hypeit' ) . '</span>';
+				} elseif ( $pct >= 100 ) {
+					// Every detail filled in: complete automatically, no need to mark it.
+					echo '<span class="cpl-sub cpl-manual" title="' . esc_attr__( 'Every profile detail is filled in', 'hypeit' ) . '">✓ ' . esc_html__( 'Complete', 'hypeit' ) . '</span>';
 				} elseif ( $manual ) {
 					echo '<span class="cpl-sub" title="' . esc_attr__( 'Add the Instagram username and follower count to complete it.', 'hypeit' ) . '">' . esc_html__( 'Marked — needs followers', 'hypeit' ) . '</span>';
 				} elseif ( $gaps > 0 ) {
@@ -527,6 +564,7 @@ class CP_Bloggers_UI {
 		return array(
 			''                  => __( 'Newest first', 'hypeit' ),
 			'date:asc'          => __( 'Oldest first', 'hypeit' ),
+			'cp_updated:desc'   => __( 'Recently updated', 'hypeit' ),
 			'title:asc'         => __( 'Name A–Z', 'hypeit' ),
 			'title:desc'        => __( 'Name Z–A', 'hypeit' ),
 			'cp_followers:desc' => __( 'Most followers', 'hypeit' ),
@@ -593,6 +631,7 @@ class CP_Bloggers_UI {
 			'cp_complete'  => '_cp_complete',
 			'cp_completed' => '_cp_completed_at',
 			'cp_bupdated'  => '_cp_blogger_updated',
+			'cp_updated'   => '_cp_updated_at',
 		);
 		if ( isset( $num[ $q->get( 'orderby' ) ] ) ) {
 			// Ties (e.g. never completed / never updated) fall back to newest first.

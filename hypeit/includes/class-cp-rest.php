@@ -1062,6 +1062,7 @@ class CP_REST {
 			'manual'    => CP_Bloggers_UI::is_manual( $id ),
 			'done_at'   => (int) get_post_meta( $id, '_cp_completed_at', true ),
 			'bupd'      => (int) get_post_meta( $id, '_cp_blogger_updated', true ),
+			'upd'       => (int) get_post_meta( $id, '_cp_updated_at', true ),
 			'popularity'=> $lab['label'],
 			'verified'  => CP_Verify::is_verified( $id ),
 			'igs'       => (string) get_post_meta( $id, '_cp_ig_status', true ),
@@ -1247,6 +1248,7 @@ class CP_REST {
 		wp_set_post_terms( $id, $lists, CP_Library::TAX_LIST, false );
 
 		CP_Blogger_CPT::sync_title( $id );
+		CP_Bloggers_UI::touch( $id );
 
 		if ( class_exists( 'CP_Lists' ) ) {
 			CP_Lists::sync_blogger( $id );
@@ -1278,6 +1280,7 @@ class CP_REST {
 		if ( is_wp_error( $res ) ) {
 			return new WP_Error( $res->get_error_code(), $res->get_error_message(), array( 'status' => 400 ) );
 		}
+		CP_Bloggers_UI::touch( $id );
 		return array( 'photo' => CP_Photo::url( $id, 'm' ), 'photo_s' => CP_Photo::url( $id, 's' ) );
 	}
 

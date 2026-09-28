@@ -549,16 +549,27 @@ class CP_Blogger_CPT {
 			<div class="cpb-meter" title="<?php esc_attr_e( 'Profile completeness', 'hypeit' ); ?>">
 				<div class="cpb-meter-top"><strong><?php esc_html_e( 'Profile', 'hypeit' ); ?></strong><span><?php echo (int) $comp['pct']; ?>%</span></div>
 				<div class="cpb-meter-bar"><i style="width:<?php echo (int) $comp['pct']; ?>%"></i></div>
-				<?php if ( $comp['missing'] ) : ?>
+				<?php if ( $comp['missing'] && $comp['pct'] < 100 ) : ?>
 					<p class="cpw-muted" style="margin:6px 0 0;"><?php echo esc_html( sprintf( /* translators: %s: missing fields. */ __( 'Missing: %s', 'hypeit' ), implode( ', ', $comp['missing'] ) ) ); ?></p>
 				<?php endif; ?>
-				<?php $manual = CP_Bloggers_UI::is_manual( $id ); ?>
+				<?php
+				$manual = CP_Bloggers_UI::is_manual( $id );
+				$auto   = CP_Bloggers_UI::is_auto_complete( $id );
+				?>
 				<input type="hidden" name="cp_manual_marker" value="1" />
-				<label class="cpb-manual">
-					<input type="checkbox" name="cp_complete_manual" value="1" <?php checked( $manual ); ?> />
-					<span><strong><?php esc_html_e( 'Mark profile as complete', 'hypeit' ); ?></strong>
-					<small><?php esc_html_e( 'For bloggers you know personally — the basic profile and follower count are enough.', 'hypeit' ); ?></small></span>
-				</label>
+				<?php if ( $auto ) : ?>
+					<div class="cpb-manual is-auto">
+						<input type="checkbox" checked disabled />
+						<span><strong><?php esc_html_e( 'Profile complete', 'hypeit' ); ?></strong>
+						<small><?php esc_html_e( 'Every detail is filled in, so it’s marked complete automatically.', 'hypeit' ); ?></small></span>
+					</div>
+				<?php else : ?>
+					<label class="cpb-manual">
+						<input type="checkbox" name="cp_complete_manual" value="1" <?php checked( $manual ); ?> />
+						<span><strong><?php esc_html_e( 'Mark profile as complete', 'hypeit' ); ?></strong>
+						<small><?php esc_html_e( 'For bloggers you know personally — the basic profile and follower count are enough.', 'hypeit' ); ?></small></span>
+					</label>
+				<?php endif; ?>
 				<?php if ( $manual && ! CP_Bloggers_UI::manual_ready( $id ) ) : ?>
 					<p class="cpb-manual-warn"><?php esc_html_e( 'Add the Instagram username and follower count — the profile counts as complete once both are there.', 'hypeit' ); ?></p>
 				<?php endif; ?>
@@ -691,6 +702,7 @@ class CP_Blogger_CPT {
 		}
 
 		self::sync_title( $post_id );
+		CP_Bloggers_UI::touch( $post_id );
 
 		if ( class_exists( 'CP_Lists' ) ) {
 			CP_Lists::sync_blogger( $post_id );

@@ -406,6 +406,7 @@ class CP_Onboarding {
 		update_post_meta( $id, '_cp_source', 'onboarding' );
 		// The blogger updated their own profile (Bloggers page: "Last updated by blogger").
 		update_post_meta( $id, '_cp_blogger_updated', time() );
+		CP_Bloggers_UI::touch( $id );
 		update_post_meta( $id, '_cp_collab', empty( $v['collab'] ) ? '' : ',' . implode( ',', $v['collab'] ) . ',' );
 
 		if ( ! empty( $cats ) ) {

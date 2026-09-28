@@ -18,11 +18,11 @@
 			.replace( /%d/g, function () { return args[ i++ ]; } );
 	}
 	function num( n ) { return Number( n || 0 ).toLocaleString(); }
-	// Follower change at the last Instagram sync: green ↑ / red ↓ (none when unchanged).
+	// Follower change at the last Instagram sync: green ▲ / red ▼ (none when unchanged).
 	function trend( d ) {
 		d = parseInt( d, 10 ) || 0;
 		if ( ! d ) { return ''; }
-		return ' <span class="cp-trend ' + ( d > 0 ? 'is-up' : 'is-down' ) + '" title="' + ( d > 0 ? '+' : '−' ) + num( Math.abs( d ) ) + '">' + ( d > 0 ? '↑' : '↓' ) + '</span>';
+		return ' <span class="cp-trend ' + ( d > 0 ? 'is-up' : 'is-down' ) + '" title="' + ( d > 0 ? '+' : '−' ) + num( Math.abs( d ) ) + '">' + ( d > 0 ? '▲' : '▼' ) + '</span>';
 	}
 	function hue( s ) { var h = 0; s = String( s || '' ); for ( var i = 0; i < s.length; i++ ) { h = ( h * 31 + s.charCodeAt( i ) ) % 360; } return h; }
 	function avatar( b, h ) {
