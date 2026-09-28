@@ -532,12 +532,13 @@ class CP_IGSync {
 	 * Bloggers due for a refresh: never synced first, then oldest; pending bio
 	 * codes are re-checked daily.
 	 *
-	 * @param int $limit Max.
+	 * @param int  $limit Max.
+	 * @param bool $force Ignore the refresh interval (manual "Sync now"): oldest sync first.
 	 * @return array IDs.
 	 */
-	public static function due( $limit ) {
+	public static function due( $limit, $force = false ) {
 		$s        = self::get();
-		$interval = max( 1, (int) $s['interval'] ) * DAY_IN_SECONDS;
+		$interval = $force ? 0 : max( 1, (int) $s['interval'] ) * DAY_IN_SECONDS;
 		$base     = array(
 			'post_type'      => CP_Library::CPT,
 			'post_status'    => 'publish',
@@ -604,10 +605,11 @@ class CP_IGSync {
 	/**
 	 * Hourly batch.
 	 *
-	 * @param int $limit Max per run.
+	 * @param int  $limit Max per run.
+	 * @param bool $force Refresh the oldest-synced bloggers even if not due yet.
 	 * @return array Counts.
 	 */
-	public static function run_batch( $limit = 0 ) {
+	public static function run_batch( $limit = 0, $force = false ) {
 		$limit = $limit ? (int) $limit : self::BATCH;
 		$out   = array( 'ok' => 0, 'personal' => 0, 'error' => 0, 'stopped' => '' );
 		if ( ! self::ready() || (int) self::get()['paused'] > time() ) {
@@ -619,7 +621,7 @@ class CP_IGSync {
 			return $out;
 		}
 		set_transient( 'cp_igsync_lock', 1, 10 * MINUTE_IN_SECONDS );
-		foreach ( self::due( $limit ) as $id ) {
+		foreach ( self::due( $limit, $force ) as $id ) {
 			$r = self::sync_blogger( $id );
 			if ( in_array( $r, array( 'rate', 'token', 'off', 'perm' ), true ) ) {
 				$out['stopped'] = $r;
@@ -909,7 +911,8 @@ class CP_IGSync {
 			wp_die( esc_html__( 'Not allowed.', 'hypeit' ) );
 		}
 		check_admin_referer( 'cp_igsync_now' );
-		$r = self::run_batch( 40 );
+		// Manual run: always refresh someone (oldest sync first), even if nobody is due yet.
+		$r = self::run_batch( self::BATCH, true );
 		wp_safe_redirect( add_query_arg( array( 'post_type' => CP_POST_TYPE, 'page' => 'cp-verify', 'cp_igs' => 'ran', 'n' => $r['ok'] + $r['personal'], 'st' => $r['stopped'] ), admin_url( 'edit.php' ) ) );
 		exit;
 	}
@@ -1132,7 +1135,7 @@ class CP_IGSync {
 		</section>
 
 		<?php if ( '' !== $s['token'] || $ready ) : ?>
-			<section class="cpw-card">
+			<section class="cpw-card cpv-tools">
 				<h3><?php esc_html_e( 'Tools', 'hypeit' ); ?></h3>
 				<?php if ( '' !== $s['token'] ) : ?>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="cpv-inline">
@@ -1145,7 +1148,7 @@ class CP_IGSync {
 					<p class="cpw-muted"><?php esc_html_e( 'Shows exactly what Instagram returns — handy for checking a blogger or your own account.', 'hypeit' ); ?></p>
 				<?php endif; ?>
 				<?php if ( $ready ) : ?>
-					<p class="cpv-inline"><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=cp_igsync_now' ), 'cp_igsync_now' ) ); ?>"><?php esc_html_e( 'Sync bloggers now', 'hypeit' ); ?></a> <span class="cpw-muted"><?php esc_html_e( 'Runs one batch immediately (otherwise it runs every hour on its own).', 'hypeit' ); ?></span></p>
+					<p class="cpv-inline"><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=cp_igsync_now' ), 'cp_igsync_now' ) ); ?>"><?php esc_html_e( 'Sync bloggers now', 'hypeit' ); ?></a> <span class="cpw-muted"><?php echo esc_html( sprintf( /* translators: %d: batch size. */ __( 'Refreshes the %d bloggers whose numbers are oldest — follower arrows update right away. Automatic refresh keeps running every hour on its own.', 'hypeit' ), self::BATCH ) ); ?></span></p>
 				<?php endif; ?>
 			</section>
 		<?php endif; ?>

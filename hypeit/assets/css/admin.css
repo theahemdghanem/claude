@@ -810,6 +810,12 @@ body.post-type-cp_campaign.edit-php .wp-list-table .row-title { font-size: 14px;
 .cpv-danger { color: #b3261e !important; border-color: #e3b4b0 !important; }
 .cpv-inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; }
 .cpv-inline label { font-weight: 600; }
+.cpv-tools .cpv-inline { gap: 10px 12px; }
+.cpv-tools form.cpv-inline + .cpw-muted { margin: 10px 0 0; }
+.cpv-tools p.cpv-inline { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid #f0f0f1; }
+.cps-side .cpw-card input[type="submit"] { margin-top: 18px; }
+.cps-options { margin-bottom: 2px; }
+.cps .cpw-switchrow + .cps-field { margin-top: 18px; }
 .cpv-ring { --p: 0; width: 132px; height: 132px; margin: 6px auto 14px; border-radius: 50%; display: grid; place-content: center; text-align: center; background: radial-gradient(closest-side, #fff 78%, transparent 79% 100%), conic-gradient(#1b7f4b calc(var(--p) * 1%), #f0f0f1 0); }
 .cpv-ring b { font-size: 26px; line-height: 1; }
 .cpv-ring span { font-size: 12px; color: #646970; margin-top: 4px; }

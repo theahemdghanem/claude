@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HypeIt
  * Description: Blogger management for agencies — a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want. Includes insights, a companion app and push notifications.
- * Version:     2.2.1
+ * Version:     2.2.2
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author:      iLike Agency
@@ -37,7 +37,7 @@ if ( defined( 'CP_VERSION' ) ) {
 	return;
 }
 
-define( 'CP_VERSION', '2.2.1' );
+define( 'CP_VERSION', '2.2.2' );
 define( 'CP_FILE', __FILE__ );
 define( 'CP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CP_URL', plugin_dir_url( __FILE__ ) );

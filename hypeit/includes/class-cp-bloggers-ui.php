@@ -438,7 +438,15 @@ class CP_Bloggers_UI {
 			case 'cp_followers':
 				$f   = (int) $get( '_cp_followers' );
 				$eng = $get( '_cp_engagement' );
-				echo $f ? '<strong class="cpl-num" title="' . esc_attr( number_format_i18n( $f ) ) . '">' . esc_html( self::compact( $f ) ) . '</strong>' . self::trend_html( $id ) : '<span class="cpl-muted">&mdash;</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				$synced = (int) $get( '_cp_ig_synced' );
+				$ftip   = number_format_i18n( $f );
+				if ( $synced && 'ok' === $get( '_cp_ig_status' ) ) {
+					$ftip .= ' · ' . sprintf( /* translators: %s: time ago. */ __( 'synced %s ago', 'hypeit' ), human_time_diff( $synced ) );
+					if ( ! self::follower_delta( $id ) && '' !== $get( '_cp_followers_prev' ) ) {
+						$ftip .= ' · ' . __( 'no change since the previous sync', 'hypeit' );
+					}
+				}
+				echo $f ? '<strong class="cpl-num" title="' . esc_attr( $ftip ) . '">' . esc_html( self::compact( $f ) ) . '</strong>' . self::trend_html( $id ) : '<span class="cpl-muted">&mdash;</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				if ( '' !== $eng ) {
 					echo '<span class="cpl-sub">' . esc_html( sprintf( /* translators: %s: rate. */ __( '%s%% eng.', 'hypeit' ), number_format_i18n( (float) $eng, 1 ) ) ) . '</span>';
 				}
