@@ -20,10 +20,12 @@ class CP_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_shared' ) );
 		add_action( 'edit_form_top', array( __CLASS__, 'back_link' ) );
+		add_action( 'post_edit_form_tag', array( __CLASS__, 'form_enctype' ) );
 
 		// List columns, header and filters live in CP_Campaigns_UI.
 
 		add_action( 'admin_notices', array( __CLASS__, 'no_password_notice' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'logo_notice' ) );
 		add_action( 'admin_post_cp_campaign_export', array( __CLASS__, 'export_accepted' ) );
 	}
 
@@ -43,6 +45,32 @@ class CP_Admin {
 		}
 		if ( $is_ours ) {
 			wp_enqueue_style( 'cp-admin', CP_URL . 'assets/css/admin.css', array(), CP_VERSION );
+		}
+	}
+
+	/**
+	 * Allow the logo upload on the campaign edit form.
+	 *
+	 * @param WP_Post $post Post.
+	 */
+	public static function form_enctype( $post ) {
+		if ( $post && CP_POST_TYPE === $post->post_type ) {
+			echo ' enctype="multipart/form-data"';
+		}
+	}
+
+	/**
+	 * Show a logo upload error after save (same notice as blogger photos).
+	 */
+	public static function logo_notice() {
+		$screen = get_current_screen();
+		if ( ! $screen || CP_POST_TYPE !== $screen->post_type ) {
+			return;
+		}
+		$msg = get_transient( 'cp_photo_err_' . get_current_user_id() );
+		if ( $msg ) {
+			delete_transient( 'cp_photo_err_' . get_current_user_id() );
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
 		}
 	}
 
@@ -78,7 +106,6 @@ class CP_Admin {
 			return;
 		}
 
-		wp_enqueue_media();
 		wp_enqueue_style( 'cp-admin', CP_URL . 'assets/css/admin.css', array(), CP_VERSION );
 		wp_enqueue_script( 'cp-admin', CP_URL . 'assets/js/admin.js', array(), CP_VERSION, true );
 		wp_localize_script(
@@ -248,8 +275,7 @@ class CP_Admin {
 		$brief    = get_post_meta( $post->ID, '_cp_brief', true );
 		$max      = get_post_meta( $post->ID, '_cp_max_guests', true );
 		$max      = ( '' === $max ) ? 4 : (int) $max;
-		$logo_id  = (int) get_post_meta( $post->ID, '_cp_logo_id', true );
-		$logo_url = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+		$logo_url = CP_Logo::url( $post->ID );
 		$has_pw   = CP_Auth::has_password( $post->ID );
 		$token    = get_post_meta( $post->ID, '_cp_token', true );
 		$url      = $token ? CP_Frontend::campaign_url( $token ) : '';
@@ -524,19 +550,29 @@ class CP_Admin {
 				<div class="cpw-card">
 					<h3><?php esc_html_e( 'Client logo / image', 'hypeit' ); ?></h3>
 					<div class="cpw-logo">
-						<span class="cpw-logo-preview" id="cp_logo_preview">
+						<label class="cpw-logo-preview" id="cp_logo_preview" for="cp_logo_file" title="<?php esc_attr_e( 'Choose image', 'hypeit' ); ?>">
 							<?php if ( $logo_url ) : ?>
 								<img src="<?php echo esc_url( $logo_url ); ?>" alt="" />
 							<?php else : ?>
 								<span class="cpw-muted"><?php esc_html_e( 'No image', 'hypeit' ); ?></span>
 							<?php endif; ?>
-						</span>
-						<span>
-							<input type="hidden" id="cp_logo_id" name="cp_logo_id" value="<?php echo esc_attr( $logo_id ); ?>" />
-							<button type="button" class="button cp-media-select" data-target="cp_logo_id" data-preview="cp_logo_preview"><?php esc_html_e( 'Choose image', 'hypeit' ); ?></button>
-							<button type="button" class="button-link cp-media-remove" data-target="cp_logo_id" data-preview="cp_logo_preview"<?php echo $logo_id ? '' : ' style="display:none"'; ?>><?php esc_html_e( 'Remove', 'hypeit' ); ?></button>
+						</label>
+						<span class="cpw-logo-actions">
+							<label class="button" for="cp_logo_file"><?php echo esc_html( $logo_url ? __( 'Change image', 'hypeit' ) : __( 'Choose image', 'hypeit' ) ); ?></label>
+							<input type="file" id="cp_logo_file" name="cp_logo_file" accept="image/jpeg,image/png,image/webp,image/gif" class="cpw-hidden" />
+							<?php if ( $logo_url ) : ?>
+								<label class="cpw-check"><input type="checkbox" name="cp_logo_remove" value="1" id="cp_logo_remove" /> <?php esc_html_e( 'Remove', 'hypeit' ); ?></label>
+							<?php endif; ?>
+							<small class="cpw-muted"><?php esc_html_e( 'JPG, PNG or WebP. Transparent PNGs stay transparent. Stored privately — not in your Media Library.', 'hypeit' ); ?></small>
 						</span>
 					</div>
+					<script>
+					( function () {
+						var f = document.getElementById( 'cp_logo_file' ), p = document.getElementById( 'cp_logo_preview' ), rm = document.getElementById( 'cp_logo_remove' );
+						if ( f ) { f.addEventListener( 'change', function () { if ( f.files && f.files[0] ) { p.innerHTML = '<img src="' + URL.createObjectURL( f.files[0] ) + '" alt="" />'; if ( rm ) { rm.checked = false; } } } ); }
+						if ( rm ) { rm.addEventListener( 'change', function () { p.style.opacity = rm.checked ? '.3' : ''; } ); }
+					} )();
+					</script>
 				</div>
 			</section>
 
@@ -586,6 +622,56 @@ class CP_Admin {
 					</div>
 					<p class="cpw-muted"><?php esc_html_e( 'Letters, numbers and hyphens. Changing it disables the old link.', 'hypeit' ); ?></p>
 					<label class="cpw-check"><input type="checkbox" name="cp_regenerate_token" value="1" /> <?php esc_html_e( 'Replace with a random link on save', 'hypeit' ); ?></label>
+				</div>
+
+				<?php
+				$cp_exp     = CP_Expiry::get( $post->ID );
+				$cp_contact = array(
+					'name'  => (string) get_post_meta( $post->ID, '_cp_contact_name', true ),
+					'phone' => (string) get_post_meta( $post->ID, '_cp_contact_phone', true ),
+					'email' => (string) get_post_meta( $post->ID, '_cp_contact_email', true ),
+				);
+				?>
+				<div class="cpw-card cpw-expiry">
+					<h3><?php esc_html_e( 'Link expires', 'hypeit' ); ?>
+						<?php if ( $cp_exp ) : ?>
+							<span class="cp-badge <?php echo CP_Expiry::is_expired( $post->ID ) ? 'cp-badge-declined' : 'cp-badge-confirmed'; ?>"><?php echo esc_html( CP_Expiry::label( $post->ID ) ); ?></span>
+						<?php endif; ?>
+					</h3>
+					<p class="cpw-muted"><?php esc_html_e( 'The client sees a live countdown to finish choosing. After this time the list is hidden and they’re asked to contact you for a fresh link — extend it any time to reopen the same link.', 'hypeit' ); ?></p>
+					<div class="cpw-row">
+						<input type="datetime-local" id="cp_expires" name="cp_expires" value="<?php echo esc_attr( CP_Expiry::to_local( $cp_exp ) ); ?>" data-now="<?php echo esc_attr( wp_date( 'Y-m-d\TH:i' ) ); ?>" />
+						<span class="cpw-quick" id="cpw-exp-quick">
+							<button type="button" class="button" data-h="24"><?php esc_html_e( '+24 hours', 'hypeit' ); ?></button>
+							<button type="button" class="button" data-h="72"><?php esc_html_e( '+3 days', 'hypeit' ); ?></button>
+							<button type="button" class="button" data-h="168"><?php esc_html_e( '+1 week', 'hypeit' ); ?></button>
+							<button type="button" class="button-link" data-h="0"><?php esc_html_e( 'No expiry', 'hypeit' ); ?></button>
+						</span>
+					</div>
+					<p class="cpw-muted"><?php echo esc_html( sprintf( /* translators: %s: timezone. */ __( 'Site time (%s). Quick buttons count from now.', 'hypeit' ), wp_timezone_string() ) ); ?></p>
+					<h4 class="cpw-subhead"><?php esc_html_e( 'Contact person for a new link', 'hypeit' ); ?></h4>
+					<div class="cpb-grid cpb-grid3">
+						<label class="cpb-f"><span><?php esc_html_e( 'Name', 'hypeit' ); ?></span><input type="text" name="cp_contact_name" value="<?php echo esc_attr( $cp_contact['name'] ); ?>" placeholder="<?php echo esc_attr( wp_get_current_user()->display_name ); ?>" /></label>
+						<label class="cpb-f"><span><?php esc_html_e( 'WhatsApp / phone', 'hypeit' ); ?></span><input type="tel" name="cp_contact_phone" value="<?php echo esc_attr( $cp_contact['phone'] ); ?>" placeholder="+20…" /></label>
+						<label class="cpb-f"><span><?php esc_html_e( 'Email', 'hypeit' ); ?></span><input type="email" name="cp_contact_email" value="<?php echo esc_attr( $cp_contact['email'] ); ?>" /></label>
+					</div>
+					<p class="cpw-muted"><?php esc_html_e( 'Shown on the expired page with WhatsApp, call and email buttons. Empty = the campaign’s author.', 'hypeit' ); ?></p>
+					<script>
+					( function () {
+						var inp = document.getElementById( 'cp_expires' ), q = document.getElementById( 'cpw-exp-quick' );
+						if ( ! inp || ! q ) { return; }
+						function pad( n ) { return ( n < 10 ? '0' : '' ) + n; }
+						q.addEventListener( 'click', function ( e ) {
+							var b = e.target.closest( '[data-h]' ); if ( ! b ) { return; }
+							var h = parseInt( b.getAttribute( 'data-h' ), 10 );
+							if ( ! h ) { inp.value = ''; return; }
+							// Site-local "now" treated as a plain clock value (no browser timezone shift).
+							var d = new Date( inp.getAttribute( 'data-now' ) + ':00Z' );
+							d = new Date( d.getTime() + h * 3600000 );
+							inp.value = d.getUTCFullYear() + '-' + pad( d.getUTCMonth() + 1 ) + '-' + pad( d.getUTCDate() ) + 'T' + pad( d.getUTCHours() ) + ':' + pad( d.getUTCMinutes() );
+						} );
+					} )();
+					</script>
 				</div>
 
 				<div class="cpw-card">
@@ -666,6 +752,16 @@ class CP_Admin {
 					<?php else : ?>
 						<a class="cpw-state-btn" href="<?php echo esc_url( CP_Close::url( $post->ID, true ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Close this campaign? The client will no longer be able to open it. Bloggers without a response won’t count in insights. You can reopen it any time.', 'hypeit' ) ); ?>');"><?php esc_html_e( 'Close', 'hypeit' ); ?></a>
 					<?php endif; ?>
+				</div>
+			<?php endif; ?>
+			<?php
+			$cp_dead = CP_Expiry::get( $post->ID );
+			if ( $cp_dead && ! CP_Close::is_closed( $post->ID ) ) :
+				$cp_expd = CP_Expiry::is_expired( $post->ID );
+				?>
+				<div class="cpw-expstate<?php echo $cp_expd ? ' is-expired' : ''; ?>">
+					<span><strong><?php echo esc_html( CP_Expiry::label( $post->ID ) ); ?></strong><small><?php echo esc_html( CP_Expiry::nice( $cp_dead ) ); ?></small></span>
+					<a class="cpw-state-btn" href="<?php echo esc_url( CP_Expiry::extend_url( $post->ID, 24 ) ); ?>"><?php esc_html_e( '+24h', 'hypeit' ); ?></a>
 				</div>
 			<?php endif; ?>
 			<?php $cp_tl = CP_Library::campaign_type_label( $post->ID ); ?>
@@ -773,6 +869,19 @@ class CP_Admin {
 			return;
 		}
 
+		// Link expiry + contact person.
+		if ( isset( $_POST['cp_expires'] ) ) {
+			CP_Expiry::set( $post_id, CP_Expiry::from_local( sanitize_text_field( wp_unslash( $_POST['cp_expires'] ) ) ) );
+			CP_Expiry::set_contact(
+				$post_id,
+				array(
+					'name'  => isset( $_POST['cp_contact_name'] ) ? wp_unslash( $_POST['cp_contact_name'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+					'phone' => isset( $_POST['cp_contact_phone'] ) ? wp_unslash( $_POST['cp_contact_phone'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+					'email' => isset( $_POST['cp_contact_email'] ) ? wp_unslash( $_POST['cp_contact_email'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+				)
+			);
+		}
+
 		// Campaign type.
 		if ( isset( $_POST['cp_type'] ) ) {
 			CP_Library::set_campaign_type( $post_id, sanitize_key( wp_unslash( $_POST['cp_type'] ) ) );
@@ -788,11 +897,15 @@ class CP_Admin {
 		update_post_meta( $post_id, '_cp_max_guests', $max );
 
 		// Logo.
-		$logo_id = isset( $_POST['cp_logo_id'] ) ? absint( $_POST['cp_logo_id'] ) : 0;
-		if ( $logo_id ) {
-			update_post_meta( $post_id, '_cp_logo_id', $logo_id );
-		} else {
-			delete_post_meta( $post_id, '_cp_logo_id' );
+		// Logo: private file storage (not the Media Library).
+		if ( ! empty( $_POST['cp_logo_remove'] ) ) {
+			CP_Logo::remove( $post_id );
+		}
+		if ( ! empty( $_FILES['cp_logo_file'] ) && UPLOAD_ERR_NO_FILE !== (int) $_FILES['cp_logo_file']['error'] ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			$res = CP_Logo::set_from_upload( $post_id, $_FILES['cp_logo_file'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			if ( is_wp_error( $res ) ) {
+				set_transient( 'cp_photo_err_' . get_current_user_id(), $res->get_error_message(), 60 );
+			}
 		}
 
 		// Password (only if provided).

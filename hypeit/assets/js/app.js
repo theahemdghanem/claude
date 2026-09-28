@@ -13,7 +13,8 @@
 		var a = Array.prototype.slice.call( arguments, 1 ), i = 0;
 		return String( s == null ? '' : s )
 			.replace( /%(\d)\$[sd]/g, function ( m, n ) { return a[ n - 1 ]; } )
-			.replace( /%[sd]/g, function () { return a[ i++ ]; } );
+			.replace( /%[sd]/g, function () { return a[ i++ ]; } )
+			.replace( /%%/g, '%' );
 	}
 	function t( k ) {
 		var args = Array.prototype.slice.call( arguments, 1 );
@@ -98,6 +99,13 @@
 	/* ================================================================ Icons */
 
 	var P = {
+		home: '<path d="M4 11 12 4l8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
+		clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+		check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+		close: '<path d="M6 6l12 12M18 6L6 18"/>',
+		bolt: '<path d="M13 3 5 13h6l-1 8 8-10h-6z"/>',
+		select: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+		lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
 		campaigns: '<path d="M4 5h16v14H4z"/><path d="M4 9h16M9 9v10"/>',
 		bloggers: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16.5 14c2.2.2 3.7 1.7 4 4.5"/>',
 		lists: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/>',
@@ -155,39 +163,83 @@
 
 	/* ================================================================ Store */
 
-	var S = { campaigns: null, camp: {}, library: null, meta: null, lists: null, insights: null, user: null };
+	/*
+	 * Store: memory first, then the copy saved on this phone (instant screens,
+	 * works offline), refreshed from the server in the background. When the
+	 * fresh copy differs, the current screen quietly repaints.
+	 */
+	var S = { campaigns: null, camp: {}, library: null, meta: null, lists: null, insights: null, user: null, home: null };
+	var DISK = 'cpa:d:';
+	function diskGet( k ) { try { var v = localStorage.getItem( DISK + k ); return v ? JSON.parse( v ) : null; } catch ( e ) { return null; } }
+	function diskSet( k, v ) { try { localStorage.setItem( DISK + k, JSON.stringify( v ) ); } catch ( e ) {} }
+	function diskDrop( k ) {
+		try {
+			for ( var i = localStorage.length - 1; i >= 0; i-- ) {
+				var key = localStorage.key( i );
+				if ( key && key.indexOf( DISK + ( k || '' ) ) === 0 ) { localStorage.removeItem( key ); }
+			}
+		} catch ( e ) {}
+	}
 	function drop() {
 		for ( var i = 0; i < arguments.length; i++ ) {
 			var k = arguments[ i ];
-			if ( k === 'camp' ) { S.camp = {}; } else { S[ k ] = null; }
+			if ( k === 'camp' ) { S.camp = {}; diskDrop( 'camp:' ); } else { S[ k ] = null; diskDrop( k ); }
 		}
+	}
+	var repaintTimer;
+	function softRepaint() { clearTimeout( repaintTimer ); repaintTimer = setTimeout( function () { if ( ! openSheets.length && ! appEl.classList.contains( 'no-tabs' ) ) { render( false, true ); } }, 60 ); }
+	function cached( key, path, pick, force, setMem ) {
+		var fresh = api( path ).then( function ( d ) { var v = pick( d ); setMem( v ); diskSet( key, v ); return v; } );
+		if ( ! force ) {
+			var disk = diskGet( key );
+			if ( disk ) {
+				setMem( disk );
+				fresh.then( function ( v ) { if ( JSON.stringify( v ) !== JSON.stringify( disk ) ) { softRepaint(); } } ).catch( function () {} );
+				return Promise.resolve( disk );
+			}
+		}
+		return fresh;
 	}
 	function getCampaigns( force ) {
 		if ( S.campaigns && ! force ) { return Promise.resolve( S.campaigns ); }
-		return api( '/campaigns' ).then( function ( d ) { S.campaigns = d.campaigns || []; return S.campaigns; } );
+		return cached( 'campaigns', '/campaigns', function ( d ) { return d.campaigns || []; }, force, function ( v ) { S.campaigns = v; } );
 	}
 	function getCampaign( id, force ) {
 		if ( S.camp[ id ] && ! force ) { return Promise.resolve( S.camp[ id ] ); }
-		return api( '/campaigns/' + id ).then( function ( c ) { S.camp[ id ] = c; return c; } );
+		return cached( 'camp:' + id, '/campaigns/' + id, function ( c ) { return c; }, force, function ( v ) { S.camp[ id ] = v; } );
 	}
 	function getLibrary( force ) {
 		if ( S.library && ! force ) { return Promise.resolve( S.library ); }
-		return api( '/bloggers' ).then( function ( d ) { S.library = d.bloggers || []; return S.library; } );
+		return cached( 'library', '/bloggers', function ( d ) { return d.bloggers || []; }, force, function ( v ) { S.library = v; } );
 	}
 	function getMeta( force ) {
 		if ( S.meta && ! force ) { return Promise.resolve( S.meta ); }
-		return api( '/meta' ).then( function ( m ) { S.meta = m; return m; } );
+		return cached( 'meta', '/meta', function ( m ) { return m; }, force, function ( v ) { S.meta = v; } );
 	}
 	function getLists( force ) {
 		if ( S.lists && ! force ) { return Promise.resolve( S.lists ); }
-		return api( '/lists' ).then( function ( d ) { S.lists = d.lists || []; return S.lists; } );
+		return cached( 'lists', '/lists', function ( d ) { return d.lists || []; }, force, function ( v ) { S.lists = v; } );
 	}
+	function getHome( force ) {
+		if ( S.home && ! force ) { return Promise.resolve( S.home ); }
+		return cached( 'home', '/home', function ( d ) { return d; }, force, function ( v ) { S.home = v; } );
+	}
+	// A tiny tap on phones that support it — confirms an action happened.
+	function buzz() { try { if ( navigator.vibrate ) { navigator.vibrate( 10 ); } } catch ( e ) {} }
 	function libByHandle( lib ) { var m = {}; ( lib || [] ).forEach( function ( b ) { m[ lc( b.handle ) ] = b; } ); return m; }
+
+	// Home Screen icon badge = things that need you (where the phone supports it).
+	function setBadge( n ) {
+		try {
+			if ( n > 0 && navigator.setAppBadge ) { navigator.setAppBadge( n ); } else if ( navigator.clearAppBadge ) { navigator.clearAppBadge(); }
+		} catch ( e ) {}
+	}
 
 	/* ================================================================ UI: toast, sheet */
 
 	function toast( msg, isErr ) {
 		if ( ! msg ) { return; }
+		if ( ! isErr ) { buzz(); }
 		var el = document.createElement( 'div' );
 		el.className = 'toast' + ( isErr ? ' err' : '' );
 		el.textContent = msg;
@@ -266,7 +318,7 @@
 	/* ================================================================ Frame */
 
 	var bar, barTitle, barActions, barBack, view, tabbar, appEl;
-	var TABS = [ [ 'campaigns', '/campaigns' ], [ 'bloggers', '/bloggers' ], [ 'lists', '/lists' ], [ 'insights', '/insights' ], [ 'more', '/more' ] ];
+	var TABS = [ [ 'home', '/home' ], [ 'campaigns', '/campaigns' ], [ 'bloggers', '/bloggers' ], [ 'insights', '/insights' ], [ 'more', '/more' ] ];
 
 	function buildFrame() {
 		appEl = $( 'app' ); bar = $( 'bar' ); barTitle = $( 'bar-title' ); barActions = $( 'bar-actions' );
@@ -282,6 +334,13 @@
 			} );
 		} );
 		barBack.addEventListener( 'click', goBack );
+		// Offline bar: saved data stays usable; changes need a connection.
+		var off = document.createElement( 'div' );
+		off.className = 'offline-bar'; off.hidden = navigator.onLine !== false;
+		off.innerHTML = icon( 'wifi' ) + '<span>' + esc( t( 'offlineBar' ) ) + '</span>';
+		document.body.appendChild( off );
+		window.addEventListener( 'offline', function () { off.hidden = false; } );
+		window.addEventListener( 'online', function () { off.hidden = true; toast( t( 'backOnline' ) ); drop( 'home', 'campaigns', 'camp' ); render( false, true ); } );
 		window.addEventListener( 'scroll', function () { bar.classList.toggle( 'is-scrolled', window.scrollY > 24 ); }, { passive: true } );
 		initPullToRefresh();
 	}
@@ -324,6 +383,8 @@
 	/* ================================================================ Router */
 
 	var ROUTES = [
+		[ /^\/home$/, vHome, 'home' ],
+		[ /^\/search$/, vSearch, 'home', 'sub' ],
 		[ /^\/campaigns$/, vCampaigns, 'campaigns' ],
 		[ /^\/campaigns\/new$/, vCampaignForm, 'campaigns', 'form' ],
 		[ /^\/c\/(\d+)$/, vCampaign, 'campaigns', 'sub' ],
@@ -333,15 +394,15 @@
 		[ /^\/bloggers\/new$/, vBloggerForm, 'bloggers', 'form' ],
 		[ /^\/b\/(\d+)$/, vBlogger, 'bloggers', 'sub' ],
 		[ /^\/b\/(\d+)\/edit$/, vBloggerForm, 'bloggers', 'form' ],
-		[ /^\/lists$/, vLists, 'lists' ],
-		[ /^\/lists\/(\d+)$/, vListBloggers, 'lists', 'sub' ],
+		[ /^\/lists$/, vLists, 'bloggers', 'sub' ],
+		[ /^\/lists\/(\d+)$/, vListBloggers, 'bloggers', 'sub' ],
 		[ /^\/insights$/, vInsights, 'insights' ],
 		[ /^\/more$/, vMore, 'more' ]
 	];
 	var depth = 0, renderSeq = 0, scrollMem = {}, programmatic = false;
 
 	function parseHash() {
-		var raw = ( location.hash || '' ).replace( /^#/, '' ) || '/campaigns';
+		var raw = ( location.hash || '' ).replace( /^#/, '' ) || '/home';
 		var qi = raw.indexOf( '?' );
 		var path = qi === -1 ? raw : raw.slice( 0, qi );
 		var query = {};
@@ -372,21 +433,22 @@
 		if ( /^\/c\//.test( path ) || path === '/campaigns/new' ) { return '/campaigns'; }
 		if ( /^\/b\//.test( path ) || path === '/bloggers/new' ) { return '/bloggers'; }
 		if ( /^\/lists\//.test( path ) ) { return '/lists'; }
-		return '/campaigns';
+		if ( path === '/lists' ) { return '/bloggers'; }
+		return '/home';
 	}
 	function goBack() {
 		scrollMem[ currentPath() ] = window.scrollY;
 		if ( depth > 0 ) { history.back(); } else { go( parentOf( currentPath() ), true ); programmatic = false; }
 	}
 
-	function render( force ) {
-		closeSheets();
+	function render( force, soft ) {
+		if ( ! soft ) { closeSheets(); }
 		var h = parseHash(), route = null, params = [];
 		for ( var i = 0; i < ROUTES.length; i++ ) {
 			var m = h.path.match( ROUTES[ i ][ 0 ] );
 			if ( m ) { route = ROUTES[ i ]; params = m.slice( 1 ); break; }
 		}
-		if ( ! route ) { go( '/campaigns', true ); return; }
+		if ( ! route ) { go( '/home', true ); return; }
 		var seq = ++renderSeq;
 		var kind = route[ 3 ] || 'root';
 		appEl.classList.toggle( 'no-tabs', kind === 'form' );
@@ -394,14 +456,17 @@
 		qsa( '.tab', tabbar ).forEach( function ( b ) { b.classList.toggle( 'is-active', b.getAttribute( 'data-tab' ) === route[ 2 ] ); } );
 		var fab = qs( '.fab' ); if ( fab ) { fab.remove(); }
 		var sb = qs( '.savebar' ); if ( sb ) { sb.remove(); }
+		if ( ! soft ) { var sl = qs( '.selbar' ); if ( sl ) { sl.remove(); } }
 		var ctx = {
 			params: params, query: h.query, force: !! force, path: h.path, kind: kind,
 			stale: function () { return seq !== renderSeq; }
 		};
 		// Returning via back/swipe (not a tap that navigated forward) restores the old scroll position.
-		var restore = ( ! programmatic || kind === 'root' ) ? scrollMem[ h.path ] : 0;
+		var restore = soft ? window.scrollY : ( ( ! programmatic || kind === 'root' ) ? scrollMem[ h.path ] : 0 );
 		programmatic = false;
-		if ( ! force ) { window.scrollTo( 0, 0 ); }
+		if ( ! force && ! soft ) { window.scrollTo( 0, 0 ); }
+		view.classList.toggle( 'is-soft', !! soft );
+		if ( ! soft ) { view.classList.remove( 'v-in' ); void view.offsetWidth; view.classList.add( 'v-in' ); }
 		Promise.resolve( route[ 1 ]( ctx ) ).then( function () {
 			if ( ctx.stale() ) { return; }
 			if ( restore ) { window.scrollTo( 0, restore ); }
@@ -478,12 +543,153 @@
 	}
 	function kv( k, v ) { return ( v === '' || v == null ) ? '' : '<div class="kv"><span class="k">' + esc( k ) + '</span><span class="v">' + esc( v ) + '</span></div>'; }
 
+	/* ================================================================ Deadlines */
+
+	// "3d 4h" / "4h 12m" / "12m" left until a UTC timestamp (seconds).
+	function leftText( ts ) {
+		var s = Math.max( 0, ts - Math.floor( Date.now() / 1000 ) );
+		var d = Math.floor( s / 86400 ), h = Math.floor( s % 86400 / 3600 ), m = Math.floor( s % 3600 / 60 );
+		return d ? d + t( 'unitD' ) + ' ' + h + t( 'unitH' ) : ( h ? h + t( 'unitH' ) + ' ' + m + t( 'unitM' ) : Math.max( 1, m ) + t( 'unitM' ) );
+	}
+	// Pill for a campaign's link deadline ('' when it never expires).
+	function expiryChip( ts ) {
+		ts = parseInt( ts, 10 ) || 0;
+		if ( ! ts ) { return ''; }
+		var left = ts - Math.floor( Date.now() / 1000 );
+		if ( left <= 0 ) { return '<span class="chipx expired">' + icon( 'clock' ) + esc( t( 'linkExpired' ) ) + '</span>'; }
+		return '<span class="chipx' + ( left < 86400 ? ' soon' : '' ) + '" data-exp="' + ts + '">' + icon( 'clock' ) + esc( t( 'leftN', leftText( ts ) ) ) + '</span>';
+	}
+	// Keep visible countdown chips ticking.
+	setInterval( function () {
+		qsa( '.chipx[data-exp]' ).forEach( function ( el ) {
+			var ts = parseInt( el.getAttribute( 'data-exp' ), 10 );
+			if ( ts - Date.now() / 1000 <= 0 ) { el.outerHTML = expiryChip( ts ); return; }
+			el.lastChild.textContent = t( 'leftN', leftText( ts ) );
+		} );
+	}, 30000 );
+
+	/* ================================================================ Home */
+
+	function vHome( ctx ) {
+		setBar( { title: t( 'home' ), large: true, actions: [ { icon: 'search', label: t( 'search' ), onClick: function () { go( '/search' ); } }, { icon: 'refresh', label: t( 'refresh' ), onClick: function () { refreshAll(); } } ] } );
+		view.innerHTML = skeleton( 'hero', 4 );
+		return getHome( ctx.force ).then( function ( d ) {
+			if ( ctx.stale() ) { return; }
+			var st = d.stats || {}, hr = new Date().getHours();
+			var hello = hr < 12 ? t( 'goodMorning' ) : ( hr < 18 ? t( 'goodAfternoon' ) : t( 'goodEvening' ) );
+			var attn = d.attention || [];
+			setBadge( attn.filter( function ( a ) { return a.kind !== 'nopw'; } ).length );
+
+			var h = '<div class="home-hello"><small>' + esc( hello ) + '</small><h1 class="h1">' + esc( d.user || C.appName || '' ) + '</h1></div>';
+			h += '<button type="button" class="searchfake" id="h-search">' + icon( 'search' ) + '<span>' + esc( t( 'searchAll' ) ) + '</span></button>';
+			h += '<div class="tiles t2 home-kpis">' +
+				'<div class="tile tap" data-go="/campaigns"><b>' + num( st.live ) + '</b><span>' + esc( t( 'liveCampaigns' ) ) + '</span></div>' +
+				'<div class="tile tap orange" data-go="/campaigns"><b>' + num( st.waiting ) + '</b><span>' + esc( t( 'waitingClients' ) ) + '</span></div>' +
+				'<div class="tile tap inv" data-go="/campaigns"><b>' + num( st.people ) + '</b><span>' + esc( t( 'peopleAttending' ) ) + '</span></div>' +
+				'<div class="tile tap green" data-go="/bloggers"><b>' + num( st.library ) + '</b><span>' + esc( t( 'libraryN', num( st.new7 ) ) ) + '</span></div></div>';
+
+			h += '<div class="quickgrid">' +
+				'<button type="button" data-go="/campaigns/new">' + icon( 'plus' ) + '<span>' + esc( t( 'newCampaign' ) ) + '</span></button>' +
+				'<button type="button" data-go="/bloggers/new">' + icon( 'user' ) + '<span>' + esc( t( 'addBlogger' ) ) + '</span></button>' +
+				'<button type="button" data-go="/lists">' + icon( 'lists' ) + '<span>' + esc( t( 'lists' ) ) + '</span></button>' +
+				'<button type="button" data-go="/insights">' + icon( 'insights' ) + '<span>' + esc( t( 'insights' ) ) + '</span></button></div>';
+
+			if ( attn.length ) {
+				h += '<div class="section"><h3>' + esc( t( 'needsYou' ) ) + '</h3><span class="small">' + attn.length + '</span></div><div class="attn">' + attn.map( function ( a ) {
+					var txt = a.kind === 'expired' ? t( 'attnExpired', a.pending ) : ( a.kind === 'expiring' ? t( 'attnExpiring', leftText( a.when ), a.pending ) : t( 'attnNoPw' ) );
+					var ic = a.kind === 'nopw' ? 'lock' : 'clock';
+					var act = a.kind === 'nopw' ? '<button type="button" class="btn btn-sm btn-ghost" data-edit="' + a.id + '">' + esc( t( 'setPassword' ) ) + '</button>' : '<button type="button" class="btn btn-sm" data-extend="' + a.id + '">' + esc( t( 'extend24' ) ) + '</button>';
+					return '<div class="attn-item ' + a.kind + '"><span class="attn-ic">' + icon( ic ) + '</span><div class="attn-main" data-camp="' + a.id + '"><b>' + esc( a.title ) + '</b><small>' + esc( txt ) + '</small></div>' + act + '</div>';
+				} ).join( '' ) + '</div>';
+			} else {
+				h += '<div class="allgood">' + icon( 'check' ) + '<span>' + esc( t( 'allGood' ) ) + '</span></div>';
+			}
+
+			if ( ( d.live || [] ).length ) {
+				h += '<div class="section"><h3>' + esc( t( 'liveCampaigns' ) ) + '</h3><button type="button" class="linkbtn" data-go="/campaigns">' + esc( t( 'seeAll' ) ) + '</button></div><div class="hscroll">' + d.live.map( function ( c ) {
+					var tot = c.confirmed + c.declined + c.pending, done = tot ? Math.round( ( c.confirmed + c.declined ) / tot * 100 ) : 0;
+					return '<div class="livecard card card-tap" data-camp="' + c.id + '">' +
+						'<div class="livecard-top">' + ( c.logo ? '<img src="' + esc( c.logo ) + '" alt="" />' : '<span class="livecard-mono">' + esc( String( c.title || '?' ).charAt( 0 ) ) + '</span>' ) + expiryChip( c.expires ) + '</div>' +
+						'<b>' + esc( c.title ) + '</b>' + progress( c.confirmed, c.declined, c.pending ) +
+						'<small>' + esc( t( 'reviewedPct', done ) ) + ' · ' + c.pending + ' ' + esc( t( 'pending' ) ) + '</small></div>';
+				} ).join( '' ) + '</div>';
+			}
+
+			function bRows( list, withDelta ) {
+				return '<div class="rows">' + list.map( function ( b ) {
+					var sub = [ '@' + b.handle ]; if ( b.city ) { sub.push( b.city ); }
+					return '<div class="row row-tap" data-blogger="' + b.id + '">' + avatar( b.name, b.handle, false, b.photo ) +
+						'<div class="row-main"><b>' + esc( b.name || '@' + b.handle ) + ( b.verified ? ' <span class="ver">✓</span>' : '' ) + '</b><small>' + esc( sub.join( ' · ' ) ) + '</small></div>' +
+						'<div class="row-side"><b>' + esc( compact( b.followers ) ) + ftrend( b.fd ) + '</b>' + ( withDelta && b.fd ? '<small class="up">+' + esc( num( b.fd ) ) + '</small>' : '' ) + '</div></div>';
+				} ).join( '' ) + '</div>';
+			}
+			if ( ( d.movers || [] ).length ) { h += '<div class="section"><h3>' + esc( t( 'topGainers' ) ) + '</h3><span class="small">' + esc( t( 'sinceLastSync' ) ) + '</span></div>' + bRows( d.movers, true ); }
+			if ( ( d.newest || [] ).length ) { h += '<div class="section"><h3>' + esc( t( 'newThisWeek' ) ) + '</h3><span class="small">' + d.newest.length + '</span></div>' + bRows( d.newest, false ); }
+
+			view.innerHTML = h;
+			$( 'h-search' ).addEventListener( 'click', function () { go( '/search' ); } );
+			qsa( '[data-go]', view ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( el.getAttribute( 'data-go' ) ); } ); } );
+			qsa( '[data-camp]', view ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( '/c/' + el.getAttribute( 'data-camp' ) ); } ); } );
+			qsa( '[data-blogger]', view ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( '/b/' + el.getAttribute( 'data-blogger' ) ); } ); } );
+			qsa( '[data-edit]', view ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( '/c/' + el.getAttribute( 'data-edit' ) + '/edit?focus=pw' ); } ); } );
+			qsa( '[data-extend]', view ).forEach( function ( el ) {
+				el.addEventListener( 'click', function () {
+					el.disabled = true;
+					post( '/campaigns/' + el.getAttribute( 'data-extend' ) + '/action', { op: 'extend', hours: 24 } ).then( function ( r ) {
+						S.camp[ r.id ] = r; drop( 'home', 'campaigns' ); toast( r.notice ); render( true );
+					} ).catch( function ( e ) { el.disabled = false; actErr( e ); } );
+				} );
+			} );
+		} ).catch( function ( e ) { fail( ctx, e ); } );
+	}
+
+	/* ================================================================ Search (everything) */
+
+	var USQ = '';
+	function vSearch( ctx ) {
+		setBar( { title: t( 'search' ), back: true } );
+		view.innerHTML = '<div class="toolbar"><div class="search">' + searchBox( 's-q', t( 'searchAll' ), USQ ).replace( /^<label class="search">|<\/label>$/g, '' ) + '</div></div><div id="s-res"></div>';
+		var inp = $( 's-q' );
+		setTimeout( function () { inp.focus(); }, 60 );
+		return Promise.all( [ getCampaigns().catch( function () { return []; } ), getLibrary().catch( function () { return []; } ), getLists().catch( function () { return []; } ) ] ).then( function ( r ) {
+			if ( ctx.stale() ) { return; }
+			var camps = r[ 0 ], lib = r[ 1 ], lists = r[ 2 ];
+			function paint() {
+				var q = lc( USQ ).replace( /^@/, '' ).trim(), box = $( 's-res' );
+				if ( ! q ) { box.innerHTML = '<p class="empty">' + esc( t( 'searchHint' ) ) + '</p>'; return; }
+				var cs = camps.filter( function ( c ) { return lc( c.title ).indexOf( q ) !== -1; } ).slice( 0, 8 );
+				var bs = lib.filter( function ( b ) { return ( lc( b.name ) + ' ' + lc( b.handle ) + ' ' + lc( b.city ) ).indexOf( q ) !== -1; } ).slice( 0, 20 );
+				var ls = lists.filter( function ( l ) { return lc( l.name ).indexOf( q ) !== -1; } ).slice( 0, 8 );
+				var h = '';
+				if ( cs.length ) {
+					h += '<div class="section"><h3>' + esc( t( 'campaigns' ) ) + '</h3><span class="small">' + cs.length + '</span></div><div class="rows">' + cs.map( function ( c ) {
+						return '<div class="row row-tap" data-go="/c/' + c.id + '"><span class="avatar" style="background:var(--s3);color:var(--text)">' + icon( 'campaigns' ).replace( '<svg ', '<svg width="20" height="20" ' ) + '</span><div class="row-main"><b>' + esc( c.title ) + '</b><small>' + c.confirmed + ' ' + esc( t( 'confirmed' ) ) + ' · ' + c.pending + ' ' + esc( t( 'pending' ) ) + '</small></div>' + expiryChip( c.expires ) + '</div>';
+					} ).join( '' ) + '</div>';
+				}
+				if ( bs.length ) {
+					h += '<div class="section"><h3>' + esc( t( 'bloggers' ) ) + '</h3><span class="small">' + bs.length + '</span></div><div class="rows">' + bs.map( function ( b ) {
+						return '<div class="row row-tap' + ( b.inactive ? ' is-inactive' : '' ) + '" data-go="/b/' + b.id + '">' + avatar( b.name, b.handle, false, b.photo ) + '<div class="row-main"><b>' + esc( b.name || '@' + b.handle ) + '</b><small>@' + esc( b.handle ) + ( b.city ? ' · ' + esc( b.city ) : '' ) + '</small></div><div class="row-side"><b>' + esc( compact( b.followers ) ) + ftrend( b.fd ) + '</b></div></div>';
+					} ).join( '' ) + '</div>';
+				}
+				if ( ls.length ) {
+					h += '<div class="section"><h3>' + esc( t( 'lists' ) ) + '</h3></div><div class="rows">' + ls.map( function ( l ) {
+						return '<div class="row row-tap" data-go="/lists/' + l.id + '"><span class="avatar" style="background:var(--s3);color:var(--text)">' + icon( 'lists' ).replace( '<svg ', '<svg width="20" height="20" ' ) + '</span><div class="row-main"><b>' + esc( l.name ) + '</b><small>' + esc( t( 'bloggersCount', num( l.count ) ) ) + '</small></div></div>';
+					} ).join( '' ) + '</div>';
+				}
+				box.innerHTML = h || '<p class="empty">' + esc( t( 'noResults' ) ) + '</p>';
+				qsa( '[data-go]', box ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( el.getAttribute( 'data-go' ) ); } ); } );
+			}
+			inp.addEventListener( 'input', debounce( function () { USQ = inp.value; paint(); }, 100 ) );
+			paint();
+		} );
+	}
+
 	/* ================================================================ Campaigns list */
 
 	var UC = { q: '', f: 'all', sort: sget( 'campSort', 'newest' ) };
 
 	function vCampaigns( ctx ) {
-		setBar( { title: t( 'campaigns' ), large: true, actions: [ { icon: 'refresh', label: t( 'refresh' ), onClick: function () { refreshAll(); } } ] } );
+		setBar( { title: t( 'campaigns' ), large: true, actions: [ { icon: 'search', label: t( 'search' ), onClick: function () { go( '/search' ); } }, { icon: 'refresh', label: t( 'refresh' ), onClick: function () { refreshAll(); } } ] } );
 		view.innerHTML = '<h1 class="h1">' + esc( t( 'campaigns' ) ) + '</h1>' + skeleton( 'card', 4 );
 		fabBtn( t( 'newCampaign' ), function () { go( '/campaigns/new' ); } );
 		return getCampaigns( ctx.force ).then( function ( items ) {
@@ -528,7 +734,8 @@
 				box.innerHTML = rows.map( function ( c ) {
 					var pill = c.closed ? '<span class="pill">' + esc( t( 'closed' ) ) + '</span>' : ( c.status === 'publish' ? '<span class="pill live">' + esc( t( 'live' ) ) + '</span>' : '<span class="pill draft">' + esc( t( 'draft' ) ) + '</span>' );
 					if ( c.type ) { pill = '<span class="pill nodot ctype-' + esc( c.type ) + '">' + esc( c.type === 'service' ? t( 'typeService' ) : t( 'typePaid' ) ) + '</span> ' + pill; }
-					return '<div class="card card-tap" data-id="' + c.id + '"><div class="card-title"><h3>' + esc( c.title || '—' ) + '</h3><span class="pills">' + pill + '</span></div>' +
+					return '<div class="card card-tap" data-id="' + c.id + '"><div class="card-title">' + ( c.logo ? '<img class="card-logo" src="' + esc( c.logo ) + '" alt="" />' : '' ) + '<h3>' + esc( c.title || '—' ) + '</h3><span class="pills">' + pill + '</span></div>' +
+						( c.expires && ! c.closed && c.status === 'publish' ? '<div class="card-exp">' + expiryChip( c.expires ) + '</div>' : '' ) +
 						progress( c.confirmed, c.declined, c.pending ) +
 						'<div class="counts"><span class="g"><b>' + c.confirmed + '</b> ' + esc( t( 'confirmed' ) ) + '</span><span class="r"><b>' + c.declined + '</b> ' + esc( t( 'declined' ) ) + '</span><span><b>' + c.pending + '</b> ' + esc( t( 'pending' ) ) + '</span><span><b>' + c.attendance + '</b> ' + esc( t( 'people' ) ) + '</span></div></div>';
 				} ).join( '' );
@@ -574,6 +781,11 @@
 		if ( st.closed ) { h += '<div class="banner info"><p>' + esc( t( 'closedBanner' ) ) + '</p><button type="button" class="btn btn-sm btn-ghost" id="d-reopen">' + esc( t( 'reopen' ) ) + '</button></div>'; }
 		if ( ! isLive && ! st.closed ) { h += '<div class="banner warn"><p>' + esc( t( 'draftBanner' ) ) + '</p><button type="button" class="btn btn-sm" id="d-publish">' + esc( t( 'publishNow' ) ) + '</button></div>'; }
 		if ( ! st.has_password ) { h += '<div class="banner warn"><p>' + esc( t( 'noPwBanner' ) ) + '</p><button type="button" class="btn btn-sm btn-ghost" id="d-setpw">' + esc( t( 'setPassword' ) ) + '</button></div>'; }
+		if ( st.expires && ! st.closed ) {
+			h += st.expired
+				? '<div class="banner bad"><p><b>' + esc( t( 'linkExpired' ) ) + '</b> · ' + esc( t( 'expiredBanner', st.expires_nice ) ) + '</p><button type="button" class="btn btn-sm" id="d-extend">' + esc( t( 'extend' ) ) + '</button></div>'
+				: '<div class="banner info exp"><p>' + expiryChip( st.expires ) + ' ' + esc( t( 'expiresOn', st.expires_nice ) ) + '</p><button type="button" class="btn btn-sm btn-ghost" id="d-extend">' + esc( t( 'extend' ) ) + '</button></div>';
+		}
 		h += '<div class="tiles"><div class="tile green"><b>' + s.confirmed + '</b><span>' + esc( t( 'confirmed' ) ) + '</span></div>' +
 			'<div class="tile red"><b>' + s.declined + '</b><span>' + esc( t( 'declined' ) ) + '</span></div>' +
 			'<div class="tile"><b>' + s.pending + '</b><span>' + esc( t( 'pending' ) ) + '</span></div>' +
@@ -683,7 +895,7 @@
 		}
 		function participants( body ) {
 			return post( '/campaigns/' + id + '/participants', body ).then( function ( nc ) {
-				S.camp[ id ] = nc; drop( 'campaigns', 'insights' );
+				S.camp[ id ] = nc; drop( 'campaigns', 'insights', 'home' );
 				toast( nc.notice );
 				drawCampaign( nc, libMap );
 			} ).catch( actErr );
@@ -697,12 +909,14 @@
 		$( 'd-every' ).addEventListener( 'change', function ( e ) { participants( { action: 'everyone', on: e.target.checked } ); } );
 		$( 'd-add' ).addEventListener( 'click', function () { go( '/c/' + id + '/add' ); } );
 		$( 'd-all' ).addEventListener( 'click', function () { confirmSheet( t( 'addAllQ' ), t( 'addAll' ) ).then( function ( ok ) { if ( ok ) { participants( { action: 'add_all' } ); } } ); } );
+		var dex = $( 'd-extend' ); if ( dex ) { dex.addEventListener( 'click', function () { extendSheet( c ); } ); }
 		var rop = $( 'd-reopen' ); if ( rop ) { rop.addEventListener( 'click', function () { campaignAction( c, 'reopen' ); } ); }
 		var pub = $( 'd-publish' ); if ( pub ) { pub.addEventListener( 'click', function () { campaignAction( c, 'publish' ); } ); }
 		var spw = $( 'd-setpw' ); if ( spw ) { spw.addEventListener( 'click', function () { go( '/c/' + id + '/edit?focus=pw' ); } ); }
 		$( 'q-copy' ).addEventListener( 'click', function () { copyText( st.url ).then( function () { toast( t( 'copied' ) ); } ); } );
 		$( 'q-share' ).addEventListener( 'click', function () {
-			if ( navigator.share ) { navigator.share( { title: c.title, url: st.url } ).catch( function () {} ); } else { copyText( st.url ).then( function () { toast( t( 'copied' ) ); } ); }
+			var txt = st.expires && ! st.expired ? t( 'shareDeadline', st.expires_nice ) : '';
+			if ( navigator.share ) { navigator.share( { title: c.title, text: txt, url: st.url } ).catch( function () {} ); } else { copyText( st.url + ( txt ? '\n' + txt : '' ) ).then( function () { toast( t( 'copied' ) ); } ); }
 		} );
 		$( 'q-export' ).addEventListener( 'click', function () { exportCsv( id ); } );
 		function atriumOp( body ) {
@@ -752,15 +966,27 @@
 		acts.push( { icon: 'copy', label: t( 'duplicate' ), onClick: function () { campaignAction( c, 'duplicate' ); } } );
 		if ( st.status === 'publish' ) { acts.push( { icon: 'draft', label: t( 'moveDraft' ), onClick: function () { campaignAction( c, 'draft' ); } } ); }
 		else { acts.push( { icon: 'publish', label: t( 'publishNow' ), onClick: function () { campaignAction( c, 'publish' ); } } ); }
+		acts.push( { icon: 'clock', label: st.expires ? t( 'extendLink' ) : t( 'setExpiry' ), onClick: function () { extendSheet( c ); } } );
 		if ( st.closed ) { acts.push( { icon: 'unblock', label: t( 'reopen' ), onClick: function () { campaignAction( c, 'reopen' ); } } ); }
 		else { acts.push( { icon: 'block', label: t( 'closeCamp' ), onClick: function () { confirmSheet( t( 'closeQ' ), t( 'closeCamp' ) ).then( function ( ok ) { if ( ok ) { campaignAction( c, 'close' ); } } ); } } ); }
 		acts.push( { icon: 'reset', label: t( 'resetResp' ), danger: true, onClick: function () { confirmSheet( t( 'resetQ' ), t( 'resetResp' ), true ).then( function ( ok ) { if ( ok ) { campaignAction( c, 'reset' ); } } ); } } );
 		acts.push( { icon: 'trash', label: t( 'delete' ), danger: true, onClick: function () { confirmSheet( t( 'deleteCampQ' ), t( 'delete' ), true ).then( function ( ok ) { if ( ok ) { campaignAction( c, 'trash' ); } } ); } } );
 		sheet( { title: c.title, actions: acts } );
 	}
-	function campaignAction( c, op ) {
-		return post( '/campaigns/' + c.id + '/action', { op: op } ).then( function ( r ) {
-			drop( 'campaigns', 'insights' );
+	// Push the link deadline forward (or remove it).
+	function extendSheet( c ) {
+		var st = c.settings || {};
+		sheet( {
+			title: st.expires ? t( 'extendLink' ) : t( 'setExpiry' ),
+			message: st.expires ? ( st.expired ? t( 'expiredBanner', st.expires_nice ) : t( 'expiresOn', st.expires_nice ) ) : t( 'expiryHint' ),
+			actions: [ [ 24, t( 'plus24h' ) ], [ 72, t( 'plus3d' ) ], [ 168, t( 'plus1w' ) ] ].map( function ( o ) {
+				return { icon: 'clock', label: o[ 1 ], onClick: function () { campaignAction( c, 'extend', { hours: o[ 0 ] } ); } };
+			} ).concat( st.expires ? [ { icon: 'remove', label: t( 'noExpiry' ), onClick: function () { campaignAction( c, 'no_expiry' ); } } ] : [] )
+		} );
+	}
+	function campaignAction( c, op, extra ) {
+		return post( '/campaigns/' + c.id + '/action', Object.assign( { op: op }, extra || {} ) ).then( function ( r ) {
+			drop( 'campaigns', 'insights', 'home' );
 			toast( r.notice );
 			if ( op === 'trash' ) { delete S.camp[ c.id ]; go( '/campaigns', true, true ); return; }
 			S.camp[ r.id ] = r;
@@ -822,6 +1048,18 @@
 				'<label class="field" style="margin-bottom:' + ( id ? '14px' : '0' ) + '"><span>' + esc( t( 'customLink' ) ) + '</span><div class="slug"><span>' + esc( base ) + '</span><input class="input" id="cf-slug" value="' + esc( st.slug ) + '" autocapitalize="none" spellcheck="false" placeholder="my-campaign" /></div></label>' +
 				( id ? '<label class="check" style="margin-bottom:0"><input type="checkbox" id="cf-random" /> <span>' + esc( t( 'randomLink' ) ) + '</span></label>' : '' ) + '</div>';
 
+			var now0 = st.now_local || C.nowLocal || '';
+			h += '<div class="section"><h3>' + esc( t( 'linkExpires' ) ) + '</h3></div><div class="card">' +
+				'<p class="hint" style="margin:0 0 10px">' + esc( t( 'expiryHint' ) ) + '</p>' +
+				'<input class="input" type="datetime-local" id="cf-exp" value="' + esc( st.expires_local || '' ) + '" />' +
+				'<div class="chips" id="cf-exp-quick" style="margin-top:10px">' + [ [ 24, t( 'plus24h' ) ], [ 72, t( 'plus3d' ) ], [ 168, t( 'plus1w' ) ], [ 0, t( 'noExpiry' ) ] ].map( function ( o ) {
+					return '<button type="button" class="chip" data-h="' + o[ 0 ] + '">' + esc( o[ 1 ] ) + '</button>';
+				} ).join( '' ) + '</div>' +
+				'<div class="field-sub">' + esc( t( 'contactPerson' ) ) + '</div>' +
+				'<input class="input" id="cf-cname" placeholder="' + esc( t( 'contactName' ) ) + '" value="' + esc( st.contact_name || '' ) + '" autocomplete="off" />' +
+				'<div class="btn-row" style="margin-top:8px"><input class="input" id="cf-cphone" type="tel" placeholder="' + esc( t( 'whatsapp' ) ) + '" value="' + esc( st.contact_phone || '' ) + '" /><input class="input" id="cf-cemail" type="email" autocapitalize="none" placeholder="' + esc( t( 'email' ) ) + '" value="' + esc( st.contact_email || '' ) + '" /></div>' +
+				'<p class="hint" style="margin:8px 0 0">' + esc( t( 'contactHint' ) ) + '</p></div>';
+
 			h += '<div class="section"><h3>' + esc( t( 'clientPage' ) ) + '</h3></div><div class="group">' +
 				'<div class="item"><div class="item-main"><b>' + esc( t( 'maxGuests' ) ) + '</b></div><div class="stepper"><button type="button" id="cf-minus">−</button><output id="cf-max">' + state.max + '</output><button type="button" id="cf-plus">+</button></div></div>' +
 				[ [ 'followers', 'showFollowers' ], [ 'gender', 'showGender' ], [ 'tags', 'showCats' ], [ 'location', 'showLocation' ], [ 'popularity', 'showPopularity' ] ].map( function ( p ) {
@@ -834,6 +1072,15 @@
 			h += '<p class="error" id="cf-err"></p></form>';
 			view.innerHTML = h;
 
+			qsa( '#cf-exp-quick [data-h]' ).forEach( function ( b ) {
+				b.addEventListener( 'click', function () {
+					var hrs = parseInt( b.getAttribute( 'data-h' ), 10 );
+					if ( ! hrs || ! now0 ) { $( 'cf-exp' ).value = ''; return; }
+					// Site-local clock arithmetic (no phone timezone shift).
+					var d = new Date( new Date( now0 + ':00Z' ).getTime() + hrs * 3600000 ), p2 = function ( n ) { return ( n < 10 ? '0' : '' ) + n; };
+					$( 'cf-exp' ).value = d.getUTCFullYear() + '-' + p2( d.getUTCMonth() + 1 ) + '-' + p2( d.getUTCDate() ) + 'T' + p2( d.getUTCHours() ) + ':' + p2( d.getUTCMinutes() );
+				} );
+			} );
 			function paintType() { qsa( '#cf-type button' ).forEach( function ( b ) { b.classList.toggle( 'is-on', b.getAttribute( 'data-t' ) === state.type ); } ); }
 			paintType();
 			qsa( '#cf-type button' ).forEach( function ( b ) { b.addEventListener( 'click', function () { state.type = b.getAttribute( 'data-t' ); paintType(); } ); } );
@@ -867,7 +1114,8 @@
 				var body = {
 					title: title, type: state.type, brief: $( 'cf-brief' ).value, max_guests: state.max, status: state.status,
 					slug: $( 'cf-slug' ).value.trim(), password: $( 'cf-pw' ).value.trim(), notify_email: $( 'cf-notify' ).value.trim(),
-					everyone: $( 'cf-every' ).checked, remove_logo: state.removeLogo
+					everyone: $( 'cf-every' ).checked, remove_logo: state.removeLogo,
+					expires_local: $( 'cf-exp' ).value, contact_name: $( 'cf-cname' ).value.trim(), contact_phone: $( 'cf-cphone' ).value.trim(), contact_email: $( 'cf-cemail' ).value.trim()
 				};
 				[ 'followers', 'gender', 'tags', 'location', 'popularity' ].forEach( function ( k ) { body[ 'show_' + k ] = $( 'cf-show-' + k ).checked; } );
 				if ( id && $( 'cf-random' ) && $( 'cf-random' ).checked ) { body.regenerate = true; }
@@ -876,13 +1124,13 @@
 					var cid = r.id;
 					var up = state.file ? uploadLogo( cid, state.file ).then( function ( lr ) { if ( r.settings ) { r.settings.logo_url = lr.logo_url; } } ).catch( function () { toast( t( 'uploadFailed' ), true ); } ) : Promise.resolve();
 					return up.then( function () {
-						S.camp[ cid ] = r; drop( 'campaigns', 'insights' );
+						S.camp[ cid ] = r; drop( 'campaigns', 'insights', 'home' );
 						toast( r.notice );
 						if ( id ) { goBack(); } else {
 							go( '/c/' + cid, true );
 							if ( ! body.everyone ) { setTimeout( function () { go( '/c/' + cid + '/add' ); }, 30 ); }
 						}
-						if ( r.new_password ) { setTimeout( function () { shareSheet( r.settings.url, r.new_password ); }, 120 ); }
+						if ( r.new_password ) { setTimeout( function () { shareSheet( r.settings.url, r.new_password, r.settings.expires_nice ); }, 120 ); }
 					} );
 				} ).catch( function ( e ) {
 					btn.disabled = false; btn.textContent = id ? t( 'save' ) : t( 'create' );
@@ -897,8 +1145,8 @@
 		fd.append( 'file', file, file.name || 'logo.png' );
 		return api( '/campaigns/' + id + '/logo', { method: 'POST', body: fd } );
 	}
-	function shareSheet( url, pw ) {
-		var msg = t( 'shareMsg', url, pw );
+	function shareSheet( url, pw, expiresNice ) {
+		var msg = t( 'shareMsg', url, pw ) + ( expiresNice ? '\n' + t( 'shareDeadline', expiresNice ) : '' );
 		var s = sheet( {
 			title: t( 'shareTitle' ),
 			message: t( 'shareNote' ),
@@ -931,7 +1179,7 @@
 				if ( ! hs.length ) { return; }
 				btn.disabled = true;
 				post( '/campaigns/' + id + '/participants', { action: 'add', handles: hs } ).then( function ( nc ) {
-					S.camp[ id ] = nc; drop( 'campaigns', 'insights' );
+					S.camp[ id ] = nc; drop( 'campaigns', 'insights', 'home' );
 					toast( nc.notice ); goBack();
 				} ).catch( function ( e ) { btn.disabled = false; actErr( e ); } );
 			} );
@@ -1106,7 +1354,16 @@
 	}
 
 	function bloggerList( ctx, F, listId, title, isRoot ) {
-		setBar( { title: title, large: isRoot, back: ! isRoot, actions: isRoot ? [ { icon: 'refresh', label: t( 'refresh' ), onClick: function () { refreshAll(); } } ] : [] } );
+		// Select mode: tick bloggers, then act on all of them at once.
+		var selMode = false, picked = {}, repaint = function () {};
+		function toggleSelect() {
+			selMode = ! selMode; picked = {};
+			var fb = qs( '.fab' ); if ( fb ) { fb.hidden = selMode; }
+			repaint();
+		}
+		var acts = [ { icon: 'select', label: t( 'select' ), onClick: toggleSelect } ];
+		if ( isRoot ) { acts.unshift( { icon: 'lists', label: t( 'lists' ), onClick: function () { go( '/lists' ); } } ); }
+		setBar( { title: title, large: isRoot, back: ! isRoot, actions: acts } );
 		view.innerHTML = ( isRoot ? '<h1 class="h1">' + esc( title ) + '</h1>' : '<h2 class="h2" style="margin-bottom:14px">' + esc( title ) + '</h2>' ) + skeleton( 'row', 8 );
 		fabBtn( t( 'addBlogger' ), function () { go( '/bloggers/new' + ( listId ? '?list=' + listId : '' ) ); } );
 		return Promise.all( [ getLibrary( ctx.force ), getMeta( ctx.force ) ] ).then( function ( r ) {
@@ -1150,12 +1407,46 @@
 					var side = b.blocked ? '<span class="tag red">' + esc( t( 'blocked' ) ) + '</span>' : ( b.inactive ? '<span class="tag">' + esc( t( 'deactivated' ) ) + '</span>' : '' );
 					if ( ! b.blocked && b.followers ) { side += '<b>' + esc( compact( b.followers ) ) + ftrend( b.fd ) + '</b>'; }
 					if ( b.popularity && ! b.blocked && ! b.inactive ) { side += '<small>' + esc( b.popularity ) + '</small>'; }
-					return '<div class="row row-tap' + ( b.inactive ? ' is-inactive' : '' ) + '" data-id="' + b.id + '">' + avatar( b.name, b.handle, false, b.photo ) +
+					return '<div class="row row-tap' + ( b.inactive ? ' is-inactive' : '' ) + ( selMode && picked[ b.id ] ? ' is-picked' : '' ) + '" data-id="' + b.id + '">' + ( selMode ? '<span class="pickbox"></span>' : '' ) + avatar( b.name, b.handle, false, b.photo ) +
 						'<div class="row-main"><b>' + esc( b.name || '@' + b.handle ) + ( b.verified ? ' <span class="ver">✓</span>' : '' ) + '</b><small>' + esc( sub.join( ' · ' ) ) + '</small></div><div class="row-side">' + side + '</div></div>';
 				} ).join( '' ) + '</div>' + ( rows.length > limit ? '<p class="center"><button type="button" class="btn btn-sm btn-ghost" id="b-more">+ ' + num( rows.length - limit ) + '</button></p>' : '' );
-				qsa( '.row-tap', box ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( '/b/' + el.getAttribute( 'data-id' ) ); } ); } );
+				qsa( '.row-tap', box ).forEach( function ( el ) {
+					el.addEventListener( 'click', function () {
+						var bid = el.getAttribute( 'data-id' );
+						if ( ! selMode ) { go( '/b/' + bid ); return; }
+						if ( picked[ bid ] ) { delete picked[ bid ]; } else { picked[ bid ] = 1; }
+						el.classList.toggle( 'is-picked', !! picked[ bid ] );
+						selBar( rows );
+					} );
+				} );
 				var more = $( 'b-more' ); if ( more ) { more.addEventListener( 'click', function () { limit += 300; paint(); } ); }
+				selBar( rows );
 			}
+			function selBar( rows ) {
+				var el = qs( '.selbar' );
+				if ( ! selMode ) { if ( el ) { el.remove(); } return; }
+				if ( ! el ) {
+					el = document.createElement( 'div' );
+					el.className = 'selbar';
+					el.innerHTML = '<div class="selbar-inner"><button type="button" class="iconbtn" id="sel-x" aria-label="' + esc( t( 'cancel' ) ) + '">' + icon( 'close' ) + '</button>' +
+						'<div class="selbar-main"><b id="sel-n"></b><button type="button" class="linkbtn" id="sel-all"></button></div>' +
+						'<button type="button" class="btn btn-sm" id="sel-go">' + esc( t( 'actions' ) ) + '</button></div>';
+					document.body.appendChild( el );
+					$( 'sel-x' ).addEventListener( 'click', toggleSelect );
+					$( 'sel-go' ).addEventListener( 'click', function () { bulkSheet( Object.keys( picked ).map( Number ), meta, function () { toggleSelect(); } ); } );
+				}
+				var n = Object.keys( picked ).length;
+				var all = rows.length && rows.every( function ( b ) { return picked[ b.id ]; } );
+				$( 'sel-n' ).textContent = n ? t( 'nSelected', num( n ) ) : t( 'tapToSelect' );
+				var sa = $( 'sel-all' );
+				sa.textContent = all ? t( 'selectNone' ) : t( 'selectAllN', num( rows.length ) );
+				sa.onclick = function () {
+					if ( all ) { picked = {}; } else { rows.forEach( function ( b ) { picked[ b.id ] = 1; } ); }
+					paint();
+				};
+				$( 'sel-go' ).disabled = ! n;
+			}
+			repaint = paint;
 			$( 'b-q' ).addEventListener( 'input', debounce( function ( e ) { F.q = e.target.value; limit = 150; paint(); }, 120 ) );
 			$( 'b-filter' ).addEventListener( 'click', function () { filterSheet( F, meta, { collab: true, state: true }, function () { limit = 150; paint(); } ); } );
 			$( 'b-sort' ).addEventListener( 'click', function () {
@@ -1163,6 +1454,55 @@
 			} );
 			paint();
 		} ).catch( function ( e ) { fail( ctx, e ); } );
+	}
+
+	/* Bulk actions for selected bloggers. */
+	function bulkSheet( ids, meta, done ) {
+		function run( body ) {
+			body.ids = ids;
+			return post( '/bloggers/bulk', body ).then( function ( r ) {
+				drop( 'library', 'lists', 'camp', 'campaigns', 'insights', 'home' );
+				if ( body.new_list ) { drop( 'meta' ); }
+				toast( r.notice || t( 'save' ) + ' ✓' );
+				done();
+				render( true, true );
+			} ).catch( actErr );
+		}
+		sheet( {
+			title: t( 'nSelected', num( ids.length ) ),
+			actions: [
+				{ icon: 'campaigns', label: t( 'addToCampaign' ), onClick: function () {
+					getCampaigns().then( function ( cs ) {
+						cs = cs.filter( function ( c ) { return c.status !== 'trash'; } );
+						if ( ! cs.length ) { toast( t( 'none' ), true ); return; }
+						choiceSheet( t( 'addToCampaign' ), cs.map( function ( c ) { return [ c.id, c.title ]; } ), 0, function ( cid ) { run( { op: 'add_campaign', campaign: cid } ); } );
+					} ).catch( actErr );
+				} },
+				{ icon: 'lists', label: t( 'addToList' ), onClick: function () {
+					getLists().then( function ( ls ) {
+						var manual = ls.filter( function ( l ) { return ! l.smart; } );
+						var s = sheet( {
+							title: t( 'addToList' ),
+							html: ( manual.length ? '<div class="sheet-list">' + manual.map( function ( l ) {
+								return '<button type="button" class="action" data-l="' + l.id + '">' + icon( 'lists' ) + '<span>' + esc( l.name ) + '</span><small class="muted" style="margin-left:auto">' + num( l.count ) + '</small></button>';
+							} ).join( '' ) + '</div>' : '' ) +
+								'<div class="field" style="margin-top:12px"><span>' + esc( t( 'newList' ) ) + '</span><div class="btn-row"><input class="input" id="bk-new" type="text" autocomplete="off" /><button type="button" class="btn btn-sm" id="bk-make">' + esc( t( 'add' ) ) + '</button></div></div>'
+						} );
+						qsa( '[data-l]', s.el ).forEach( function ( b ) { b.addEventListener( 'click', function () { s.close(); run( { op: 'add_list', list: parseInt( b.getAttribute( 'data-l' ), 10 ) } ); } ); } );
+						qs( '#bk-make', s.el ).addEventListener( 'click', function () {
+							var v = qs( '#bk-new', s.el ).value.trim();
+							if ( ! v ) { qs( '#bk-new', s.el ).focus(); return; }
+							s.close(); run( { op: 'add_list', new_list: v } );
+						} );
+					} ).catch( actErr );
+				} },
+				{ icon: 'check', label: t( 'markComplete' ), onClick: function () { run( { op: 'complete' } ); } },
+				{ icon: 'bolt', label: t( 'reactivate' ), onClick: function () { run( { op: 'activate' } ); } },
+				{ icon: 'block', label: t( 'deactivate' ), danger: true, onClick: function () {
+					confirmSheet( t( 'bulkDeactivateQ', num( ids.length ) ), t( 'deactivate' ), true ).then( function ( ok ) { if ( ok ) { run( { op: 'deactivate' } ); } } );
+				} }
+			]
+		} );
 	}
 
 	/* ================================================================ Blogger detail */
@@ -1411,11 +1751,11 @@
 	/* ================================================================ Lists */
 
 	function vLists( ctx ) {
-		setBar( { title: t( 'lists' ), large: true, actions: [ { icon: 'refresh', label: t( 'refresh' ), onClick: function () { refreshAll(); } } ] } );
-		view.innerHTML = '<h1 class="h1">' + esc( t( 'lists' ) ) + '</h1>' + skeleton( 'row', 6 );
+		setBar( { title: t( 'lists' ), back: true, actions: [ { icon: 'refresh', label: t( 'refresh' ), onClick: function () { refreshAll(); } } ] } );
+		view.innerHTML = skeleton( 'row', 6 );
 		return getLists( ctx.force ).then( function ( ls ) {
 			if ( ctx.stale() ) { return; }
-			var h = '<h1 class="h1">' + esc( t( 'lists' ) ) + '</h1>';
+			var h = '';
 			if ( ! ls.length ) { view.innerHTML = h + emptyState( 'lists', t( 'none' ) ); return; }
 			ls = ls.slice().sort( function ( a, b ) { return lc( a.name ).localeCompare( lc( b.name ) ); } );
 			h += '<div class="rows">' + ls.map( function ( l ) {
@@ -1647,6 +1987,9 @@
 				return '<button type="button" data-v="' + o[ 0 ] + '" class="' + ( theme === o[ 0 ] ? 'is-on' : '' ) + '">' + esc( o[ 1 ] ) + '</button>';
 			} ).join( '' ) + '</div>';
 			h += '<div class="section"><h3>' + esc( t( 'pushTitle' ) ) + '</h3></div><div id="m-pushbox"></div>';
+			h += '<div class="section"><h3>' + esc( t( 'bloggers' ) ) + '</h3></div><div class="group">' +
+				'<div class="item item-tap" data-go="/lists">' + '<span class="item-ic">' + icon( 'lists' ) + '</span><div class="item-main"><b>' + esc( t( 'lists' ) ) + '</b></div><span class="chev">›</span></div>' +
+				'<div class="item item-tap" data-go="/search">' + '<span class="item-ic">' + icon( 'search' ) + '</span><div class="item-main"><b>' + esc( t( 'search' ) ) + '</b></div><span class="chev">›</span></div></div>';
 			h += '<div class="section"><h3>' + esc( C.appName || '' ) + '</h3></div><div class="group">' +
 				'<div class="item item-tap" id="m-reload"><div class="item-main"><b>' + esc( t( 'reloadData' ) ) + '</b></div><span class="chev">›</span></div>' +
 				'<a class="item item-tap" style="text-decoration:none" href="' + esc( C.adminUrl || '#' ) + '" target="_blank" rel="noopener"><div class="item-main"><b>' + esc( t( 'openAdmin' ) ) + '</b></div><span class="chev">›</span></a>' +
@@ -1660,7 +2003,8 @@
 					qsa( '#m-theme button' ).forEach( function ( x ) { x.classList.toggle( 'is-on', x === b ); } );
 				} );
 			} );
-			$( 'm-reload' ).addEventListener( 'click', function () { drop( 'campaigns', 'camp', 'library', 'lists', 'insights', 'meta', 'user' ); toast( t( 'reloaded' ) ); } );
+			qsa( '[data-go]', view ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( el.getAttribute( 'data-go' ) ); } ); } );
+			$( 'm-reload' ).addEventListener( 'click', function () { drop( 'campaigns', 'camp', 'library', 'lists', 'insights', 'meta', 'user', 'home' ); toast( t( 'reloaded' ) ); } );
 			$( 'm-out' ).addEventListener( 'click', function () { post( '/logout' ).catch( function () {} ); signOut( '' ); } );
 			paintPush( $( 'm-pushbox' ) );
 		} );
@@ -1690,12 +2034,15 @@
 		$( 'boot' ).hidden = true;
 		$( 'login' ).hidden = true;
 		$( 'app' ).hidden = false;
-		if ( ! location.hash || location.hash === '#' || location.hash === '#/' ) { location.replace( '#/campaigns' ); }
+		if ( ! location.hash || location.hash === '#' || location.hash === '#/' ) { location.replace( '#/home' ); }
 		render();
 	}
 	function signOut( msg ) {
 		clearToken();
-		drop( 'campaigns', 'camp', 'library', 'lists', 'insights', 'meta', 'user' );
+		drop( 'campaigns', 'camp', 'library', 'lists', 'insights', 'meta', 'user', 'home' );
+		diskDrop( '' ); // Never leave client data on a signed-out phone.
+		try { if ( window.caches ) { caches.delete( 'cp-app-img' ); } } catch ( e ) {}
+		setBadge( 0 );
 		closeSheets();
 		showLogin( msg );
 	}
@@ -1749,6 +2096,12 @@
 		}
 		if ( 'serviceWorker' in navigator && C.sw ) {
 			navigator.serviceWorker.register( C.sw ).catch( function () {} );
+			// A new version took over: reload once, unless the user is mid-edit.
+			var hadCtl = !! navigator.serviceWorker.controller, reloaded = false;
+			navigator.serviceWorker.addEventListener( 'controllerchange', function () {
+				if ( ! hadCtl || reloaded || ( appEl && appEl.classList.contains( 'no-tabs' ) ) || openSheets.length ) { return; }
+				reloaded = true; location.reload();
+			} );
 			// Tapping a notification while the app is open: jump to its screen.
 			navigator.serviceWorker.addEventListener( 'message', function ( e ) {
 				var u = e.data && e.data.type === 'cp-open' ? String( e.data.url || '' ) : '';

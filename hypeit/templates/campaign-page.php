@@ -30,13 +30,55 @@ get_header();
 		<p><?php esc_html_e( 'This campaign is now closed. Thank you — selections can no longer be viewed or changed.', 'hypeit' ); ?></p>
 	</div>
 
+<?php
+elseif ( CP_Expiry::is_expired( $cp_campaign->ID ) ) :
+	$cp_contact = CP_Expiry::contact( $cp_campaign->ID );
+	$cp_logo    = CP_Logo::url( $cp_campaign->ID );
+	?>
+
+	<div class="cp-expired">
+		<?php if ( $cp_logo ) : ?><div class="cp-logo"><img class="cp-logo-img" src="<?php echo esc_url( $cp_logo ); ?>" alt="" /></div><?php endif; ?>
+		<span class="cp-expired-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></span>
+		<h1 class="cp-title"><?php echo esc_html( get_the_title( $cp_campaign ) ); ?></h1>
+		<h2 class="cp-expired-title"><?php esc_html_e( 'This link has expired', 'hypeit' ); ?></h2>
+		<p class="cp-expired-text">
+			<?php
+			echo esc_html(
+				sprintf(
+					/* translators: %s: date and time. */
+					__( 'The selection window closed on %s. To see the list again, ask for a fresh link:', 'hypeit' ),
+					CP_Expiry::nice( CP_Expiry::get( $cp_campaign->ID ) )
+				)
+			);
+			?>
+		</p>
+		<?php if ( $cp_contact['name'] || $cp_contact['wa'] || $cp_contact['email'] || $cp_contact['phone'] ) : ?>
+			<div class="cp-expired-contact">
+				<?php if ( $cp_contact['name'] ) : ?><strong class="cp-expired-name"><?php echo esc_html( $cp_contact['name'] ); ?></strong><?php endif; ?>
+				<div class="cp-expired-actions">
+					<?php if ( $cp_contact['wa'] ) : ?>
+						<a class="cp-btn cp-btn-primary" href="<?php echo esc_url( $cp_contact['wa'] ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Ask on WhatsApp', 'hypeit' ); ?></a>
+					<?php endif; ?>
+					<?php if ( $cp_contact['phone'] ) : ?>
+						<a class="cp-btn" href="tel:<?php echo esc_attr( preg_replace( '/[^\d+]/', '', $cp_contact['phone'] ) ); ?>"><?php esc_html_e( 'Call', 'hypeit' ); ?></a>
+					<?php endif; ?>
+					<?php if ( $cp_contact['email'] ) : ?>
+						<a class="cp-btn" href="<?php echo esc_url( 'mailto:' . $cp_contact['email'] . '?subject=' . rawurlencode( sprintf( /* translators: %s: campaign title. */ __( 'New link for %s', 'hypeit' ), html_entity_decode( get_the_title( $cp_campaign ), ENT_QUOTES ) ) ) ); ?>"><?php esc_html_e( 'Email', 'hypeit' ); ?></a>
+					<?php endif; ?>
+				</div>
+			</div>
+		<?php else : ?>
+			<p class="cp-expired-text"><?php esc_html_e( 'Please contact the person who sent you this link.', 'hypeit' ); ?></p>
+		<?php endif; ?>
+	</div>
+
 <?php else : ?>
 
 	<?php
 	$campaign_id = (int) $cp_campaign->ID;
 	$token       = CP_Frontend::current_token();
 	$is_authed   = CP_Auth::is_authed( $campaign_id );
-	$logo_id     = (int) get_post_meta( $campaign_id, '_cp_logo_id', true );
+	$logo_url    = CP_Logo::url( $campaign_id );
 	$max_guests  = (int) ( get_post_meta( $campaign_id, '_cp_max_guests', true ) ?: 4 );
 	$brief       = get_post_meta( $campaign_id, '_cp_brief', true );
 	$show_foll   = '1' === get_post_meta( $campaign_id, '_cp_show_followers', true );
@@ -53,11 +95,51 @@ get_header();
 	?>
 
 	<header class="cp-header">
-		<?php if ( $logo_id ) : ?>
-			<div class="cp-logo"><?php echo wp_get_attachment_image( $logo_id, 'medium', false, array( 'class' => 'cp-logo-img' ) ); ?></div>
+		<?php if ( $logo_url ) : ?>
+			<div class="cp-logo"><img class="cp-logo-img" src="<?php echo esc_url( $logo_url ); ?>" alt="" /></div>
 		<?php endif; ?>
 		<h1 class="cp-title"><?php echo esc_html( get_the_title( $cp_campaign ) ); ?></h1>
 	</header>
+
+	<?php
+	$cp_deadline = CP_Expiry::get( $campaign_id );
+	if ( $cp_deadline ) :
+		?>
+		<div class="cp-countdown" id="cp-countdown" data-left="<?php echo (int) max( 0, $cp_deadline - time() ); ?>" role="timer" aria-live="off">
+			<div class="cp-countdown-text">
+				<strong><?php esc_html_e( 'Please finish your selection', 'hypeit' ); ?></strong>
+				<span><?php echo esc_html( sprintf( /* translators: %s: date and time. */ __( 'This link expires on %s', 'hypeit' ), CP_Expiry::nice( $cp_deadline ) ) ); ?></span>
+			</div>
+			<div class="cp-countdown-clock" aria-hidden="true">
+				<span><b data-u="d">0</b><small><?php esc_html_e( 'days', 'hypeit' ); ?></small></span>
+				<span><b data-u="h">00</b><small><?php esc_html_e( 'hours', 'hypeit' ); ?></small></span>
+				<span><b data-u="m">00</b><small><?php esc_html_e( 'min', 'hypeit' ); ?></small></span>
+				<span><b data-u="s">00</b><small><?php esc_html_e( 'sec', 'hypeit' ); ?></small></span>
+			</div>
+		</div>
+		<script>
+		( function () {
+			var el = document.getElementById( 'cp-countdown' );
+			if ( ! el ) { return; }
+			// Count from the server's remaining seconds so a wrong phone clock can't cheat it.
+			var end = Date.now() + parseInt( el.getAttribute( 'data-left' ), 10 ) * 1000;
+			function pad( n ) { return ( n < 10 ? '0' : '' ) + n; }
+			function tick() {
+				var left = Math.max( 0, Math.floor( ( end - Date.now() ) / 1000 ) );
+				var d = Math.floor( left / 86400 ), h = Math.floor( left % 86400 / 3600 ), m = Math.floor( left % 3600 / 60 ), s = left % 60;
+				el.querySelector( '[data-u="d"]' ).textContent = d;
+				el.querySelector( '[data-u="h"]' ).textContent = pad( h );
+				el.querySelector( '[data-u="m"]' ).textContent = pad( m );
+				el.querySelector( '[data-u="s"]' ).textContent = pad( s );
+				el.classList.toggle( 'is-soon', left < 86400 );
+				el.classList.toggle( 'is-urgent', left < 3600 );
+				if ( ! left ) { clearInterval( timer ); setTimeout( function () { window.location.reload(); }, 800 ); }
+			}
+			var timer = setInterval( tick, 1000 );
+			tick();
+		} )();
+		</script>
+	<?php endif; ?>
 
 	<?php if ( ! $is_authed ) : ?>
 

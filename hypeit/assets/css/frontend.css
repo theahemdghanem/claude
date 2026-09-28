@@ -555,3 +555,44 @@ a.cp-account:focus {
 .cp-ob-follow-text { margin: 0 auto 1.4rem; max-width: 34rem; opacity: .85; }
 .cp-ob-follow-btn { display: inline-flex; align-items: center; justify-content: center; gap: .65em; width: 100%; max-width: 26rem; min-height: 3.6rem; padding: .95em 1.6em; border-radius: 999px; font-size: 1.12em; font-weight: 700; text-decoration: none; background: var(--cp-ob-fg, #111); color: var(--cp-ob-bg, #fff); box-shadow: 0 10px 28px rgba(0, 0, 0, .25); transition: transform .2s ease, box-shadow .2s ease; }
 .cp-ob-follow-btn:hover, .cp-ob-follow-btn:focus-visible { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(0, 0, 0, .3); color: var(--cp-ob-bg, #fff); }
+
+/* Link expiry — countdown + expired screen (theme-friendly: currentColor + tints). */
+.cp-countdown {
+	display: flex; align-items: center; justify-content: space-between; gap: 1rem 1.5rem; flex-wrap: wrap;
+	margin: 0 0 1.5rem; padding: 1rem 1.25rem; border-radius: var(--cp-radius, 14px);
+	border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+	background: color-mix(in srgb, currentColor 5%, transparent);
+	position: sticky; top: .75rem; z-index: 20; backdrop-filter: blur(8px);
+}
+.cp-countdown-text { display: flex; flex-direction: column; gap: .2rem; min-width: 12rem; }
+.cp-countdown-text strong { font-size: 1.02em; }
+.cp-countdown-text span { opacity: .7; font-size: .9em; }
+.cp-countdown-clock { display: flex; gap: .5rem; }
+.cp-countdown-clock span {
+	display: flex; flex-direction: column; align-items: center; min-width: 3.6rem; padding: .45rem .35rem;
+	border-radius: 10px; background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.cp-countdown-clock b { font-size: 1.55em; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.cp-countdown-clock small { font-size: .68em; text-transform: uppercase; letter-spacing: .06em; opacity: .65; }
+.cp-countdown.is-soon { border-color: color-mix(in srgb, #d98a00 55%, transparent); background: color-mix(in srgb, #d98a00 12%, transparent); }
+.cp-countdown.is-soon .cp-countdown-clock b { color: #b86e00; }
+.cp-countdown.is-urgent { border-color: color-mix(in srgb, #d63638 60%, transparent); background: color-mix(in srgb, #d63638 12%, transparent); animation: cp-pulse 1.6s ease-in-out infinite; }
+.cp-countdown.is-urgent .cp-countdown-clock b { color: #d63638; }
+@keyframes cp-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, #d63638 15%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .cp-countdown.is-urgent { animation: none; } }
+@media (max-width: 600px) {
+	.cp-countdown { padding: .85rem 1rem; }
+	.cp-countdown-clock { width: 100%; justify-content: space-between; }
+	.cp-countdown-clock span { flex: 1; min-width: 0; }
+}
+
+.cp-expired { max-width: 34rem; margin: 0 auto; padding: clamp(2rem, 8vh, 5rem) 1rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: .75rem; }
+.cp-expired .cp-logo { margin-bottom: .5rem; }
+.cp-expired-icon { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: #d63638; background: color-mix(in srgb, #d63638 12%, transparent); }
+.cp-expired .cp-title { margin: .5rem 0 0; opacity: .7; font-size: 1.05em; }
+.cp-expired-title { margin: 0; font-size: clamp(1.5rem, 4vw, 2rem); }
+.cp-expired-text { margin: 0; opacity: .8; }
+.cp-expired-contact { margin-top: 1rem; width: 100%; padding: 1.25rem; border-radius: var(--cp-radius, 14px); border: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.cp-expired-name { display: block; font-size: 1.1em; margin-bottom: .75rem; }
+.cp-expired-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+.cp-expired-actions .cp-btn { text-decoration: none; }

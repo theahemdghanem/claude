@@ -168,10 +168,28 @@ class CP_PWA {
 			'orientation'      => 'portrait',
 			'background_color' => $background,
 			'theme_color'      => $theme,
+			'id'               => wp_parse_url( self::app_url(), PHP_URL_PATH ),
+			'description'      => __( 'Manage campaigns and bloggers from your phone.', 'hypeit' ),
+			'display_override' => array( 'standalone', 'minimal-ui' ),
+			'categories'       => array( 'business', 'productivity' ),
+			// Long-press the app icon to jump straight in.
+			'shortcuts'        => array(
+				array( 'name' => __( 'New campaign', 'hypeit' ), 'url' => self::app_url() . '#/campaigns/new' ),
+				array( 'name' => __( 'Campaigns', 'hypeit' ), 'url' => self::app_url() . '#/campaigns' ),
+				array( 'name' => __( 'Bloggers', 'hypeit' ), 'url' => self::app_url() . '#/bloggers' ),
+				array( 'name' => __( 'Search', 'hypeit' ), 'url' => self::app_url() . '#/search' ),
+			),
 		);
 
+		$gen = class_exists( 'CP_Splash' ) ? CP_Splash::icons() : array();
 		$icon_id = (int) $app['app_icon_id'];
-		if ( $icon_id ) {
+		if ( isset( $gen['i192'], $gen['i512'], $gen['m512'] ) ) {
+			$manifest['icons'] = array(
+				array( 'src' => $gen['i192'], 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any' ),
+				array( 'src' => $gen['i512'], 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any' ),
+				array( 'src' => $gen['m512'], 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable' ),
+			);
+		} elseif ( $icon_id ) {
 			$icon_url = wp_get_attachment_url( $icon_id );
 			if ( $icon_url ) {
 				$manifest['icons'] = array(
@@ -223,18 +241,31 @@ class CP_PWA {
 		$app_cfg = CP_App_Settings::get();
 		$icon    = ! empty( $app_cfg['app_icon_id'] ) ? (string) wp_get_attachment_url( (int) $app_cfg['app_icon_id'] ) : '';
 
+		$assets = array(
+			add_query_arg( 'ver', CP_VERSION, CP_URL . 'assets/css/app.css' ),
+			add_query_arg( 'ver', CP_VERSION, CP_URL . 'assets/js/app.js' ),
+		);
+
 		echo "var CACHE='" . $cache . "';\n";
+		echo "var IMG='cp-app-img';\n";
 		echo "var SHELL='" . $shell . "';\n";
+		echo 'var ASSETS=' . wp_json_encode( array_map( 'esc_url_raw', $assets ) ) . ";\n";
 		echo 'var ICON=' . wp_json_encode( $icon ) . ";\n";
 		?>
 self.addEventListener('install', function (e) {
 	self.skipWaiting();
-	e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll([SHELL]); }));
+	// Shell + app code up front, so the app opens instantly and works offline.
+	e.waitUntil(caches.open(CACHE).then(function (c) {
+		return c.addAll([SHELL]).then(function () { return Promise.all(ASSETS.map(function (a) { return c.add(a).catch(function () {}); })); });
+	}));
 });
 self.addEventListener('activate', function (e) {
 	e.waitUntil(caches.keys().then(function (keys) {
-		return Promise.all(keys.map(function (k) { if (k !== CACHE) { return caches.delete(k); } }));
+		return Promise.all(keys.map(function (k) { if (k !== CACHE && k !== IMG) { return caches.delete(k); } }));
 	}).then(function () { return self.clients.claim(); }));
+});
+self.addEventListener('message', function (e) {
+	if (e.data && e.data.type === 'cp-skip-waiting') { self.skipWaiting(); }
 });
 self.addEventListener('push', function (e) {
 	var d = {};
@@ -242,7 +273,9 @@ self.addEventListener('push', function (e) {
 	var opts = { body: d.body || '', tag: d.tag || 'cp', renotify: true, data: { url: d.url || SHELL } };
 	if (ICON) { opts.icon = ICON; opts.badge = ICON; }
 	if (d.icon) { opts.icon = d.icon; }
-	e.waitUntil(self.registration.showNotification(d.title || 'HypeIt', opts));
+	var jobs = [self.registration.showNotification(d.title || 'HypeIt', opts)];
+	if (self.navigator && self.navigator.setAppBadge) { jobs.push(self.navigator.setAppBadge().catch(function () {})); }
+	e.waitUntil(Promise.all(jobs));
 });
 self.addEventListener('notificationclick', function (e) {
 	e.notification.close();
@@ -258,20 +291,51 @@ self.addEventListener('notificationclick', function (e) {
 		return self.clients.openWindow(url);
 	}));
 });
+// Keep the photo/logo cache from growing forever.
+function trim(name, max) {
+	return caches.open(name).then(function (c) {
+		return c.keys().then(function (k) { if (k.length > max) { return Promise.all(k.slice(0, k.length - max).map(function (r) { return c.delete(r); })); } });
+	});
+}
 self.addEventListener('fetch', function (e) {
 	var req = e.request;
 	if (req.method !== 'GET') { return; }
 	var url = new URL(req.url);
-	// Never cache API calls — always go to network for fresh data.
-	if (url.pathname.indexOf('/wp-json/') !== -1) { return; }
+	// Never cache API calls — the app keeps its own offline copy of data.
+	if (url.pathname.indexOf('/wp-json/') !== -1 || url.search.indexOf('rest_route=') !== -1) { return; }
 	if (req.mode === 'navigate') {
-		e.respondWith(fetch(req).catch(function () { return caches.match(SHELL); }));
+		// Network first (fresh shell), cached shell if offline or the network is slow.
+		e.respondWith(new Promise(function (resolve) {
+			var done = false;
+			var timer = setTimeout(function () { caches.match(SHELL).then(function (hit) { if (hit && !done) { done = true; resolve(hit); } }); }, 3500);
+			fetch(req).then(function (res) {
+				if (res.ok && url.href.indexOf(SHELL) === 0) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(SHELL, copy); }); }
+				clearTimeout(timer);
+				if (!done) { done = true; resolve(res); }
+			}).catch(function () {
+				clearTimeout(timer);
+				caches.match(SHELL).then(function (hit) { if (!done) { done = true; resolve(hit || Response.error()); } });
+			});
+		}));
 		return;
 	}
+	// Images (blogger photos, logos): show the saved copy, refresh it in the background.
+	if (req.destination === 'image' && url.origin === self.location.origin) {
+		e.respondWith(caches.open(IMG).then(function (c) {
+			return c.match(req).then(function (hit) {
+				var net = fetch(req).then(function (res) {
+					if (res.ok) { c.put(req, res.clone()); trim(IMG, 400); }
+					return res;
+				}).catch(function () { return hit; });
+				return hit || net;
+			});
+		}));
+		return;
+	}
+	if (url.origin !== self.location.origin) { return; }
 	e.respondWith(caches.match(req).then(function (hit) {
 		return hit || fetch(req).then(function (res) {
-			var copy = res.clone();
-			caches.open(CACHE).then(function (c) { c.put(req, copy); });
+			if (res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
 			return res;
 		});
 	}));

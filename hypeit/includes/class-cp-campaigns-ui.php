@@ -119,6 +119,8 @@ class CP_Campaigns_UI {
 				$status = get_post_status( $id );
 				if ( ! empty( $s['closed'] ) ) {
 					echo '<span class="cpc-pill is-closed">' . esc_html__( 'Closed', 'hypeit' ) . '</span>';
+				} elseif ( 'publish' === $status && CP_Expiry::is_expired( $id ) ) {
+					echo '<span class="cpc-pill is-expired">' . esc_html__( 'Link expired', 'hypeit' ) . '</span>';
 				} elseif ( 'publish' === $status ) {
 					echo '<span class="cpc-pill is-live">' . esc_html__( 'Live', 'hypeit' ) . '</span>';
 				} elseif ( 'future' === $status ) {
@@ -171,6 +173,13 @@ class CP_Campaigns_UI {
 					. '<a class="button button-small" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Open', 'hypeit' ) . '</a></span>';
 				if ( ! CP_Auth::has_password( $id ) ) {
 					echo '<span class="cpl-sub cpc-warn">' . esc_html__( 'No password set', 'hypeit' ) . '</span>';
+				}
+				if ( CP_Expiry::get( $id ) ) {
+					$expd = CP_Expiry::is_expired( $id );
+					echo '<span class="cpc-exp' . ( $expd ? ' is-expired' : '' ) . '" title="' . esc_attr( CP_Expiry::nice( CP_Expiry::get( $id ) ) ) . '">' . esc_html( CP_Expiry::label( $id ) ) . '</span>';
+					if ( $expd ) {
+						echo ' <a class="cpc-exp" href="' . esc_url( CP_Expiry::extend_url( $id, 24 ) ) . '">' . esc_html__( 'Extend 24h', 'hypeit' ) . '</a>';
+					}
 				}
 				break;
 		}
@@ -234,6 +243,15 @@ class CP_Campaigns_UI {
 			$q->set( 'meta_query', array( $open ) );
 		} elseif ( 'closed' === $state ) {
 			$q->set( 'meta_query', array( array( 'key' => '_cp_closed', 'value' => '1' ) ) );
+		} elseif ( 'expired' === $state ) {
+			$q->set( 'post_status', 'publish' );
+			$q->set(
+				'meta_query',
+				array(
+					$open,
+					array( 'key' => CP_Expiry::META, 'value' => array( 1, time() ), 'compare' => 'BETWEEN', 'type' => 'NUMERIC' ),
+				)
+			);
 		}
 
 		$type = isset( $_GET['cp_type'] ) ? sanitize_key( wp_unslash( $_GET['cp_type'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -317,6 +335,7 @@ class CP_Campaigns_UI {
 			'live'   => __( 'Live', 'hypeit' ),
 			'draft'  => __( 'Drafts', 'hypeit' ),
 			'closed' => __( 'Closed', 'hypeit' ),
+			'expired' => __( 'Link expired', 'hypeit' ),
 		);
 		$trash = 'trash' === $g( 'post_status' );
 		?>

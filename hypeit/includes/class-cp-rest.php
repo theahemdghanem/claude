@@ -176,6 +176,26 @@ class CP_REST {
 
 		register_rest_route(
 			self::NS,
+			'/home',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'home' ),
+				'permission_callback' => array( __CLASS__, 'require_auth' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/bloggers/bulk',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'bloggers_bulk' ),
+				'permission_callback' => array( __CLASS__, 'require_auth' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/meta',
 			array(
 				'methods'             => 'GET',
@@ -597,11 +617,18 @@ class CP_REST {
 		$post    = get_post( $id );
 		$token   = (string) get_post_meta( $id, '_cp_token', true );
 		$max     = get_post_meta( $id, '_cp_max_guests', true );
-		$logo_id = (int) get_post_meta( $id, '_cp_logo_id', true );
 		return array(
 			'status'          => $post ? $post->post_status : 'draft',
 			'closed'          => CP_Close::is_closed( $id ),
 			'type'            => CP_Library::campaign_type( $id ),
+			'expires'         => CP_Expiry::get( $id ),
+			'expires_local'   => CP_Expiry::to_local( CP_Expiry::get( $id ) ),
+			'expires_nice'    => CP_Expiry::get( $id ) ? CP_Expiry::nice( CP_Expiry::get( $id ) ) : '',
+			'expired'         => CP_Expiry::is_expired( $id ),
+			'now_local'       => wp_date( 'Y-m-d\TH:i' ),
+			'contact_name'    => (string) get_post_meta( $id, '_cp_contact_name', true ),
+			'contact_phone'   => (string) get_post_meta( $id, '_cp_contact_phone', true ),
+			'contact_email'   => (string) get_post_meta( $id, '_cp_contact_email', true ),
 			'brief'           => (string) get_post_meta( $id, '_cp_brief', true ),
 			'max_guests'      => ( '' === $max ) ? 4 : (int) $max,
 			'slug'            => $token,
@@ -609,7 +636,7 @@ class CP_REST {
 			'slug_base'       => trailingslashit( home_url( '/campaign/' ) ),
 			'has_password'    => CP_Auth::has_password( $id ),
 			'notify_email'    => (string) get_post_meta( $id, '_cp_notify_email', true ),
-			'logo_url'        => $logo_id ? (string) wp_get_attachment_image_url( $logo_id, 'medium' ) : '',
+			'logo_url'        => CP_Logo::url( $id ),
 			'show_followers'  => '1' === get_post_meta( $id, '_cp_show_followers', true ),
 			'show_gender'     => '1' === get_post_meta( $id, '_cp_show_gender', true ),
 			'show_tags'       => '1' === get_post_meta( $id, '_cp_show_tags', true ),
@@ -631,6 +658,19 @@ class CP_REST {
 		if ( isset( $p['type'] ) ) {
 			CP_Library::set_campaign_type( $id, (string) $p['type'] );
 		}
+		// Link expiry: '' clears it; "2026-10-05T18:00" is site-local time.
+		if ( array_key_exists( 'expires_local', $p ) ) {
+			CP_Expiry::set( $id, CP_Expiry::from_local( (string) $p['expires_local'] ) );
+		}
+		$contact = array();
+		foreach ( array( 'name', 'phone', 'email' ) as $ck ) {
+			if ( isset( $p[ 'contact_' . $ck ] ) ) {
+				$contact[ $ck ] = (string) $p[ 'contact_' . $ck ];
+			}
+		}
+		if ( $contact ) {
+			CP_Expiry::set_contact( $id, $contact );
+		}
 		if ( isset( $p['brief'] ) ) {
 			update_post_meta( $id, '_cp_brief', wp_kses_post( (string) $p['brief'] ) );
 		}
@@ -646,7 +686,7 @@ class CP_REST {
 			}
 		}
 		if ( isset( $p['remove_logo'] ) && rest_sanitize_boolean( $p['remove_logo'] ) ) {
-			delete_post_meta( $id, '_cp_logo_id' );
+			CP_Logo::remove( $id );
 		}
 
 		// Link: random on request, else a custom slug, else keep/create.
@@ -795,6 +835,15 @@ class CP_REST {
 				CP_Close::set( $id, false );
 				return self::campaign_response( $id, '', __( 'Campaign reopened.', 'hypeit' ) );
 
+			case 'extend':
+				$new = CP_Expiry::extend( $id, max( 1, min( 24 * 90, absint( $request->get_param( 'hours' ) ) ) ) );
+				/* translators: %s: date and time. */
+				return self::campaign_response( $id, '', sprintf( __( 'Link now expires %s.', 'hypeit' ), CP_Expiry::nice( $new ) ) );
+
+			case 'no_expiry':
+				CP_Expiry::set( $id, 0 );
+				return self::campaign_response( $id, '', __( 'The link no longer expires.', 'hypeit' ) );
+
 			case 'reset':
 				CP_DB::reset_campaign( $id );
 				CP_Everyone::clear_started( $id );
@@ -814,13 +863,14 @@ class CP_REST {
 				if ( ! $new || is_wp_error( $new ) ) {
 					return new WP_Error( 'cp_save_failed', __( 'Could not duplicate.', 'hypeit' ), array( 'status' => 500 ) );
 				}
-				foreach ( array( '_cp_brief', '_cp_max_guests', '_cp_logo_id', '_cp_notify_email', '_cp_show_followers', '_cp_show_gender', '_cp_show_tags', '_cp_show_location', '_cp_show_popularity', '_cp_type', CP_Everyone::META_ON ) as $k ) {
+				foreach ( array( '_cp_brief', '_cp_max_guests', '_cp_notify_email', '_cp_show_followers', '_cp_show_gender', '_cp_show_tags', '_cp_show_location', '_cp_show_popularity', '_cp_type', '_cp_contact_name', '_cp_contact_phone', '_cp_contact_email', CP_Everyone::META_ON ) as $k ) {
 					$v = get_post_meta( $id, $k, true );
 					if ( '' !== $v ) {
 						update_post_meta( $new, $k, $v );
 					}
 				}
 				update_post_meta( $new, '_cp_token', CP_Admin::generate_token() );
+				CP_Logo::copy( $id, $new );
 				$accounts = array();
 				foreach ( CP_DB::visible_bloggers( $id ) as $row ) {
 					$accounts[] = $row->ig_account;
@@ -852,23 +902,12 @@ class CP_REST {
 		if ( empty( $files['file'] ) ) {
 			return new WP_Error( 'cp_no_file', __( 'No image received.', 'hypeit' ), array( 'status' => 400 ) );
 		}
-		$type = wp_check_filetype( $files['file']['name'] );
-		if ( ! $type['type'] || 0 !== strpos( $type['type'], 'image/' ) ) {
-			return new WP_Error( 'cp_bad_file', __( 'Please upload an image (JPG, PNG, WebP or SVG).', 'hypeit' ), array( 'status' => 400 ) );
+		// Private file storage, like blogger photos (not the Media Library).
+		$res = CP_Logo::set_from_upload( $id, $files['file'] );
+		if ( is_wp_error( $res ) ) {
+			return new WP_Error( $res->get_error_code(), $res->get_error_message(), array( 'status' => 400 ) );
 		}
-
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/image.php';
-		require_once ABSPATH . 'wp-admin/includes/media.php';
-
-		wp_set_current_user( (int) self::$current_user_id );
-		$_FILES['cp_logo_upload'] = $files['file']; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$att = media_handle_upload( 'cp_logo_upload', $id, array(), array( 'test_form' => false ) );
-		if ( is_wp_error( $att ) ) {
-			return new WP_Error( 'cp_upload_failed', $att->get_error_message(), array( 'status' => 400 ) );
-		}
-		update_post_meta( $id, '_cp_logo_id', (int) $att );
-		return array( 'logo_url' => (string) wp_get_attachment_image_url( $att, 'medium' ) );
+		return array( 'logo_url' => CP_Logo::url( $id ) );
 	}
 
 	/**
@@ -948,6 +987,163 @@ class CP_REST {
 			$out['notice'] = $notice;
 		}
 		return $out;
+	}
+
+	/**
+	 * Home dashboard: what needs attention, live campaigns, new bloggers, movers.
+	 *
+	 * @return array
+	 */
+	public static function home() {
+		$now   = time();
+		$all   = CP_DB::all_campaign_stats( true );
+		$live  = array();
+		$attn  = array();
+		$stats = array( 'live' => 0, 'waiting' => 0, 'people' => 0, 'drafts' => 0 );
+		foreach ( $all as $c ) {
+			$exp = (int) $c['expires'];
+			if ( $c['closed'] ) {
+				continue;
+			}
+			if ( 'publish' !== $c['status'] ) {
+				$stats['drafts']++;
+				continue;
+			}
+			$stats['live']++;
+			$stats['waiting'] += (int) $c['pending'];
+			$stats['people']  += (int) $c['attendance'];
+			$c['expires_nice'] = $exp ? CP_Expiry::nice( $exp ) : '';
+			$c['expired']      = $exp && $exp <= $now;
+			$live[]            = $c;
+			if ( $exp && $exp <= $now ) {
+				$attn[] = array( 'kind' => 'expired', 'id' => $c['id'], 'title' => $c['title'], 'when' => $exp, 'pending' => (int) $c['pending'] );
+			} elseif ( $exp && $exp - $now < 2 * DAY_IN_SECONDS ) {
+				$attn[] = array( 'kind' => 'expiring', 'id' => $c['id'], 'title' => $c['title'], 'when' => $exp, 'pending' => (int) $c['pending'] );
+			}
+			if ( ! CP_Auth::has_password( $c['id'] ) ) {
+				$attn[] = array( 'kind' => 'nopw', 'id' => $c['id'], 'title' => $c['title'], 'when' => 0, 'pending' => 0 );
+			}
+		}
+		// Soonest deadline first, then the ones still waiting on the client most.
+		usort(
+			$live,
+			static function ( $a, $b ) {
+				$ea = $a['expires'] && ! $a['expired'] ? $a['expires'] : PHP_INT_MAX;
+				$eb = $b['expires'] && ! $b['expired'] ? $b['expires'] : PHP_INT_MAX;
+				return $ea <=> $eb ?: $b['pending'] <=> $a['pending'];
+			}
+		);
+		usort( $attn, static function ( $a, $b ) { return $a['when'] <=> $b['when']; } );
+
+		$active = CP_Library::active_clause();
+		$newest = get_posts(
+			array(
+				'post_type'      => CP_Library::CPT,
+				'post_status'    => 'publish',
+				'posts_per_page' => 8,
+				'fields'         => 'ids',
+				'date_query'     => array( array( 'after' => gmdate( 'Y-m-d H:i:s', $now - 7 * DAY_IN_SECONDS ), 'column' => 'post_date_gmt' ) ),
+				'meta_query'     => $active, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			)
+		);
+		$movers = get_posts(
+			array(
+				'post_type'      => CP_Library::CPT,
+				'post_status'    => 'publish',
+				'posts_per_page' => 6,
+				'fields'         => 'ids',
+				'meta_key'       => '_cp_followers_delta', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'orderby'        => 'meta_value_num',
+				'order'          => 'DESC',
+				'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'relation' => 'AND',
+					$active,
+					array( 'key' => '_cp_followers_delta', 'value' => 0, 'compare' => '>', 'type' => 'NUMERIC' ),
+				),
+			)
+		);
+		$new7 = new WP_Query(
+			array(
+				'post_type'      => CP_Library::CPT,
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'date_query'     => array( array( 'after' => gmdate( 'Y-m-d H:i:s', $now - 7 * DAY_IN_SECONDS ), 'column' => 'post_date_gmt' ) ),
+				'meta_query'     => $active, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			)
+		);
+		$user = get_userdata( (int) self::$current_user_id );
+		return array(
+			'user'      => $user ? ( $user->first_name ? $user->first_name : $user->display_name ) : '',
+			'stats'     => array_merge( $stats, array( 'new7' => (int) $new7->found_posts, 'library' => CP_Join::actual() ) ),
+			'attention' => array_slice( $attn, 0, 8 ),
+			'live'      => array_slice( $live, 0, 6 ),
+			'newest'    => array_map( array( __CLASS__, 'blogger_row' ), array_map( 'intval', $newest ) ),
+			'movers'    => array_map( array( __CLASS__, 'blogger_row' ), array_map( 'intval', $movers ) ),
+		);
+	}
+
+	/**
+	 * Act on several bloggers at once (app "Select" mode).
+	 * op: add_campaign (campaign), add_list (list), complete, deactivate, activate.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array|WP_Error
+	 */
+	public static function bloggers_bulk( $request ) {
+		$ids = array_values( array_filter( array_map( 'absint', (array) $request->get_param( 'ids' ) ) ) );
+		$ids = array_values( array_filter( $ids, static function ( $i ) { return CP_Library::CPT === get_post_type( $i ); } ) );
+		if ( ! $ids ) {
+			return new WP_Error( 'cp_none', __( 'Select at least one blogger.', 'hypeit' ), array( 'status' => 400 ) );
+		}
+		$op = sanitize_key( (string) $request->get_param( 'op' ) );
+		$n  = count( $ids );
+		switch ( $op ) {
+			case 'add_campaign':
+				$cid = absint( $request->get_param( 'campaign' ) );
+				if ( CP_POST_TYPE !== get_post_type( $cid ) ) {
+					return new WP_Error( 'cp_not_found', __( 'Campaign not found.', 'hypeit' ), array( 'status' => 404 ) );
+				}
+				$added = CP_Everyone::add_handles( $cid, array_map( array( 'CP_Library', 'handle' ), $ids ) );
+				/* translators: 1: count, 2: campaign. */
+				return array( 'ok' => true, 'notice' => sprintf( _n( '%1$d blogger added to %2$s.', '%1$d bloggers added to %2$s.', $added, 'hypeit' ), $added, html_entity_decode( get_the_title( $cid ), ENT_QUOTES ) ) );
+
+			case 'add_list':
+				$lid = absint( $request->get_param( 'list' ) );
+				$new = sanitize_text_field( (string) $request->get_param( 'new_list' ) );
+				if ( ! $lid && '' !== $new ) {
+					$made = wp_insert_term( $new, CP_Library::TAX_LIST );
+					$lid  = is_wp_error( $made ) ? 0 : (int) $made['term_id'];
+				}
+				$term = $lid ? get_term( $lid, CP_Library::TAX_LIST ) : null;
+				if ( ! $term || is_wp_error( $term ) ) {
+					return new WP_Error( 'cp_not_found', __( 'List not found.', 'hypeit' ), array( 'status' => 404 ) );
+				}
+				if ( CP_Lists::is_smart( $lid ) ) {
+					return new WP_Error( 'cp_smart', __( 'Smart lists fill themselves from their rules — pick a manual list.', 'hypeit' ), array( 'status' => 400 ) );
+				}
+				foreach ( $ids as $id ) {
+					wp_set_post_terms( $id, array( $lid ), CP_Library::TAX_LIST, true );
+				}
+				/* translators: 1: count, 2: list. */
+				return array( 'ok' => true, 'notice' => sprintf( _n( '%1$d blogger added to %2$s.', '%1$d bloggers added to %2$s.', $n, 'hypeit' ), $n, $term->name ) );
+
+			case 'complete':
+				foreach ( $ids as $id ) {
+					CP_Bloggers_UI::set_manual( $id, true );
+				}
+				/* translators: %d: count. */
+				return array( 'ok' => true, 'notice' => sprintf( _n( '%d profile marked complete.', '%d profiles marked complete.', $n, 'hypeit' ), $n ) );
+
+			case 'deactivate':
+			case 'activate':
+				foreach ( $ids as $id ) {
+					CP_Library::set_inactive( $id, 'deactivate' === $op );
+				}
+				/* translators: %d: count. */
+				return array( 'ok' => true, 'notice' => sprintf( 'deactivate' === $op ? _n( '%d blogger deactivated.', '%d bloggers deactivated.', $n, 'hypeit' ) : _n( '%d blogger reactivated.', '%d bloggers reactivated.', $n, 'hypeit' ), $n ) );
+		}
+		return new WP_Error( 'cp_bad_op', __( 'Unknown action.', 'hypeit' ), array( 'status' => 400 ) );
 	}
 
 	/**
@@ -1054,7 +1250,7 @@ class CP_REST {
 	 * @param int $id Post ID.
 	 * @return array
 	 */
-	private static function blogger_row( $id ) {
+	public static function blogger_row( $id ) {
 		$first = get_post_meta( $id, '_cp_first', true );
 		$last  = get_post_meta( $id, '_cp_last', true );
 		$name  = trim( $first . ' ' . $last );

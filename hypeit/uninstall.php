@@ -79,6 +79,7 @@ $wpdb->query( "DROP TABLE IF EXISTS {$cp_table}" ); // phpcs:ignore WordPress.DB
 // Remove options.
 delete_option( 'cp_theme' );
 delete_option( 'cp_app' );
+delete_option( 'cp_app_splash' );
 delete_option( 'cp_onboard' );
 delete_option( 'cp_verify' );
 delete_option( 'cp_blocked_handles' );

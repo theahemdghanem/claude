@@ -287,6 +287,8 @@ class CP_DB {
 				'status'       => (string) $r->pstatus,
 				'closed'       => '1' === (string) get_post_meta( (int) $r->id, '_cp_closed', true ),
 				'type'         => class_exists( 'CP_Library' ) ? CP_Library::campaign_type( (int) $r->id ) : '',
+				'expires'      => class_exists( 'CP_Expiry' ) ? CP_Expiry::get( (int) $r->id ) : 0,
+				'logo'         => class_exists( 'CP_Logo' ) ? CP_Logo::url( (int) $r->id ) : '',
 				'date'         => mysql2date( 'c', $r->pdate ),
 			);
 		}

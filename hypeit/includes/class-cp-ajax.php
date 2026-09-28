@@ -39,6 +39,9 @@ class CP_Ajax {
 		if ( CP_Close::is_closed( $campaign_id ) ) {
 			wp_send_json_error( array( 'message' => __( 'This campaign is closed.', 'hypeit' ) ), 403 );
 		}
+		if ( CP_Expiry::is_expired( $campaign_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'This link has expired. Please refresh the page.', 'hypeit' ) ), 403 );
+		}
 
 		// The client must be authenticated for this campaign.
 		if ( ! CP_Auth::is_authed( $campaign_id ) ) {

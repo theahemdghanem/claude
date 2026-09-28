@@ -15,14 +15,13 @@ $app_name   = $app['app_name'] ? $app['app_name'] : __( 'HypeIt', 'hypeit' );
 $theme      = $app['app_theme_color'] ? $app['app_theme_color'] : '#000000';
 $icon_id    = (int) $app['app_icon_id'];
 $icon_url   = $icon_id ? wp_get_attachment_url( $icon_id ) : '';
-$splash_id  = (int) $app['app_splash_id'];
-$splash_url = $splash_id ? wp_get_attachment_url( $splash_id ) : '';
 
 $cpa_config = array(
 	'api'      => esc_url_raw( rest_url( CP_REST::NS ) ),
 	'sw'       => esc_url_raw( CP_PWA::sw_url() ),
 	'appName'  => $app_name,
 	'version'  => CP_VERSION,
+	'nowLocal' => wp_date( 'Y-m-d\TH:i' ),
 	'adminUrl' => esc_url_raw( admin_url( 'edit.php?post_type=' . CP_POST_TYPE ) ),
 	'i18n'     => array(
 		// Navigation.
@@ -377,6 +376,74 @@ $cpa_config = array(
 		'reloaded'       => __( 'Data reloaded.', 'hypeit' ),
 		'openAdmin'      => __( 'Open WordPress admin', 'hypeit' ),
 		'version'        => __( 'Version', 'hypeit' ),
+		// Home & search.
+		'home'            => __( 'Home', 'hypeit' ),
+		'searchAll'       => __( 'Search campaigns, bloggers, lists', 'hypeit' ),
+		'searchHint'      => __( 'Type a name, @handle or city.', 'hypeit' ),
+		'goodMorning'     => __( 'Good morning', 'hypeit' ),
+		'goodAfternoon'   => __( 'Good afternoon', 'hypeit' ),
+		'goodEvening'     => __( 'Good evening', 'hypeit' ),
+		'liveCampaigns'   => __( 'Live campaigns', 'hypeit' ),
+		'waitingClients'  => __( 'Waiting on client', 'hypeit' ),
+		'peopleAttending' => __( 'People attending', 'hypeit' ),
+		/* translators: %s: count. */
+		'libraryN'        => __( 'Bloggers · %s new this week', 'hypeit' ),
+		'needsYou'        => __( 'Needs you', 'hypeit' ),
+		/* translators: %s: count. */
+		'attnExpired'     => __( 'Link expired · %s still waiting', 'hypeit' ),
+		/* translators: 1: time left, 2: count. */
+		'attnExpiring'    => __( '%1$s left · %2$s waiting', 'hypeit' ),
+		'attnNoPw'        => __( 'Live without a password', 'hypeit' ),
+		'extend24'        => __( '+24h', 'hypeit' ),
+		'allGood'         => __( 'All good — nothing needs you right now.', 'hypeit' ),
+		'seeAll'          => __( 'See all', 'hypeit' ),
+		/* translators: %s: percent. */
+		'reviewedPct'     => __( '%s%% reviewed', 'hypeit' ),
+		'topGainers'      => __( 'Top gainers', 'hypeit' ),
+		'sinceLastSync'   => __( 'since last sync', 'hypeit' ),
+		'newThisWeek'     => __( 'New this week', 'hypeit' ),
+		// Link expiry.
+		'unitD'           => _x( 'd', 'days, short', 'hypeit' ),
+		'unitH'           => _x( 'h', 'hours, short', 'hypeit' ),
+		'unitM'           => _x( 'm', 'minutes, short', 'hypeit' ),
+		/* translators: %s: time left. */
+		'leftN'           => __( '%s left', 'hypeit' ),
+		'linkExpired'     => __( 'Link expired', 'hypeit' ),
+		/* translators: %s: date. */
+		'expiredBanner'   => __( 'Closed %s. The client sees an "expired" page.', 'hypeit' ),
+		/* translators: %s: date. */
+		'expiresOn'       => __( 'Link closes %s', 'hypeit' ),
+		'extend'          => __( 'Extend', 'hypeit' ),
+		'extendLink'      => __( 'Extend link', 'hypeit' ),
+		'setExpiry'       => __( 'Set link expiry', 'hypeit' ),
+		'expiryHint'      => __( 'Give the client a deadline. They see a countdown, and the list closes when time runs out.', 'hypeit' ),
+		'plus24h'         => __( '+24 hours', 'hypeit' ),
+		'plus3d'          => __( '+3 days', 'hypeit' ),
+		'plus1w'          => __( '+1 week', 'hypeit' ),
+		'noExpiry'        => __( 'No expiry', 'hypeit' ),
+		/* translators: %s: date. */
+		'shareDeadline'   => __( 'Please finish your selection before %s.', 'hypeit' ),
+		'linkExpires'     => __( 'Link expires', 'hypeit' ),
+		'contactPerson'   => __( 'Contact person', 'hypeit' ),
+		'contactName'     => __( 'Name', 'hypeit' ),
+		'contactHint'     => __( 'Shown on the expired page so the client can ask for a fresh link. Empty = the campaign author.', 'hypeit' ),
+		// Connection.
+		'offlineBar'      => __( 'Offline — showing saved data', 'hypeit' ),
+		'backOnline'      => __( 'Back online', 'hypeit' ),
+		// Select mode.
+		'select'          => __( 'Select', 'hypeit' ),
+		'actions'         => __( 'Actions', 'hypeit' ),
+		'add'             => __( 'Add', 'hypeit' ),
+		/* translators: %s: count. */
+		'nSelected'       => __( '%s selected', 'hypeit' ),
+		'tapToSelect'     => __( 'Tap bloggers to select', 'hypeit' ),
+		/* translators: %s: count. */
+		'selectAllN'      => __( 'Select all %s', 'hypeit' ),
+		'selectNone'      => __( 'Clear', 'hypeit' ),
+		'addToCampaign'   => __( 'Add to campaign', 'hypeit' ),
+		'addToList'       => __( 'Add to list', 'hypeit' ),
+		/* translators: %s: count. */
+		'bulkDeactivateQ' => __( 'Deactivate %s bloggers? They are hidden everywhere, but their campaign history is kept.', 'hypeit' ),
 	),
 );
 ?><!DOCTYPE html>
@@ -394,12 +461,13 @@ $cpa_config = array(
 	<title><?php echo esc_html( $app_name ); ?></title>
 	<link rel="manifest" href="<?php echo esc_url( CP_PWA::manifest_url() ); ?>" />
 	<?php if ( $icon_url ) : ?>
-		<link rel="apple-touch-icon" href="<?php echo esc_url( $icon_url ); ?>" />
+		<?php $cp_ic = CP_Splash::icons(); ?>
+		<link rel="apple-touch-icon" href="<?php echo esc_url( isset( $cp_ic['i180'] ) ? $cp_ic['i180'] : $icon_url ); ?>" />
 		<link rel="icon" href="<?php echo esc_url( $icon_url ); ?>" />
 	<?php endif; ?>
-	<?php if ( $splash_url ) : ?>
-		<link rel="apple-touch-startup-image" href="<?php echo esc_url( $splash_url ); ?>" />
-	<?php endif; ?>
+	<?php foreach ( CP_Splash::links() as $cp_s ) : // One launch image per iPhone / iPad screen size. ?>
+		<link rel="apple-touch-startup-image" media="<?php echo esc_attr( $cp_s[1] ); ?>" href="<?php echo esc_url( $cp_s[0] ); ?>" />
+	<?php endforeach; ?>
 	<script>
 	( function () {
 		try {
