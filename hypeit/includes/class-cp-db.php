@@ -286,6 +286,7 @@ class CP_DB {
 				'attendance'   => $confirmed + $guests,
 				'status'       => (string) $r->pstatus,
 				'closed'       => '1' === (string) get_post_meta( (int) $r->id, '_cp_closed', true ),
+				'type'         => class_exists( 'CP_Library' ) ? CP_Library::campaign_type( (int) $r->id ) : '',
 				'date'         => mysql2date( 'c', $r->pdate ),
 			);
 		}

@@ -527,7 +527,8 @@
 				if ( ! rows.length ) { box.innerHTML = '<p class="empty">' + esc( t( 'noResults' ) ) + '</p>'; return; }
 				box.innerHTML = rows.map( function ( c ) {
 					var pill = c.closed ? '<span class="pill">' + esc( t( 'closed' ) ) + '</span>' : ( c.status === 'publish' ? '<span class="pill live">' + esc( t( 'live' ) ) + '</span>' : '<span class="pill draft">' + esc( t( 'draft' ) ) + '</span>' );
-					return '<div class="card card-tap" data-id="' + c.id + '"><div class="card-title"><h3>' + esc( c.title || '—' ) + '</h3>' + pill + '</div>' +
+					if ( c.type ) { pill = '<span class="pill nodot ctype-' + esc( c.type ) + '">' + esc( c.type === 'service' ? t( 'typeService' ) : t( 'typePaid' ) ) + '</span> ' + pill; }
+					return '<div class="card card-tap" data-id="' + c.id + '"><div class="card-title"><h3>' + esc( c.title || '—' ) + '</h3><span class="pills">' + pill + '</span></div>' +
 						progress( c.confirmed, c.declined, c.pending ) +
 						'<div class="counts"><span class="g"><b>' + c.confirmed + '</b> ' + esc( t( 'confirmed' ) ) + '</span><span class="r"><b>' + c.declined + '</b> ' + esc( t( 'declined' ) ) + '</span><span><b>' + c.pending + '</b> ' + esc( t( 'pending' ) ) + '</span><span><b>' + c.attendance + '</b> ' + esc( t( 'people' ) ) + '</span></div></div>';
 				} ).join( '' );
@@ -568,7 +569,8 @@
 
 		var h = '<div class="camp-head">' + ( st.logo_url ? '<img class="camp-logo" src="' + esc( st.logo_url ) + '" alt="" />' : '' ) +
 			'<div style="min-width:0"><h2 class="h2">' + esc( c.title ) + '</h2>' +
-			( st.closed ? '<span class="pill">' + esc( t( 'closed' ) ) + '</span>' : ( isLive ? '<span class="pill live">' + esc( t( 'live' ) ) + '</span>' : '<span class="pill draft">' + esc( t( 'draft' ) ) + '</span>' ) ) + '</div></div>';
+			( st.closed ? '<span class="pill">' + esc( t( 'closed' ) ) + '</span>' : ( isLive ? '<span class="pill live">' + esc( t( 'live' ) ) + '</span>' : '<span class="pill draft">' + esc( t( 'draft' ) ) + '</span>' ) ) +
+			( st.type ? ' <span class="pill nodot ctype-' + esc( st.type ) + '">' + esc( st.type === 'service' ? t( 'typeService' ) : t( 'typePaid' ) ) + '</span>' : '' ) + '</div></div>';
 		if ( st.closed ) { h += '<div class="banner info"><p>' + esc( t( 'closedBanner' ) ) + '</p><button type="button" class="btn btn-sm btn-ghost" id="d-reopen">' + esc( t( 'reopen' ) ) + '</button></div>'; }
 		if ( ! isLive && ! st.closed ) { h += '<div class="banner warn"><p>' + esc( t( 'draftBanner' ) ) + '</p><button type="button" class="btn btn-sm" id="d-publish">' + esc( t( 'publishNow' ) ) + '</button></div>'; }
 		if ( ! st.has_password ) { h += '<div class="banner warn"><p>' + esc( t( 'noPwBanner' ) ) + '</p><button type="button" class="btn btn-sm btn-ghost" id="d-setpw">' + esc( t( 'setPassword' ) ) + '</button></div>'; }
@@ -795,13 +797,18 @@
 			if ( ctx.stale() ) { return; }
 			var st = c ? c.settings : { status: 'publish', brief: '', max_guests: 4, slug: '', slug_base: '', has_password: false, notify_email: '', logo_url: '', show_followers: false, show_gender: false, show_tags: false, show_location: false, show_popularity: true };
 			var ev = c ? c.everyone : false;
-			var state = { max: st.max_guests, status: st.status === 'publish' ? 'publish' : 'draft', file: null, removeLogo: false };
+			var state = { max: st.max_guests, status: st.status === 'publish' ? 'publish' : 'draft', file: null, removeLogo: false, type: st.type || 'paid' };
 			var base = st.slug_base || ( C.api || '' ).replace( /wp-json.*$/, 'campaign/' );
 
 			var h = '<form id="cf" novalidate>';
 			h += '<div class="section"><h3>' + esc( t( 'basics' ) ) + '</h3></div><div class="card">' +
 				'<label class="field"><span>' + esc( t( 'campName' ) ) + ' *</span><input class="input" id="cf-title" value="' + esc( c ? c.title : '' ) + '" autocomplete="off" /></label>' +
 				'<label class="field" style="margin:0"><span>' + esc( t( 'brief' ) ) + '</span><textarea class="input" id="cf-brief" placeholder="' + esc( t( 'briefPh' ) ) + '">' + esc( st.brief ) + '</textarea></label></div>';
+
+			h += '<div class="section"><h3>' + esc( t( 'campType' ) ) + '</h3></div><div class="typepick" id="cf-type">' +
+				[ [ 'paid', '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3"/></svg>', t( 'typePaid' ), t( 'typePaidHint' ) ], [ 'service', '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8S10.5 4 8 4a2 2 0 0 0 0 4h4m0 0s1.5-4 4-4a2 2 0 0 1 0 4h-4"/></svg>', t( 'typeService' ), t( 'typeServiceHint' ) ] ].map( function ( o ) {
+					return '<button type="button" data-t="' + o[ 0 ] + '"><span class="ti">' + o[ 1 ] + '</span><b>' + esc( o[ 2 ] ) + '</b><small>' + esc( o[ 3 ] ) + '</small></button>';
+				} ).join( '' ) + '</div>';
 
 			h += '<div class="section"><h3>' + esc( t( 'logo' ) ) + '</h3></div><div class="card"><div class="logo-pick"><div class="logo-prev" id="cf-logo-prev">' + ( st.logo_url ? '<img src="' + esc( st.logo_url ) + '" alt="" />' : '—' ) + '</div>' +
 				'<div><label class="btn btn-sm btn-ghost" style="cursor:pointer">' + esc( t( 'chooseImage' ) ) + '<input type="file" accept="image/*" id="cf-logo" hidden /></label> ' +
@@ -827,6 +834,9 @@
 			h += '<p class="error" id="cf-err"></p></form>';
 			view.innerHTML = h;
 
+			function paintType() { qsa( '#cf-type button' ).forEach( function ( b ) { b.classList.toggle( 'is-on', b.getAttribute( 'data-t' ) === state.type ); } ); }
+			paintType();
+			qsa( '#cf-type button' ).forEach( function ( b ) { b.addEventListener( 'click', function () { state.type = b.getAttribute( 'data-t' ); paintType(); } ); } );
 			function paintStatus() { qsa( '#cf-status button' ).forEach( function ( b ) { b.classList.toggle( 'is-on', b.getAttribute( 'data-s' ) === state.status ); } ); }
 			paintStatus();
 			qsa( '#cf-status button' ).forEach( function ( b ) { b.addEventListener( 'click', function () { state.status = b.getAttribute( 'data-s' ); paintStatus(); } ); } );
@@ -855,7 +865,7 @@
 				var title = $( 'cf-title' ).value.trim();
 				if ( ! title ) { $( 'cf-title' ).classList.add( 'is-invalid' ); $( 'cf-title' ).focus(); toast( t( 'nameRequired' ), true ); return; }
 				var body = {
-					title: title, brief: $( 'cf-brief' ).value, max_guests: state.max, status: state.status,
+					title: title, type: state.type, brief: $( 'cf-brief' ).value, max_guests: state.max, status: state.status,
 					slug: $( 'cf-slug' ).value.trim(), password: $( 'cf-pw' ).value.trim(), notify_email: $( 'cf-notify' ).value.trim(),
 					everyone: $( 'cf-every' ).checked, remove_logo: state.removeLogo
 				};
@@ -1409,7 +1419,7 @@
 			if ( ! ls.length ) { view.innerHTML = h + emptyState( 'lists', t( 'none' ) ); return; }
 			ls = ls.slice().sort( function ( a, b ) { return lc( a.name ).localeCompare( lc( b.name ) ); } );
 			h += '<div class="rows">' + ls.map( function ( l ) {
-				return '<div class="row row-tap" data-id="' + l.id + '"><span class="avatar" style="background:var(--s3);color:var(--text)">' + icon( 'lists' ).replace( '<svg ', '<svg width="20" height="20" ' ) + '</span><div class="row-main"><b>' + esc( l.name ) + '</b><small>' + esc( t( 'bloggersCount', num( l.count ) ) ) + '</small></div><span class="chev faint">›</span></div>';
+				return '<div class="row row-tap" data-id="' + l.id + '"><span class="avatar" style="background:var(--s3);color:var(--text)">' + icon( 'lists' ).replace( '<svg ', '<svg width="20" height="20" ' ) + '</span><div class="row-main"><b>' + esc( l.name ) + ( l.smart ? ' <span class="pill nodot smartpill">' + esc( t( 'smartList' ) ) + '</span>' : '' ) + '</b><small>' + esc( t( 'bloggersCount', num( l.count ) ) + ( l.rules ? ' · ' + l.rules : '' ) ) + '</small></div><span class="chev faint">›</span></div>';
 			} ).join( '' ) + '</div>';
 			view.innerHTML = h;
 			qsa( '.row-tap', view ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( '/lists/' + el.getAttribute( 'data-id' ) ); } ); } );

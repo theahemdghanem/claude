@@ -462,3 +462,15 @@ img.avatar { object-fit: cover; background: var(--s3); }
 .ccard p { margin: 10px 0 0; }
 .ccard .item { border: 0; }
 .barline.blue i { background: var(--blue); }
+
+/* 2.3 — campaign type */
+.typepick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.typepick button { appearance: none; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 14px; border-radius: var(--r); border: 1px solid var(--line); background: var(--s1); color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.typepick button .ti { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--s3); font-weight: 800; margin-bottom: 6px; }
+.typepick button small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.typepick button.is-on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.typepick button.is-on .ti { background: var(--text); color: var(--bg); }
+.pills { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pill.ctype-paid { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+.pill.ctype-service { color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
+.pill.smartpill { font-size: 10px; padding: 1px 7px; vertical-align: 2px; color: var(--orange); background: color-mix(in srgb, var(--orange) 14%, transparent); }

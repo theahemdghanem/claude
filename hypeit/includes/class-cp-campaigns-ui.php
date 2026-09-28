@@ -128,6 +128,10 @@ class CP_Campaigns_UI {
 				} else {
 					echo '<span class="cpc-pill is-draft">' . esc_html__( 'Draft', 'hypeit' ) . '</span>';
 				}
+				$ct = CP_Library::campaign_type( $id );
+				if ( $ct ) {
+					echo '<span class="cpc-type is-' . esc_attr( $ct ) . '">' . esc_html( CP_Library::campaign_type_label( $id ) ) . '</span>';
+				}
 				if ( CP_Everyone::is_on( $id ) ) {
 					echo '<span class="cpl-sub" title="' . esc_attr__( 'Every blogger in the library is included.', 'hypeit' ) . '">' . esc_html__( 'Everyone', 'hypeit' ) . '</span>';
 				}
@@ -232,6 +236,13 @@ class CP_Campaigns_UI {
 			$q->set( 'meta_query', array( array( 'key' => '_cp_closed', 'value' => '1' ) ) );
 		}
 
+		$type = isset( $_GET['cp_type'] ) ? sanitize_key( wp_unslash( $_GET['cp_type'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( CP_Library::campaign_types()[ $type ] ) ) {
+			$mq   = (array) $q->get( 'meta_query' );
+			$mq[] = array( 'key' => '_cp_type', 'value' => $type );
+			$q->set( 'meta_query', $mq );
+		}
+
 		if ( ! empty( $_GET['cp_sort'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			list( $ob, $dir ) = array_pad( explode( ':', sanitize_text_field( wp_unslash( $_GET['cp_sort'] ) ) ), 2, 'desc' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( in_array( $ob, array( 'date', 'title', 'modified' ), true ) ) {
@@ -324,6 +335,12 @@ class CP_Campaigns_UI {
 						<?php endforeach; ?>
 					</select>
 				<?php endif; ?>
+				<select name="cp_type" aria-label="<?php esc_attr_e( 'Campaign type', 'hypeit' ); ?>">
+					<option value=""><?php esc_html_e( 'Any type', 'hypeit' ); ?></option>
+					<?php foreach ( CP_Library::campaign_types() as $tk => $tv ) : ?>
+						<option value="<?php echo esc_attr( $tk ); ?>" <?php selected( $g( 'cp_type' ), $tk ); ?>><?php echo esc_html( $tv[0] ); ?></option>
+					<?php endforeach; ?>
+				</select>
 				<label class="cpl-sort"><?php esc_html_e( 'Sort', 'hypeit' ); ?>
 					<select name="cp_sort">
 						<?php foreach ( $sorts as $v => $l ) : ?>

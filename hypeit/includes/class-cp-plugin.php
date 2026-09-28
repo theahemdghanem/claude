@@ -62,7 +62,6 @@ final class CP_Plugin {
 		if ( is_admin() ) {
 			CP_Admin::init();
 			CP_App_Settings::init();
-			CP_Bulk::init();
 			CP_Lists::init();
 			CP_Tags::init();
 			CP_Insights::init();

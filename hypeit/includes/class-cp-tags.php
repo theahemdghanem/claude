@@ -30,11 +30,17 @@ class CP_Tags {
 	}
 
 	/**
-	 * Redirect the retired cp-tags screen.
+	 * Redirect retired screens (cp-tags, cp-bulk).
 	 */
 	public static function redirect_old_page() {
-		if ( isset( $_GET['page'] ) && 'cp-tags' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( 'cp-tags' === $page ) {
 			wp_safe_redirect( self::page_url() );
+			exit;
+		}
+		// The bulk "Add Bloggers" screen was removed — add bloggers one by one instead.
+		if ( 'cp-bulk' === $page ) {
+			wp_safe_redirect( admin_url( 'post-new.php?post_type=' . CP_Library::CPT ) );
 			exit;
 		}
 	}

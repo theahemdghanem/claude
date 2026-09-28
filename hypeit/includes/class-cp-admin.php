@@ -126,6 +126,8 @@ class CP_Admin {
 				'colCity'      => __( 'City', 'hypeit' ),
 				'colStatus'    => __( 'Status', 'hypeit' ),
 				'colPeople'    => __( 'People', 'hypeit' ),
+				/* translators: %s: campaign type. */
+				'notOpenFor'   => __( 'Not open for %s', 'hypeit' ),
 			)
 		);
 	}
@@ -252,6 +254,11 @@ class CP_Admin {
 		$token    = get_post_meta( $post->ID, '_cp_token', true );
 		$url      = $token ? CP_Frontend::campaign_url( $token ) : '';
 
+		// Campaign type — new campaigns start as Paid.
+		$ctype  = CP_Library::campaign_type( $post->ID );
+		$ctype  = $ctype ? $ctype : ( 'auto-draft' === $post->post_status ? 'paid' : '' );
+		$ctypes = CP_Library::campaign_types();
+
 		$ev_on      = CP_Everyone::is_on( $post->ID );
 		$ev_started = CP_Everyone::selection_started( $post->ID );
 
@@ -275,6 +282,8 @@ class CP_Admin {
 			'rows'     => $state,
 			'library'  => self::library_payload(),
 			'genders'  => $genders,
+			'types'    => array_map( static function ( $t ) { return array( 'label' => $t[0], 'collab' => $t[2] ); }, $ctypes ),
+			'type'     => $ctype,
 			'everyone' => array(
 				'on'      => $ev_on,
 				'started' => $ev_started,
@@ -283,6 +292,18 @@ class CP_Admin {
 		?>
 		<div class="cpw" id="cpw">
 			<script type="application/json" id="cpw-data"><?php echo wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
+
+			<div class="cpw-type" role="radiogroup" aria-label="<?php esc_attr_e( 'Campaign type', 'hypeit' ); ?>">
+				<span class="cpw-type-label"><?php esc_html_e( 'Campaign type', 'hypeit' ); ?></span>
+				<?php foreach ( $ctypes as $tk => $tv ) : ?>
+					<label class="cpw-typeopt">
+						<input type="radio" name="cp_type" value="<?php echo esc_attr( $tk ); ?>" <?php checked( $ctype, $tk ); ?> />
+						<span class="cpw-typeicon" aria-hidden="true"><?php echo 'paid' === $tk ? '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3"/></svg>' : '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8S10.5 4 8 4a2 2 0 0 0 0 4h4m0 0s1.5-4 4-4a2 2 0 0 1 0 4h-4"/></svg>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span>
+						<span><strong><?php echo esc_html( $tv[0] ); ?></strong><small><?php echo esc_html( $tv[1] ); ?></small></span>
+					</label>
+				<?php endforeach; ?>
+				<?php if ( ! $ctype ) : ?><span class="cpw-type-warn"><?php esc_html_e( 'Choose a type', 'hypeit' ); ?></span><?php endif; ?>
+			</div>
 
 			<nav class="cpw-tabs" role="tablist">
 				<button type="button" class="cpw-tab is-active" data-tab="bloggers" role="tab"><?php esc_html_e( 'Bloggers', 'hypeit' ); ?> <span class="cpw-pill" id="cpw-tab-count"><?php echo (int) count( $rows ); ?></span></button>
@@ -647,6 +668,8 @@ class CP_Admin {
 					<?php endif; ?>
 				</div>
 			<?php endif; ?>
+			<?php $cp_tl = CP_Library::campaign_type_label( $post->ID ); ?>
+			<?php if ( $cp_tl ) : ?><p class="cpw-glance-type"><span class="cpc-type is-<?php echo esc_attr( CP_Library::campaign_type( $post->ID ) ); ?>"><?php echo esc_html( $cp_tl ); ?></span></p><?php endif; ?>
 			<div class="cpw-glance-stats">
 				<span class="is-green"><b><?php echo (int) $s['confirmed']; ?></b><?php esc_html_e( 'Confirmed', 'hypeit' ); ?></span>
 				<span class="is-red"><b><?php echo (int) $s['declined']; ?></b><?php esc_html_e( 'Declined', 'hypeit' ); ?></span>
@@ -748,6 +771,11 @@ class CP_Admin {
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return;
+		}
+
+		// Campaign type.
+		if ( isset( $_POST['cp_type'] ) ) {
+			CP_Library::set_campaign_type( $post_id, sanitize_key( wp_unslash( $_POST['cp_type'] ) ) );
 		}
 
 		// Brief.

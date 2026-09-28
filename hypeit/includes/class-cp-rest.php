@@ -601,6 +601,7 @@ class CP_REST {
 		return array(
 			'status'          => $post ? $post->post_status : 'draft',
 			'closed'          => CP_Close::is_closed( $id ),
+			'type'            => CP_Library::campaign_type( $id ),
 			'brief'           => (string) get_post_meta( $id, '_cp_brief', true ),
 			'max_guests'      => ( '' === $max ) ? 4 : (int) $max,
 			'slug'            => $token,
@@ -627,6 +628,9 @@ class CP_REST {
 	private static function apply_campaign_settings( $id, $request ) {
 		$p = $request->get_params();
 
+		if ( isset( $p['type'] ) ) {
+			CP_Library::set_campaign_type( $id, (string) $p['type'] );
+		}
 		if ( isset( $p['brief'] ) ) {
 			update_post_meta( $id, '_cp_brief', wp_kses_post( (string) $p['brief'] ) );
 		}
@@ -697,6 +701,7 @@ class CP_REST {
 		// Defaults for fields the form didn't send.
 		add_post_meta( $id, '_cp_max_guests', 4, true );
 		add_post_meta( $id, '_cp_show_popularity', '1', true );
+		add_post_meta( $id, '_cp_type', 'paid', true );
 
 		$handles = $request->get_param( 'handles' );
 		if ( is_array( $handles ) && $handles ) {
@@ -809,7 +814,7 @@ class CP_REST {
 				if ( ! $new || is_wp_error( $new ) ) {
 					return new WP_Error( 'cp_save_failed', __( 'Could not duplicate.', 'hypeit' ), array( 'status' => 500 ) );
 				}
-				foreach ( array( '_cp_brief', '_cp_max_guests', '_cp_logo_id', '_cp_notify_email', '_cp_show_followers', '_cp_show_gender', '_cp_show_tags', '_cp_show_location', '_cp_show_popularity', CP_Everyone::META_ON ) as $k ) {
+				foreach ( array( '_cp_brief', '_cp_max_guests', '_cp_logo_id', '_cp_notify_email', '_cp_show_followers', '_cp_show_gender', '_cp_show_tags', '_cp_show_location', '_cp_show_popularity', '_cp_type', CP_Everyone::META_ON ) as $k ) {
 					$v = get_post_meta( $id, $k, true );
 					if ( '' !== $v ) {
 						update_post_meta( $new, $k, $v );
@@ -967,6 +972,7 @@ class CP_REST {
 		}
 		return array(
 			'genders'    => CP_Library::genders(),
+			'campTypes'  => array_map( static function ( $t ) { return $t[0]; }, CP_Library::campaign_types() ),
 			'missItems'  => CP_Bloggers_UI::items(),
 			'categories' => $cat_names,
 			'collab'     => CP_Library::collab_types(),
@@ -986,10 +992,13 @@ class CP_REST {
 		$out   = array();
 		if ( ! is_wp_error( $terms ) ) {
 			foreach ( $terms as $t ) {
+				$smart = CP_Lists::is_smart( $t->term_id );
 				$out[] = array(
 					'id'    => (int) $t->term_id,
 					'name'  => $t->name,
-					'count' => (int) $t->count,
+					'count' => count( CP_Lists::members( $t->term_id ) ), // Active bloggers only.
+					'smart' => $smart,
+					'rules' => $smart ? implode( ' · ', CP_Lists::rule_chips( CP_Lists::get_rules( $t->term_id ) ) ) : '',
 				);
 			}
 		}

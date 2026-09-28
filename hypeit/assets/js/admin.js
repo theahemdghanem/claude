@@ -135,6 +135,16 @@
 			var k = map[ s ] ? s : 'pending';
 			return '<span class="cp-badge cp-badge-' + k + '">' + esc( map[ k ] ) + '</span>';
 		}
+		function currentType() {
+			var r = document.querySelector( 'input[name="cp_type"]:checked' );
+			return r ? r.value : ( DATA.type || '' );
+		}
+		document.addEventListener( 'change', function ( e ) {
+			if ( e.target && e.target.name === 'cp_type' ) {
+				var w = document.querySelector( '.cpw-type-warn' ); if ( w ) { w.remove(); }
+				render();
+			}
+		} );
 		function render() {
 			var counts = { all: 0, confirmed: 0, declined: 0, pending: 0 };
 			var addedN = 0, removedN = 0;
@@ -186,6 +196,11 @@
 				if ( it.removed ) { tags += '<span class="cpw-tag is-rm">' + esc( L.removedTag ) + '</span>'; }
 				if ( b && b.x ) { tags += '<span class="cpw-tag is-rm">' + esc( L.blocked ) + '</span>'; }
 				if ( ! b ) { tags += '<span class="cpw-tag">' + esc( L.notInLibrary ) + '</span>'; }
+				// Blogger set what they're open for and this campaign's type isn't in it.
+				var ctype = currentType();
+				if ( b && ctype && DATA.types && DATA.types[ ctype ] && b.o && b.o.indexOf( ',' + DATA.types[ ctype ].collab + ',' ) === -1 ) {
+					tags += '<span class="cpw-tag is-warn">' + esc( fmt( L.notOpenFor, DATA.types[ ctype ].label ) ) + '</span>';
+				}
 				var stg = DATA.stages && DATA.stages[ key( it.h ) ];
 				if ( stg && DATA.stageLabels ) { tags += '<span class="cpa-stage cpa-' + esc( stg ) + '">' + esc( DATA.stageLabels[ stg ] ) + '</span>'; }
 				var gender = b && b.g && DATA.genders && DATA.genders[ b.g ] ? DATA.genders[ b.g ] : '—';

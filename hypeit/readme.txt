@@ -2,7 +2,7 @@
 Contributors: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.2.2
+Stable tag: 2.3.0
 License: GPL-2.0-or-later
 
 Blogger management for agencies: a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want.
@@ -10,6 +10,7 @@ Blogger management for agencies: a blogger library with onboarding, verification
 == Description ==
 
 * Blogger library with profiles, photos, categories, smart lists and private contact details.
+* Campaign types: Paid or Service/Product Based.
 * Onboarding form with automatic follower check and bio-code verification (no login).
 * Campaigns with private client selection pages, open/close control and CSV export.
 * Insights dashboard: acceptance by category, size, gender and city; leaderboards; trends.
@@ -18,6 +19,13 @@ Blogger management for agencies: a blogger library with onboarding, verification
 * Email notifications: right away, daily digest or weekly digest.
 
 == Changelog ==
+
+= 2.3.0 =
+* Campaign type: choose Paid or Service/Product Based for every campaign (editor, app, campaigns list filter). Bloggers not open to that type are flagged in the campaign editor.
+* Lists redesigned: overview with search and Smart/Manual filter, cards with member faces and rules in plain words; list page with stats, member search, add/remove bloggers for manual lists; new create/edit form with live preview and follower-size presets.
+* HypeIt App page redesigned: one save for everything, colour pickers, live phone preview, install QR code with steps, push notification status.
+* Join Section: visual layout picker and heading-level buttons (the dropdowns were cut off); fixed dropdown arrows overlapping text on all HypeIt pages.
+* Removed the bulk “Add Bloggers” screen (old links go to Add New Blogger).
 
 = 2.2.2 =
 * “Sync bloggers now” always refreshes the bloggers with the oldest numbers (it used to do nothing when nobody was due yet), so follower arrows show up right away.

@@ -192,6 +192,57 @@ class CP_Library {
 	}
 
 	/* ------------------------------------------------------------------ */
+	/* Campaign types                                                      */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * Campaign types: key => array( label, short description, matching blogger "Open for" key ).
+	 *
+	 * @return array
+	 */
+	public static function campaign_types() {
+		return array(
+			'paid'    => array( __( 'Paid', 'hypeit' ), __( 'Bloggers are paid a fee', 'hypeit' ), 'paid' ),
+			'service' => array( __( 'Service/Product Based', 'hypeit' ), __( 'Bloggers get the product or service in return', 'hypeit' ), 'barter' ),
+		);
+	}
+
+	/**
+	 * A campaign's type key ('' when not set yet).
+	 *
+	 * @param int $campaign_id Campaign ID.
+	 * @return string
+	 */
+	public static function campaign_type( $campaign_id ) {
+		$t = (string) get_post_meta( $campaign_id, '_cp_type', true );
+		return isset( self::campaign_types()[ $t ] ) ? $t : '';
+	}
+
+	/**
+	 * Save a campaign's type (unknown values are ignored).
+	 *
+	 * @param int    $campaign_id Campaign ID.
+	 * @param string $type        Type key.
+	 */
+	public static function set_campaign_type( $campaign_id, $type ) {
+		$type = sanitize_key( (string) $type );
+		if ( isset( self::campaign_types()[ $type ] ) ) {
+			update_post_meta( $campaign_id, '_cp_type', $type );
+		}
+	}
+
+	/**
+	 * Label for a campaign's type ('' when not set).
+	 *
+	 * @param int $campaign_id Campaign ID.
+	 * @return string
+	 */
+	public static function campaign_type_label( $campaign_id ) {
+		$t = self::campaign_type( $campaign_id );
+		return $t ? self::campaign_types()[ $t ][0] : '';
+	}
+
+	/* ------------------------------------------------------------------ */
 	/* Deactivated bloggers                                                */
 	/* ------------------------------------------------------------------ */
 
