@@ -1,0 +1,134 @@
+/* Eye Comfort Dark Mode — toolbar menu and profile settings. */
+
+#wpadminbar #wp-admin-bar-ecdm > .ab-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-icon {
+	float: none;
+	margin: 0;
+	padding: 0;
+	width: 20px;
+	height: 20px;
+	top: 0;
+}
+
+#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-icon::before {
+	content: none;
+}
+
+#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-icon svg {
+	display: block;
+	width: 18px;
+	height: 18px;
+	margin: 1px;
+}
+
+#wpadminbar #wp-admin-bar-ecdm.ecdm-is-dark .ecdm-ab-icon {
+	color: #f0c96a;
+}
+
+#wpadminbar #wp-admin-bar-ecdm .ab-sub-wrapper {
+	min-width: 190px;
+	left: auto;
+	right: 0;
+}
+
+#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-group {
+	padding: 4px 0;
+}
+
+#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-heading > .ab-item,
+#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-note > .ab-item {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.65;
+	cursor: default;
+}
+
+#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-note > .ab-item {
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+#wpadminbar .quicklinks #wp-admin-bar-ecdm [id^="wp-admin-bar-ecdm-set-"] > .ab-item {
+	padding-left: 30px;
+	position: relative;
+}
+
+#wpadminbar .quicklinks #wp-admin-bar-ecdm .ecdm-current > .ab-item::before {
+	content: "";
+	position: absolute;
+	left: 13px;
+	top: 50%;
+	width: 4px;
+	height: 8px;
+	margin-top: -6px;
+	padding: 0;
+	border: solid currentColor;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+
+@media screen and (max-width: 782px) {
+	#wpadminbar #wp-admin-bar-ecdm {
+		display: block;
+	}
+
+	#wpadminbar #wp-admin-bar-ecdm > .ab-item {
+		width: 52px;
+		justify-content: center;
+		padding: 0;
+	}
+
+	#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-icon svg {
+		width: 26px;
+		height: 26px;
+		margin: 10px 0;
+	}
+
+	#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-icon {
+		width: 26px;
+		height: 46px;
+	}
+
+	#wpadminbar #wp-admin-bar-ecdm .ecdm-ab-label {
+		display: none;
+	}
+}
+
+/* Profile screen */
+
+#ecdm-settings .ecdm-choices label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 18px 8px 0;
+}
+
+#ecdm-settings .ecdm-choices .description {
+	margin-top: 2px;
+}
+
+.ecdm-swatch {
+	display: inline-block;
+	width: 22px;
+	height: 16px;
+	border-radius: 4px;
+	border: 1px solid rgba(128, 128, 128, 0.5);
+}
+
+.ecdm-swatch-dim {
+	background: linear-gradient(90deg, #262a31 50%, #30353d 50%);
+}
+
+.ecdm-swatch-dark {
+	background: linear-gradient(90deg, #17191d 50%, #1f2227 50%);
+}
+
+.ecdm-swatch-black {
+	background: linear-gradient(90deg, #000 50%, #0e0f11 50%);
+}
