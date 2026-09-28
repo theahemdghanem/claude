@@ -823,8 +823,8 @@
 				if ( ! rows.length ) { box.innerHTML = '<p class="empty">' + esc( t( 'noResults' ) ) + '</p>'; return; }
 				box.innerHTML = rows.map( function ( c ) {
 					var pill = c.closed ? '<span class="pill">' + esc( t( 'closed' ) ) + '</span>' : ( c.status === 'publish' ? '<span class="pill live">' + esc( t( 'live' ) ) + '</span>' : '<span class="pill draft">' + esc( t( 'draft' ) ) + '</span>' );
-					if ( c.type ) { pill = '<span class="pill nodot ctype-' + esc( c.type ) + '">' + esc( c.type === 'service' ? t( 'typeService' ) : t( 'typePaid' ) ) + '</span> ' + pill; }
-					return '<div class="card card-tap" data-id="' + c.id + '"><div class="card-title">' + ( c.logo ? '<img class="card-logo" src="' + esc( c.logo ) + '" alt="" />' : '' ) + '<h3>' + esc( c.title || '—' ) + '</h3><span class="pills">' + pill + '</span></div>' +
+					if ( c.type ) { pill = '<span class="pill nodot ctype-' + esc( c.type ) + '">' + esc( c.type === 'service' ? t( 'typeServiceShort' ) : t( 'typePaid' ) ) + '</span> ' + pill; }
+					return '<div class="card card-tap camp-card" data-id="' + c.id + '"><div class="camp-card-top">' + ( c.logo ? '<img class="card-logo" src="' + esc( c.logo ) + '" alt="" />' : '' ) + '<span class="pills">' + pill + '</span></div><div class="card-title"><h3>' + esc( c.title || '—' ) + '</h3></div>' +
 						( c.expires && ! c.closed && c.status === 'publish' ? '<div class="card-exp">' + expiryChip( c.expires ) + '</div>' : '' ) +
 						progress( c.confirmed, c.declined, c.pending ) +
 						'<div class="counts"><span class="g"><b>' + c.confirmed + '</b> ' + esc( t( 'confirmed' ) ) + '</span><span class="r"><b>' + c.declined + '</b> ' + esc( t( 'declined' ) ) + '</span><span><b>' + c.pending + '</b> ' + esc( t( 'pending' ) ) + '</span><span><b>' + c.attendance + '</b> ' + esc( t( 'people' ) ) + '</span></div></div>';

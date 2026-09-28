@@ -603,3 +603,11 @@ img.avatar { object-fit: cover; background: var(--s3); }
 .inbox-logo { width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto; background: #111113; border: 1px solid #26262b; display: flex; align-items: center; justify-content: center; padding: 5px; box-sizing: border-box; }
 .inbox-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .countpill { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; background: var(--red); color: #fff; font-size: 12px; font-weight: 800; display: inline-grid; place-items: center; }
+
+/* Campaign cards: logo + status on top, the name gets the full width below. */
+.camp-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.camp-card-top:empty { display: none; }
+.camp-card-top .pills { margin-left: auto; min-width: 0; }
+.camp-card-top .card-logo { height: 42px; max-width: 140px; }
+.camp-card .card-title { margin-bottom: 10px; }
+.camp-card .card-title h3 { font-size: 18px; line-height: 1.3; word-break: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

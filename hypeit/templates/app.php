@@ -295,6 +295,7 @@ $cpa_config = array(
 		'typePaid'         => __( 'Paid', 'hypeit' ),
 		'typePaidHint'     => __( 'Bloggers are paid a fee', 'hypeit' ),
 		'typeService'      => __( 'Service/Product Based', 'hypeit' ),
+		'typeServiceShort' => __( 'Service / Product', 'hypeit' ),
 		'typeServiceHint'  => __( 'Bloggers get the product or service in return', 'hypeit' ),
 		'autoComplete'     => __( 'Profile complete', 'hypeit' ),
 		'autoCompleteHint' => __( 'Every detail is filled in, so it’s marked complete automatically.', 'hypeit' ),

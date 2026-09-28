@@ -2,7 +2,7 @@
 Contributors: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.4.1
+Stable tag: 2.4.2
 License: GPL-2.0-or-later
 
 Blogger management for agencies: a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want.
@@ -19,6 +19,9 @@ Blogger management for agencies: a blogger library with onboarding, verification
 * Email notifications: right away, daily digest or weekly digest.
 
 == Changelog ==
+
+= 2.4.2 =
+* App campaign cards: logo and status badges sit on their own row, so the campaign name uses the full card width (up to two lines, no more words split letter by letter). Shorter “Service / Product” badge.
 
 = 2.4.1 =
 * App notifications: a bell on Home opens a Notifications screen with new blogger submissions, profile updates and client responses (grouped, with unread dots). “Mark all as read” and “Clear all” reset the bubble. The icon bubble now counts unread notifications, and a new Notifications section in More turns the bubble and each kind on or off. Push alerts follow the same choices.
