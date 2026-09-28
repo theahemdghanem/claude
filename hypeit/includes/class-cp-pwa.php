@@ -112,7 +112,10 @@ class CP_PWA {
 
 	/** @return string Service worker URL. */
 	public static function sw_url() {
-		return add_query_arg( 'cp_sw', CP_VERSION, self::app_url() );
+		// Fixed URL on purpose: the browser picks up new versions by comparing the
+		// script's content. A versioned URL let an old cached app page re-register
+		// the old worker, and the app bounced between versions on launch.
+		return add_query_arg( 'cp_sw', '1', self::app_url() );
 	}
 
 	/**
@@ -306,18 +309,12 @@ self.addEventListener('fetch', function (e) {
 	// Never cache API calls — the app keeps its own offline copy of data.
 	if (url.pathname.indexOf('/wp-json/') !== -1 || url.search.indexOf('rest_route=') !== -1) { return; }
 	if (req.mode === 'navigate') {
-		// Network first (fresh shell), cached shell if offline or the network is slow.
-		e.respondWith(new Promise(function (resolve) {
-			var done = false;
-			var timer = setTimeout(function () { caches.match(SHELL).then(function (hit) { if (hit && !done) { done = true; resolve(hit); } }); }, 3500);
-			fetch(req).then(function (res) {
-				if (res.ok && url.href.indexOf(SHELL) === 0) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(SHELL, copy); }); }
-				clearTimeout(timer);
-				if (!done) { done = true; resolve(res); }
-			}).catch(function () {
-				clearTimeout(timer);
-				caches.match(SHELL).then(function (hit) { if (!done) { done = true; resolve(hit || Response.error()); } });
-			});
+		// Always the fresh app page; the saved copy only when offline.
+		e.respondWith(fetch(req).then(function (res) {
+			if (res.ok && url.href.indexOf(SHELL) === 0) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(SHELL, copy); }); }
+			return res;
+		}).catch(function () {
+			return caches.match(SHELL).then(function (hit) { return hit || Response.error(); });
 		}));
 		return;
 	}

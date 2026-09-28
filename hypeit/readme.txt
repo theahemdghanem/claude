@@ -2,7 +2,7 @@
 Contributors: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.4.2
+Stable tag: 2.4.3
 License: GPL-2.0-or-later
 
 Blogger management for agencies: a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want.
@@ -19,6 +19,9 @@ Blogger management for agencies: a blogger library with onboarding, verification
 * Email notifications: right away, daily digest or weekly digest.
 
 == Changelog ==
+
+= 2.4.3 =
+* App opens in one go: fixed the app flashing a loading screen and reopening 3–4 times on launch (after an update an old saved copy of the app could re-register the old version, and the app reloaded on every switch). The app now opens instantly with saved data and checks the login in the background; background refreshes no longer blank the screen.
 
 = 2.4.2 =
 * App campaign cards: logo and status badges sit on their own row, so the campaign name uses the full card width (up to two lines, no more words split letter by letter). Shorter “Service / Product” badge.

@@ -487,11 +487,25 @@
 		programmatic = false;
 		if ( ! force && ! soft ) { window.scrollTo( 0, 0 ); }
 		view.classList.toggle( 'is-soft', !! soft );
-		if ( ! soft ) { view.classList.remove( 'v-in' ); void view.offsetWidth; view.classList.add( 'v-in' ); }
-		Promise.resolve( route[ 1 ]( ctx ) ).then( function () {
-			if ( ctx.stale() ) { return; }
+		qsa( '.view-ghost' ).forEach( function ( g ) { g.remove(); } );
+		view.hidden = false;
+		var ghost = null;
+		if ( soft ) {
+			// Background refresh: keep a frozen copy of the screen on top while the new one builds (no loading flash).
+			ghost = view.cloneNode( true );
+			ghost.removeAttribute( 'id' ); ghost.classList.add( 'view-ghost' ); ghost.classList.remove( 'v-in' );
+			qsa( '[id]', ghost ).forEach( function ( el ) { el.removeAttribute( 'id' ); } );
+			view.parentNode.insertBefore( ghost, view );
+			view.hidden = true;
+		} else { view.classList.remove( 'v-in' ); void view.offsetWidth; view.classList.add( 'v-in' ); }
+		function reveal() {
+			if ( ghost ) { ghost.remove(); ghost = null; view.hidden = false; }
 			if ( restore ) { window.scrollTo( 0, restore ); }
-		} );
+		}
+		Promise.resolve( route[ 1 ]( ctx ) ).then( function () {
+			if ( ctx.stale() ) { if ( ghost ) { ghost.remove(); } return; }
+			reveal();
+		}, function () { if ( ghost ) { ghost.remove(); view.hidden = false; } } );
 	}
 
 	function fabBtn( label, onClick ) {
@@ -2195,21 +2209,17 @@
 			}
 		} );
 		if ( getToken() ) {
-			api( '/session' ).then( function ( d ) { S.user = d.user || {}; showApp(); } ).catch( function ( e ) {
-				if ( e && e.code === 'offline' ) { showApp(); return; }
-				clearToken(); showLogin( e && e.code === 'expired' ? t( 'expired' ) : '' );
+			// Open straight away (saved data paints instantly); the session is checked in the background.
+			showApp();
+			api( '/session' ).then( function ( d ) { S.user = d.user || {}; } ).catch( function ( e ) {
+				if ( e && e.code === 'offline' ) { return; }
+				signOut( e && e.code === 'expired' ? t( 'expired' ) : '' );
 			} );
 		} else {
 			showLogin();
 		}
 		if ( 'serviceWorker' in navigator && C.sw ) {
 			navigator.serviceWorker.register( C.sw ).catch( function () {} );
-			// A new version took over: reload once, unless the user is mid-edit.
-			var hadCtl = !! navigator.serviceWorker.controller, reloaded = false;
-			navigator.serviceWorker.addEventListener( 'controllerchange', function () {
-				if ( ! hadCtl || reloaded || ( appEl && appEl.classList.contains( 'no-tabs' ) ) || openSheets.length ) { return; }
-				reloaded = true; location.reload();
-			} );
 			// Tapping a notification while the app is open: jump to its screen.
 			navigator.serviceWorker.addEventListener( 'message', function ( e ) {
 				if ( e.data && e.data.type === 'cp-refresh' ) { refreshUnread(); return; }
