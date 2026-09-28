@@ -817,7 +817,7 @@ class CP_REST {
 				}
 				update_post_meta( $new, '_cp_token', CP_Admin::generate_token() );
 				$accounts = array();
-				foreach ( CP_DB::get_bloggers( $id ) as $row ) {
+				foreach ( CP_DB::visible_bloggers( $id ) as $row ) {
 					$accounts[] = $row->ig_account;
 				}
 				if ( $accounts ) {
@@ -1057,6 +1057,11 @@ class CP_REST {
 			'followers' => (int) get_post_meta( $id, '_cp_followers', true ),
 			'gender'    => (string) get_post_meta( $id, '_cp_gender', true ),
 			'blocked'   => '1' === (string) get_post_meta( $id, '_cp_blocked', true ),
+			'inactive'  => CP_Library::is_inactive( $id ),
+			'fd'        => CP_Bloggers_UI::follower_delta( $id ),
+			'manual'    => CP_Bloggers_UI::is_manual( $id ),
+			'done_at'   => (int) get_post_meta( $id, '_cp_completed_at', true ),
+			'bupd'      => (int) get_post_meta( $id, '_cp_blogger_updated', true ),
 			'popularity'=> $lab['label'],
 			'verified'  => CP_Verify::is_verified( $id ),
 			'igs'       => (string) get_post_meta( $id, '_cp_ig_status', true ),
@@ -1114,6 +1119,13 @@ class CP_REST {
 				'whatsapp'  => (string) get_post_meta( $id, '_cp_whatsapp', true ),
 				'address'   => (string) get_post_meta( $id, '_cp_address', true ),
 				'blocked'   => '1' === (string) get_post_meta( $id, '_cp_blocked', true ),
+				'inactive'  => CP_Library::is_inactive( $id ),
+				'complete'  => (int) get_post_meta( $id, '_cp_complete', true ),
+				'complete_manual' => CP_Bloggers_UI::is_manual( $id ),
+				'manual_ready'    => CP_Bloggers_UI::manual_ready( $id ),
+				'missing'   => CP_Blogger_CPT::completeness( $id )['missing'],
+				'fd'        => CP_Bloggers_UI::follower_delta( $id ),
+				'fprev'     => (int) get_post_meta( $id, '_cp_followers_prev', true ),
 				'source'    => (string) get_post_meta( $id, '_cp_source', true ),
 				'tags'      => is_wp_error( $tags ) ? array() : array_values( $tags ),
 				'lists'     => is_wp_error( $list_ids ) ? array() : array_map( 'intval', $list_ids ),
@@ -1204,7 +1216,7 @@ class CP_REST {
 			update_post_meta( $id, '_cp_collab', $collab ? ',' . implode( ',', $collab ) . ',' : '' );
 		}
 
-		// Categories (only existing ones — new categories are created in Manage Categories).
+		// Categories (only existing ones — new categories are created on the Onboarding settings page).
 		$tags = $request->get_param( 'tags' );
 		if ( is_array( $tags ) ) {
 			$ids = array();
@@ -1297,7 +1309,7 @@ class CP_REST {
 	}
 
 	/**
-	 * Block / unblock / delete a blogger.
+	 * Block / unblock / deactivate / activate / (un)mark complete / delete a blogger.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return array|WP_Error
@@ -1321,6 +1333,18 @@ class CP_REST {
 				break;
 			case 'unverify':
 				CP_Verify::set_verified( $id, false );
+				break;
+			case 'deactivate':
+				CP_Library::set_inactive( $id, true );
+				break;
+			case 'activate':
+				CP_Library::set_inactive( $id, false );
+				break;
+			case 'complete':
+				CP_Bloggers_UI::set_manual( $id, true );
+				break;
+			case 'uncomplete':
+				CP_Bloggers_UI::set_manual( $id, false );
 				break;
 			case 'block':
 				update_post_meta( $id, '_cp_blocked', '1' );

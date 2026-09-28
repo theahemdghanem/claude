@@ -306,6 +306,9 @@ class CP_Insights {
 				'fol'      => (int) get_post_meta( $id, '_cp_followers', true ),
 				'verified' => '1' === (string) get_post_meta( $id, '_cp_verified', true ),
 				'blocked'  => '1' === (string) get_post_meta( $id, '_cp_blocked', true ),
+				'inactive' => '1' === (string) get_post_meta( $id, CP_Library::META_INACTIVE, true ),
+				'complete' => (int) get_post_meta( $id, '_cp_complete', true ),
+				'fd'       => (int) get_post_meta( $id, '_cp_followers_delta', true ),
 				'igstat'   => (string) get_post_meta( $id, '_cp_ig_status', true ),
 				'created'  => get_post_time( 'U', true, $id ),
 				'cats'     => ( $cats && ! is_wp_error( $cats ) ) ? wp_list_pluck( $cats, 'name' ) : array(),
@@ -393,16 +396,31 @@ class CP_Insights {
 		$k_old = $period ? $kpi( $old ) : null;
 
 		// Library health.
-		$active   = array_filter( $lib, static function ( $b ) { return ! $b['blocked']; } );
+		$active   = array_filter( $lib, static function ( $b ) { return ! $b['blocked'] && ! $b['inactive']; } );
 		$new_libs = 0;
 		$verified = 0;
 		$personal = 0;
+		$complete = 0;
+		$pct_sum  = 0;
+		$growing  = 0;
+		$shrink   = 0;
+		$reach    = 0;
 		foreach ( $active as $b ) {
 			if ( $period && $b['created'] >= $since ) {
 				$new_libs++;
 			}
 			$verified += $b['verified'] ? 1 : 0;
 			$personal += 'personal' === $b['igstat'] ? 1 : 0;
+			$complete += $b['complete'] >= 100 ? 1 : 0;
+			$pct_sum  += $b['complete'];
+			$growing  += $b['fd'] > 0 ? 1 : 0;
+			$shrink   += $b['fd'] < 0 ? 1 : 0;
+			$reach    += $b['fol'];
+		}
+		$tiers = array();
+		foreach ( $active as $b ) {
+			$t = self::tier( $b['fol'] );
+			$tiers[ $t ] = isset( $tiers[ $t ] ) ? $tiers[ $t ] + 1 : 1;
 		}
 
 		// Breakdowns by profile.
@@ -457,8 +475,13 @@ class CP_Insights {
 				'extra'    => $extra,
 			);
 		};
-		$board = static function ( $sort, $filter, $fmt, $limit = 8 ) use ( $per, $person ) {
-			$list = array_filter( $per, $filter );
+		$board = static function ( $sort, $filter, $fmt, $limit = 8 ) use ( $per, $person, $lib ) {
+			// Deactivated bloggers don't appear on leaderboards (their history still counts above).
+			$list = array_filter(
+				array_filter( $per, $filter ),
+				static function ( $h ) use ( $lib ) { return ! ( isset( $lib[ $h ] ) && $lib[ $h ]['inactive'] ); },
+				ARRAY_FILTER_USE_KEY
+			);
 			uasort( $list, $sort );
 			$out = array();
 			foreach ( array_slice( $list, 0, $limit, true ) as $h => $p ) {
@@ -590,6 +613,14 @@ class CP_Insights {
 				'verified'      => $verified,
 				'verified_pct'  => count( $active ) ? (int) round( $verified / count( $active ) * 100 ) : 0,
 				'personal'      => $personal,
+				'complete'      => $complete,
+				'complete_pct'  => count( $active ) ? (int) round( $complete / count( $active ) * 100 ) : 0,
+				'avg_complete'  => count( $active ) ? (int) round( $pct_sum / count( $active ) ) : 0,
+				'growing'       => $growing,
+				'shrinking'     => $shrink,
+				'reach'         => $reach,
+				'tiers'         => $tiers,
+				'inactive'      => count( array_filter( $lib, static function ( $b ) { return $b['inactive']; } ) ),
 			),
 			'trend'    => array_values( $trend ),
 			'dims'     => $dims,
@@ -659,53 +690,113 @@ class CP_Insights {
 			$max_trend = max( $max_trend, $t['confirmed'] + $t['declined'] + $t['pending'] );
 		}
 		?>
-		<div class="wrap cp-admin cpi">
-			<div class="cp-toolbar">
-				<h1><?php esc_html_e( 'Insights', 'hypeit' ); ?></h1>
-				<div class="cpw-seg">
+		<?php
+		$lib   = wp_parse_args( $r['library'], array( 'total' => 0, 'new' => 0, 'verified' => 0, 'verified_pct' => 0, 'personal' => 0, 'complete' => 0, 'complete_pct' => 0, 'avg_complete' => 0, 'growing' => 0, 'shrinking' => 0, 'reach' => 0, 'tiers' => array(), 'inactive' => 0 ) );
+		$blist = admin_url( 'edit.php?post_type=' . CP_Library::CPT );
+		$tmax  = $lib['tiers'] ? max( $lib['tiers'] ) : 1;
+		$compact = static function ( $n ) {
+			$n = (int) $n;
+			if ( $n >= 1000000 ) {
+				return rtrim( rtrim( number_format( $n / 1000000, 1 ), '0' ), '.' ) . 'M';
+			}
+			if ( $n >= 1000 ) {
+				return rtrim( rtrim( number_format( $n / 1000, 1 ), '0' ), '.' ) . 'K';
+			}
+			return number_format_i18n( $n );
+		};
+		$tot_trend = 0;
+		foreach ( $r['trend'] as $t ) {
+			$tot_trend += $t['confirmed'] + $t['declined'] + $t['pending'];
+		}
+		?>
+		<div class="wrap cp-admin cp-wide cpi">
+			<div class="cp-pagehead">
+				<div>
+					<h1><?php esc_html_e( 'Insights', 'hypeit' ); ?></h1>
+					<p class="cp-sub">
+						<?php
+						echo esc_html(
+							$r['period']
+								/* translators: %s: period. */
+								? sprintf( __( 'Published campaigns from the last %s, compared with the period before. Bloggers still waiting for a response in closed campaigns aren’t counted.', 'hypeit' ), $pl[ $r['period'] ] )
+								: __( 'All published campaigns. Bloggers still waiting for a response in closed campaigns aren’t counted.', 'hypeit' )
+						);
+						?>
+					</p>
+				</div>
+				<div class="cpw-seg" role="group" aria-label="<?php esc_attr_e( 'Period', 'hypeit' ); ?>">
 					<?php foreach ( $pl as $days => $lab ) : ?>
 						<a class="<?php echo (int) $r['period'] === (int) $days ? 'is-active' : ''; ?>" href="<?php echo esc_url( add_query_arg( 'period', $days, $base ) ); ?>"><?php echo esc_html( $lab ); ?></a>
 					<?php endforeach; ?>
 				</div>
 			</div>
-			<p class="cp-sub">
-				<?php
-				echo esc_html(
-					$r['period']
-						/* translators: %s: period. */
-						? sprintf( __( 'Published campaigns from the last %s, compared with the period before. Bloggers still waiting for a response in closed campaigns aren’t counted.', 'hypeit' ), $pl[ $r['period'] ] )
-						: __( 'All published campaigns. Bloggers still waiting for a response in closed campaigns aren’t counted.', 'hypeit' )
-				);
-				?>
-			</p>
 
 			<div class="cpi-kpis">
-				<div class="cpi-kpi"><span><?php esc_html_e( 'Campaigns', 'hypeit' ); ?></span><b><?php echo (int) $k['campaigns']; ?></b><?php echo $d ? $delta( $d['campaigns'] ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></div>
-				<div class="cpi-kpi"><span><?php esc_html_e( 'Bloggers proposed', 'hypeit' ); ?></span><b><?php echo esc_html( number_format_i18n( $k['invited'] ) ); ?></b><?php echo $d ? $delta( $d['invited'] ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><small><?php echo esc_html( sprintf( /* translators: %s: avg. */ __( '%s per campaign', 'hypeit' ), number_format_i18n( $k['avg_size'], 1 ) ) ); ?></small></div>
+				<div class="cpi-kpi"><span><?php esc_html_e( 'Campaigns', 'hypeit' ); ?></span><b><?php echo (int) $k['campaigns']; ?></b><?php echo $d ? $delta( $d['campaigns'] ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><small><?php echo esc_html( sprintf( /* translators: %s: avg. */ __( '%s bloggers each', 'hypeit' ), number_format_i18n( $k['avg_size'], 1 ) ) ); ?></small></div>
+				<div class="cpi-kpi"><span><?php esc_html_e( 'Bloggers proposed', 'hypeit' ); ?></span><b><?php echo esc_html( number_format_i18n( $k['invited'] ) ); ?></b><?php echo $d ? $delta( $d['invited'] ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><small><?php echo esc_html( sprintf( /* translators: %s: pending. */ __( '%s still waiting', 'hypeit' ), number_format_i18n( $k['pending'] ) ) ); ?></small></div>
 				<div class="cpi-kpi is-green"><span><?php esc_html_e( 'Client acceptance', 'hypeit' ); ?></span><b><?php echo esc_html( $pct( $k['acceptance'] ) ); ?></b><?php echo $d ? $delta( $d['acceptance'], ' pts' ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><small><?php echo esc_html( sprintf( /* translators: 1: confirmed, 2: declined. */ __( '%1$s confirmed · %2$s declined', 'hypeit' ), number_format_i18n( $k['confirmed'] ), number_format_i18n( $k['declined'] ) ) ); ?></small></div>
-				<div class="cpi-kpi"><span><?php esc_html_e( 'Response rate', 'hypeit' ); ?></span><b><?php echo esc_html( $pct( $k['response'] ) ); ?></b><?php echo $d ? $delta( $d['response'], ' pts' ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><small><?php echo esc_html( sprintf( /* translators: %s: pending. */ __( '%s still waiting', 'hypeit' ), number_format_i18n( $k['pending'] ) ) ); ?></small></div>
+				<div class="cpi-kpi"><span><?php esc_html_e( 'Response rate', 'hypeit' ); ?></span><b><?php echo esc_html( $pct( $k['response'] ) ); ?></b><?php echo $d ? $delta( $d['response'], ' pts' ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><small><?php esc_html_e( 'of proposed bloggers answered', 'hypeit' ); ?></small></div>
 				<div class="cpi-kpi is-dark"><span><?php esc_html_e( 'People attending', 'hypeit' ); ?></span><b><?php echo esc_html( number_format_i18n( $k['people'] ) ); ?></b><?php echo $d ? $delta( $d['people'] ) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><small><?php esc_html_e( 'confirmed bloggers + guests', 'hypeit' ); ?></small></div>
-				<div class="cpi-kpi"><span><?php esc_html_e( 'Blogger library', 'hypeit' ); ?></span><b><?php echo esc_html( number_format_i18n( $r['library']['total'] ) ); ?></b><?php echo $r['period'] && $r['library']['new'] ? '<span class="cpi-delta is-up">+' . (int) $r['library']['new'] . ' ' . esc_html__( 'new', 'hypeit' ) . '</span>' : ''; ?><small><?php echo esc_html( sprintf( /* translators: %d: percent. */ __( '%d%% verified', 'hypeit' ), $r['library']['verified_pct'] ) ); ?></small></div>
+				<div class="cpi-kpi"><span><?php esc_html_e( 'Blogger library', 'hypeit' ); ?></span><b><?php echo esc_html( number_format_i18n( $lib['total'] ) ); ?></b><?php echo $r['period'] && $lib['new'] ? '<span class="cpi-delta is-up">+' . (int) $lib['new'] . ' ' . esc_html__( 'new', 'hypeit' ) . '</span>' : ''; ?><small><?php echo esc_html( sprintf( /* translators: %d: percent. */ __( '%d%% verified', 'hypeit' ), $lib['verified_pct'] ) ); ?></small></div>
 			</div>
 
-			<div class="cpw-card">
-				<h3><?php esc_html_e( 'Selections — last 12 months', 'hypeit' ); ?></h3>
-				<div class="cpi-trend">
-					<?php foreach ( $r['trend'] as $t ) : ?>
-						<?php $tot = $t['confirmed'] + $t['declined'] + $t['pending']; ?>
-						<div class="cpi-col" title="<?php echo esc_attr( sprintf( /* translators: 1: month, 2: confirmed, 3: declined, 4: waiting. */ __( '%1$s: %2$d confirmed · %3$d declined · %4$d waiting', 'hypeit' ), $t['month'], $t['confirmed'], $t['declined'], $t['pending'] ) ); ?>">
-							<div class="cpi-stack" style="height:<?php echo (int) round( $tot / $max_trend * 100 ); ?>%">
-								<i class="c" style="flex:<?php echo (int) $t['confirmed']; ?>"></i><i class="d" style="flex:<?php echo (int) $t['declined']; ?>"></i><i class="p" style="flex:<?php echo (int) $t['pending']; ?>"></i>
+			<div class="cpi-top">
+				<div class="cpw-card cpi-trendcard">
+					<div class="cpi-cardhead">
+						<h3><?php esc_html_e( 'Selections — last 12 months', 'hypeit' ); ?></h3>
+						<p class="cpi-legend"><i class="c"></i> <?php esc_html_e( 'Confirmed', 'hypeit' ); ?> <i class="d"></i> <?php esc_html_e( 'Declined', 'hypeit' ); ?> <i class="p"></i> <?php esc_html_e( 'Waiting', 'hypeit' ); ?></p>
+					</div>
+					<?php if ( ! $tot_trend ) : ?>
+						<p class="cpw-muted"><?php esc_html_e( 'No campaign activity in the last 12 months yet.', 'hypeit' ); ?></p>
+					<?php endif; ?>
+					<div class="cpi-trend">
+						<?php foreach ( $r['trend'] as $t ) : ?>
+							<?php $tot = $t['confirmed'] + $t['declined'] + $t['pending']; ?>
+							<div class="cpi-col" title="<?php echo esc_attr( sprintf( /* translators: 1: month, 2: confirmed, 3: declined, 4: waiting. */ __( '%1$s: %2$d confirmed · %3$d declined · %4$d waiting', 'hypeit' ), $t['month'], $t['confirmed'], $t['declined'], $t['pending'] ) ); ?>">
+								<em><?php echo $tot ? (int) $tot : ''; ?></em>
+								<div class="cpi-stack" style="height:<?php echo (int) round( $tot / $max_trend * 100 ); ?>%">
+									<i class="c" style="flex:<?php echo (int) $t['confirmed']; ?>"></i><i class="d" style="flex:<?php echo (int) $t['declined']; ?>"></i><i class="p" style="flex:<?php echo (int) $t['pending']; ?>"></i>
+								</div>
+								<span><?php echo esc_html( $t['month'] ); ?></span>
 							</div>
-							<span><?php echo esc_html( $t['month'] ); ?></span>
-						</div>
-					<?php endforeach; ?>
+						<?php endforeach; ?>
+					</div>
 				</div>
-				<p class="cpi-legend"><i class="c"></i> <?php esc_html_e( 'Confirmed', 'hypeit' ); ?> <i class="d"></i> <?php esc_html_e( 'Declined', 'hypeit' ); ?> <i class="p"></i> <?php esc_html_e( 'Waiting', 'hypeit' ); ?></p>
+
+				<div class="cpw-card cpi-health">
+					<h3><?php esc_html_e( 'Library health', 'hypeit' ); ?></h3>
+					<div class="cpi-meter">
+						<div class="cpi-meter-top"><span><?php esc_html_e( 'Verified', 'hypeit' ); ?></span><strong><?php echo (int) $lib['verified_pct']; ?>%</strong></div>
+						<div class="cpi-track"><i style="width:<?php echo (int) $lib['verified_pct']; ?>%"></i></div>
+					</div>
+					<div class="cpi-meter">
+						<div class="cpi-meter-top"><span><?php esc_html_e( 'Complete profiles', 'hypeit' ); ?></span><strong><?php echo (int) $lib['complete_pct']; ?>%</strong></div>
+						<div class="cpi-track is-blue"><i style="width:<?php echo (int) $lib['complete_pct']; ?>%"></i></div>
+						<small class="cpw-muted"><?php echo esc_html( sprintf( /* translators: %d: percent. */ __( 'Average profile is %d%% complete', 'hypeit' ), $lib['avg_complete'] ) ); ?></small>
+					</div>
+					<div class="cpi-minis">
+						<div><b><?php echo esc_html( $compact( $lib['reach'] ) ); ?></b><span><?php esc_html_e( 'Total followers', 'hypeit' ); ?></span></div>
+						<div><b class="cpi-up">↑ <?php echo (int) $lib['growing']; ?></b><span><?php esc_html_e( 'Growing', 'hypeit' ); ?></span></div>
+						<div><b class="cpi-down">↓ <?php echo (int) $lib['shrinking']; ?></b><span><?php esc_html_e( 'Shrinking', 'hypeit' ); ?></span></div>
+					</div>
+					<?php if ( $lib['tiers'] ) : ?>
+						<div class="cpi-tiers">
+							<?php foreach ( $lib['tiers'] as $tl => $tn ) : ?>
+								<div class="cpi-tier"><span><?php echo esc_html( $tl ); ?></span><i style="width:<?php echo (int) round( $tn / $tmax * 100 ); ?>%"></i><b><?php echo (int) $tn; ?></b></div>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+					<p class="cpi-foot">
+						<?php if ( $lib['inactive'] ) : ?>
+							<a href="<?php echo esc_url( add_query_arg( 'cp_blocked_filter', 'inactive', $blist ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: count. */ _n( '%d deactivated blogger', '%d deactivated bloggers', $lib['inactive'], 'hypeit' ), $lib['inactive'] ) ); ?></a> ·
+						<?php endif; ?>
+						<small class="cpw-muted"><?php esc_html_e( 'Arrows compare followers with the previous Instagram sync.', 'hypeit' ); ?></small>
+					</p>
+				</div>
 			</div>
 
-			<h2 class="cpi-h2"><?php esc_html_e( 'What clients pick', 'hypeit' ); ?></h2>
-			<div class="cpi-grid">
+			<h2 class="cpi-h2"><?php esc_html_e( 'What clients pick', 'hypeit' ); ?> <small><?php esc_html_e( 'Bar = share of responses where the client said yes', 'hypeit' ); ?></small></h2>
+			<div class="cpi-grid cpi-grid-4">
 				<?php
 				$dl = array(
 					'category' => __( 'By category', 'hypeit' ),
@@ -722,18 +813,17 @@ class CP_Insights {
 						<?php else : ?>
 							<?php foreach ( $r['dims'][ $dim ] as $row ) : ?>
 								<div class="cpi-bar">
-									<div class="cpi-bar-top"><span><?php echo esc_html( $row['label'] ); ?></span><span><strong><?php echo esc_html( $pct( $row['acceptance'] ) ); ?></strong> <small><?php echo esc_html( sprintf( /* translators: %d: count. */ _n( 'of %d proposed', 'of %d proposed', $row['invited'], 'hypeit' ), $row['invited'] ) ); ?></small></span></div>
+									<div class="cpi-bar-top"><span><?php echo esc_html( $row['label'] ); ?></span><span><strong><?php echo esc_html( $pct( $row['acceptance'] ) ); ?></strong> <small><?php echo esc_html( sprintf( /* translators: %d: count. */ _n( 'of %d', 'of %d', $row['invited'], 'hypeit' ), $row['invited'] ) ); ?></small></span></div>
 									<div class="cpi-track"><i style="width:<?php echo (int) ( $row['acceptance'] ?? 0 ); ?>%"></i></div>
 								</div>
 							<?php endforeach; ?>
-							<p class="cpw-muted" style="margin-top:8px;"><?php esc_html_e( 'Bar = share of responses where the client said yes.', 'hypeit' ); ?></p>
 						<?php endif; ?>
 					</div>
 				<?php endforeach; ?>
 			</div>
 
 			<h2 class="cpi-h2"><?php esc_html_e( 'Bloggers', 'hypeit' ); ?></h2>
-			<div class="cpi-grid">
+			<div class="cpi-grid cpi-grid-boards">
 				<?php
 				$bl = array(
 					'selected'   => array( __( 'Most selected', 'hypeit' ), __( 'confirmed', 'hypeit' ) ),
@@ -763,35 +853,44 @@ class CP_Insights {
 				<div class="cpw-card cpi-attn">
 					<h3><?php esc_html_e( 'Needs attention', 'hypeit' ); ?></h3>
 					<ul>
-						<li><b><?php echo (int) $r['attention']['never_selected']; ?></b> <?php esc_html_e( 'bloggers never selected by a client (in the library 30+ days)', 'hypeit' ); ?></li>
-						<li><b><?php echo (int) $r['attention']['often_declined']; ?></b> <?php esc_html_e( 'bloggers declined 3+ times and never accepted', 'hypeit' ); ?></li>
-						<li><b><?php echo (int) $r['attention']['unverified']; ?></b> <?php esc_html_e( 'bloggers not verified yet', 'hypeit' ); ?> — <a href="<?php echo esc_url( admin_url( 'edit.php?post_type=' . CP_Library::CPT . '&cp_verified_filter=no' ) ); ?>"><?php esc_html_e( 'view', 'hypeit' ); ?></a></li>
-						<li><b><?php echo (int) $r['attention']['personal']; ?></b> <?php esc_html_e( 'personal Instagram accounts (numbers can’t be synced)', 'hypeit' ); ?> — <a href="<?php echo esc_url( CP_IGSync::personal_list_url() ); ?>"><?php esc_html_e( 'view', 'hypeit' ); ?></a></li>
+						<li><b><?php echo (int) $r['attention']['never_selected']; ?></b> <span><?php esc_html_e( 'never selected by a client (in the library 30+ days)', 'hypeit' ); ?></span></li>
+						<li><b><?php echo (int) $r['attention']['often_declined']; ?></b> <span><?php esc_html_e( 'declined 3+ times and never accepted', 'hypeit' ); ?></span></li>
+						<li><b><?php echo (int) $r['attention']['unverified']; ?></b> <span><?php esc_html_e( 'not verified yet', 'hypeit' ); ?> — <a href="<?php echo esc_url( add_query_arg( 'cp_verified_filter', 'no', $blist ) ); ?>"><?php esc_html_e( 'view', 'hypeit' ); ?></a></span></li>
+						<li><b><?php echo (int) $r['attention']['personal']; ?></b> <span><?php esc_html_e( 'personal Instagram accounts (numbers can’t be synced)', 'hypeit' ); ?> — <a href="<?php echo esc_url( CP_IGSync::personal_list_url() ); ?>"><?php esc_html_e( 'view', 'hypeit' ); ?></a></span></li>
+						<li><b><?php echo (int) max( 0, $lib['total'] - $lib['complete'] ); ?></b> <span><?php esc_html_e( 'profiles not complete yet', 'hypeit' ); ?> — <a href="<?php echo esc_url( add_query_arg( 'cp_sort', 'cp_complete:asc', $blist ) ); ?>"><?php esc_html_e( 'view', 'hypeit' ); ?></a></span></li>
 					</ul>
 				</div>
 			</div>
 
-			<h2 class="cpi-h2"><?php esc_html_e( 'Campaigns', 'hypeit' ); ?></h2>
-			<div class="cpw-card" style="padding:0;overflow:hidden;">
+			<h2 class="cpi-h2"><?php esc_html_e( 'Campaigns', 'hypeit' ); ?> <small><?php echo esc_html( sprintf( /* translators: %d: count. */ _n( '%d in this period', '%d in this period', count( $r['campaigns'] ), 'hypeit' ), count( $r['campaigns'] ) ) ); ?></small></h2>
+			<div class="cpw-card cpi-camps">
 				<?php if ( empty( $r['campaigns'] ) ) : ?>
 					<p class="cpw-empty"><?php esc_html_e( 'No published campaigns in this period.', 'hypeit' ); ?></p>
 				<?php else : ?>
 					<table class="cpw-table">
 						<thead><tr>
 							<th><?php esc_html_e( 'Campaign', 'hypeit' ); ?></th>
-							<th><?php esc_html_e( 'Proposed', 'hypeit' ); ?></th>
-							<th><?php esc_html_e( 'Response', 'hypeit' ); ?></th>
+							<th><?php esc_html_e( 'Date', 'hypeit' ); ?></th>
+							<th class="num"><?php esc_html_e( 'Proposed', 'hypeit' ); ?></th>
+							<th><?php esc_html_e( 'Responses', 'hypeit' ); ?></th>
 							<th><?php esc_html_e( 'Acceptance', 'hypeit' ); ?></th>
-							<th><?php esc_html_e( 'People', 'hypeit' ); ?></th>
+							<th class="num"><?php esc_html_e( 'People', 'hypeit' ); ?></th>
 						</tr></thead>
 						<tbody>
 							<?php foreach ( $r['campaigns'] as $c ) : ?>
+								<?php $wait = max( 0, $c['invited'] - $c['confirmed'] - $c['declined'] ); ?>
 								<tr>
-									<td data-label=""><a href="<?php echo esc_url( get_edit_post_link( $c['id'] ) ); ?>"><strong><?php echo esc_html( $c['title'] ); ?></strong></a><?php echo $c['closed'] ? ' <span class="cpw-tag">' . esc_html__( 'Closed', 'hypeit' ) . '</span>' : ''; ?><br /><span class="cpw-muted"><?php echo esc_html( $c['date'] ); ?></span></td>
-									<td data-label="<?php esc_attr_e( 'Proposed', 'hypeit' ); ?>"><?php echo (int) $c['invited']; ?></td>
-									<td data-label="<?php esc_attr_e( 'Response', 'hypeit' ); ?>"><?php echo (int) $c['response']; ?>%</td>
+									<td data-label=""><a href="<?php echo esc_url( get_edit_post_link( $c['id'] ) ); ?>"><strong><?php echo esc_html( $c['title'] ); ?></strong></a><?php echo $c['closed'] ? ' <span class="cpw-tag">' . esc_html__( 'Closed', 'hypeit' ) . '</span>' : ''; ?></td>
+									<td data-label="<?php esc_attr_e( 'Date', 'hypeit' ); ?>" class="cpw-muted"><?php echo esc_html( $c['date'] ); ?></td>
+									<td data-label="<?php esc_attr_e( 'Proposed', 'hypeit' ); ?>" class="num"><?php echo (int) $c['invited']; ?></td>
+									<td data-label="<?php esc_attr_e( 'Responses', 'hypeit' ); ?>">
+										<div class="cpi-split" title="<?php echo esc_attr( sprintf( /* translators: 1: confirmed, 2: declined, 3: waiting. */ __( '%1$d confirmed · %2$d declined · %3$d waiting', 'hypeit' ), $c['confirmed'], $c['declined'], $wait ) ); ?>">
+											<i class="c" style="flex:<?php echo (int) $c['confirmed']; ?>"></i><i class="d" style="flex:<?php echo (int) $c['declined']; ?>"></i><i class="p" style="flex:<?php echo (int) $wait; ?>"></i>
+										</div>
+										<small class="cpw-muted"><?php echo esc_html( sprintf( /* translators: %d: percent. */ __( '%d%% answered', 'hypeit' ), $c['response'] ) ); ?></small>
+									</td>
 									<td data-label="<?php esc_attr_e( 'Acceptance', 'hypeit' ); ?>"><strong><?php echo esc_html( $pct( $c['acceptance'] ) ); ?></strong> <span class="cpw-muted"><?php echo (int) $c['confirmed']; ?>/<?php echo (int) ( $c['confirmed'] + $c['declined'] ); ?></span></td>
-									<td data-label="<?php esc_attr_e( 'People', 'hypeit' ); ?>"><?php echo (int) $c['people']; ?></td>
+									<td data-label="<?php esc_attr_e( 'People', 'hypeit' ); ?>" class="num"><strong><?php echo (int) $c['people']; ?></strong></td>
 								</tr>
 							<?php endforeach; ?>
 						</tbody>

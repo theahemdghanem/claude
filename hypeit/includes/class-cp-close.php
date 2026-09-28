@@ -24,7 +24,7 @@ class CP_Close {
 	public static function init() {
 		add_action( 'admin_post_cp_campaign_close', array( __CLASS__, 'handle' ) );
 		add_action( 'admin_post_cp_campaign_reopen', array( __CLASS__, 'handle' ) );
-		add_filter( 'display_post_states', array( __CLASS__, 'post_state' ), 10, 2 );
+		// The campaigns list shows Closed in its Status column (CP_Campaigns_UI).
 	}
 
 	/**
@@ -79,7 +79,9 @@ class CP_Close {
 			wp_die( esc_html__( 'Not allowed.', 'hypeit' ) );
 		}
 		self::set( $id, 'cp_campaign_close' === $action );
-		wp_safe_redirect( get_edit_post_link( $id, 'raw' ) );
+		// Back to wherever the button was: the campaigns list or the editor.
+		$ref = wp_get_referer();
+		wp_safe_redirect( $ref && false !== strpos( $ref, 'edit.php' ) ? $ref : get_edit_post_link( $id, 'raw' ) );
 		exit;
 	}
 

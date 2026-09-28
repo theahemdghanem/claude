@@ -21,8 +21,7 @@ class CP_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_shared' ) );
 		add_action( 'edit_form_top', array( __CLASS__, 'back_link' ) );
 
-		add_filter( 'manage_' . CP_POST_TYPE . '_posts_columns', array( __CLASS__, 'columns' ) );
-		add_action( 'manage_' . CP_POST_TYPE . '_posts_custom_column', array( __CLASS__, 'column_content' ), 10, 2 );
+		// List columns, header and filters live in CP_Campaigns_UI.
 
 		add_action( 'admin_notices', array( __CLASS__, 'no_password_notice' ) );
 		add_action( 'admin_post_cp_campaign_export', array( __CLASS__, 'export_accepted' ) );
@@ -165,7 +164,7 @@ class CP_Admin {
 		$out = array();
 		foreach ( $ids as $id ) {
 			$h = CP_Library::handle( $id );
-			if ( '' === $h ) {
+			if ( '' === $h || CP_Library::is_inactive( $id ) ) {
 				continue;
 			}
 			$name  = trim( get_post_meta( $id, '_cp_first', true ) . ' ' . get_post_meta( $id, '_cp_last', true ) );
@@ -176,6 +175,7 @@ class CP_Admin {
 				'h'  => $h,
 				'n'  => $name,
 				'f'  => (int) get_post_meta( $id, '_cp_followers', true ),
+				'd'  => CP_Bloggers_UI::follower_delta( $id ),
 				'g'  => (string) get_post_meta( $id, '_cp_gender', true ),
 				'c'  => (string) get_post_meta( $id, '_cp_city', true ),
 				'v'  => CP_Verify::is_verified( $id ) ? 1 : 0,
@@ -224,7 +224,8 @@ class CP_Admin {
 	public static function render_workspace( $post ) {
 		wp_nonce_field( 'cp_save_campaign', 'cp_campaign_nonce' );
 
-		$rows    = CP_DB::get_bloggers( $post->ID );
+		$rows    = CP_DB::visible_bloggers( $post->ID );
+		$hidden  = count( CP_DB::get_bloggers( $post->ID ) ) - count( $rows );
 		$s       = CP_DB::stats( $post->ID );
 		$genders = CP_Library::genders();
 		$lists   = get_terms( array( 'taxonomy' => CP_Library::TAX_LIST, 'hide_empty' => false ) );
@@ -468,6 +469,19 @@ class CP_Admin {
 							<?php endforeach; ?>
 						</tbody>
 					</table>
+					<?php if ( $hidden > 0 ) : ?>
+						<p class="cpw-muted cpw-hiddennote">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %d: count. */
+									_n( '%d deactivated blogger is hidden from this campaign. Their record is kept — reactivate them in the Blogger Library to show them again.', '%d deactivated bloggers are hidden from this campaign. Their records are kept — reactivate them in the Blogger Library to show them again.', $hidden, 'hypeit' ),
+									$hidden
+								)
+							);
+							?>
+						</p>
+					<?php endif; ?>
 					<p class="cpw-empty" id="cpw-empty"<?php echo $rows ? ' hidden' : ''; ?>><?php esc_html_e( 'No bloggers yet. Use “Add bloggers” or turn on Everyone.', 'hypeit' ); ?></p>
 				</div>
 
@@ -691,7 +705,7 @@ class CP_Admin {
 		$fh = fopen( 'php://temp', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 		fputcsv( $fh, array( 'First name', 'Last name', 'Instagram Username', 'Instagram URL', 'Additional guests', 'Total people' ) );
 
-		foreach ( CP_DB::get_bloggers( $post_id ) as $row ) {
+		foreach ( CP_DB::visible_bloggers( $post_id ) as $row ) {
 			if ( 'confirmed' !== $row->status ) {
 				continue;
 			}
@@ -786,6 +800,20 @@ class CP_Admin {
 		// Bloggers.
 		if ( isset( $_POST['cp_bloggers_bulk'] ) ) {
 			$accounts = self::parse_accounts( (string) wp_unslash( $_POST['cp_bloggers_bulk'] ) );
+
+			// Deactivated bloggers: never add them, and keep the rows they already have
+			// (the editor doesn't show them, so they're missing from the submitted list).
+			$accounts = array_values(
+				array_filter(
+					$accounts,
+					static function ( $a ) { return ! CP_Library::handle_inactive( $a ); }
+				)
+			);
+			foreach ( CP_DB::get_bloggers( $post_id ) as $row ) {
+				if ( CP_Library::handle_inactive( $row->ig_account ) ) {
+					$accounts[] = $row->ig_account;
+				}
+			}
 			CP_DB::sync_accounts( $post_id, $accounts );
 
 			// Everyone toggle — saved after the list so it can top it up.
@@ -905,45 +933,6 @@ class CP_Admin {
 		);
 		$label = isset( $labels[ $status ] ) ? $labels[ $status ] : $labels['pending'];
 		return '<span class="cp-badge cp-badge-' . esc_attr( $status ) . '">' . esc_html( $label ) . '</span>';
-	}
-
-	/**
-	 * List table columns.
-	 *
-	 * @param array $columns Columns.
-	 * @return array
-	 */
-	public static function columns( $columns ) {
-		$new = array();
-		foreach ( $columns as $key => $label ) {
-			$new[ $key ] = $label;
-			if ( 'title' === $key ) {
-				$new['cp_summary']    = __( 'Responses', 'hypeit' );
-				$new['cp_attendance'] = __( 'Attendance', 'hypeit' );
-			}
-		}
-		return $new;
-	}
-
-	/**
-	 * List table column content.
-	 *
-	 * @param string $column  Column key.
-	 * @param int    $post_id Post ID.
-	 */
-	public static function column_content( $column, $post_id ) {
-		if ( 'cp_summary' === $column ) {
-			$s = CP_DB::stats( $post_id );
-			printf(
-				'<span class="cp-badge cp-badge-confirmed">%1$d</span> <span class="cp-badge cp-badge-declined">%2$d</span> <span class="cp-badge cp-badge-pending">%3$d</span>',
-				(int) $s['confirmed'],
-				(int) $s['declined'],
-				(int) $s['pending']
-			);
-		} elseif ( 'cp_attendance' === $column ) {
-			$s = CP_DB::stats( $post_id );
-			echo (int) $s['attendance'];
-		}
 	}
 
 	/**

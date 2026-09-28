@@ -45,6 +45,11 @@ class CP_Blogger_CPT {
 			add_action( 'admin_post_cp_block', array( __CLASS__, 'action_block' ) );
 			add_action( 'admin_post_cp_unblock', array( __CLASS__, 'action_unblock' ) );
 			add_action( 'admin_post_cp_delete_block', array( __CLASS__, 'action_delete_block' ) );
+			add_action( 'admin_post_cp_deactivate', array( __CLASS__, 'action_deactivate' ) );
+			add_action( 'admin_post_cp_activate', array( __CLASS__, 'action_activate' ) );
+			add_action( 'admin_post_cp_mark_complete', array( __CLASS__, 'action_mark_complete' ) );
+			add_action( 'admin_post_cp_unmark_complete', array( __CLASS__, 'action_unmark_complete' ) );
+			add_action( 'admin_notices', array( __CLASS__, 'bulk_notice' ) );
 
 			add_action( 'admin_init', array( __CLASS__, 'maybe_migrate_titles' ) );
 		}
@@ -225,6 +230,7 @@ class CP_Blogger_CPT {
 		$handle   = CP_Library::handle( $id );
 		$ig_url   = $get( '_cp_ig_url' ) ? $get( '_cp_ig_url' ) : ( $handle ? CP_Library::profile_url( $handle ) : '' );
 		$blocked  = '1' === $get( '_cp_blocked' );
+		$inactive = CP_Library::is_inactive( $id );
 		$verified = CP_Verify::is_verified( $id );
 		$photo    = CP_Photo::url( $id, 'm' );
 		$genders  = CP_Library::genders();
@@ -271,6 +277,7 @@ class CP_Blogger_CPT {
 					<div class="cpb-badges">
 						<?php if ( $verified ) : ?><span class="cpw-tag is-new">✓ <?php esc_html_e( 'Verified', 'hypeit' ); ?></span><?php endif; ?>
 						<?php if ( $blocked ) : ?><span class="cpw-tag is-rm"><?php esc_html_e( 'Blocked', 'hypeit' ); ?></span><?php endif; ?>
+						<?php if ( $inactive ) : ?><span class="cpw-tag is-off"><?php esc_html_e( 'Deactivated', 'hypeit' ); ?></span><?php endif; ?>
 						<?php if ( $label ) : ?><span class="cpw-tag"><?php echo esc_html( $label ); ?></span><?php endif; ?>
 						<?php
 						$rel = CP_Atrium::reliability( $id );
@@ -302,7 +309,7 @@ class CP_Blogger_CPT {
 				<button type="button" class="cpw-tab" data-tab="contact"><?php esc_html_e( 'Contact', 'hypeit' ); ?></button>
 				<button type="button" class="cpw-tab" data-tab="verify"><?php esc_html_e( 'Verification', 'hypeit' ); ?><?php echo $verified ? ' <span class="cpb-ok">✓</span>' : ''; ?></button>
 				<button type="button" class="cpw-tab" data-tab="campaigns"><?php esc_html_e( 'Campaigns', 'hypeit' ); ?> <span class="cpw-pill"><?php echo (int) count( $history ); ?></span></button>
-				<button type="button" class="cpw-tab" data-tab="status"><?php esc_html_e( 'Status', 'hypeit' ); ?><?php echo $blocked ? ' <span class="cpw-dot"></span>' : ''; ?></button>
+				<button type="button" class="cpw-tab" data-tab="status"><?php esc_html_e( 'Status', 'hypeit' ); ?><?php echo $blocked || $inactive ? ' <span class="cpw-dot"></span>' : ''; ?></button>
 			</nav>
 
 			<?php /* ---------------- Profile ---------------- */ ?>
@@ -374,7 +381,7 @@ class CP_Blogger_CPT {
 					<?php else : ?>
 						<p class="cpw-muted"><?php esc_html_e( 'No categories yet.', 'hypeit' ); ?></p>
 					<?php endif; ?>
-					<p class="cpw-muted"><a href="<?php echo esc_url( admin_url( 'edit.php?post_type=' . CP_POST_TYPE . '&page=cp-tags' ) ); ?>"><?php esc_html_e( 'Manage categories', 'hypeit' ); ?></a></p>
+					<p class="cpw-muted"><a href="<?php echo esc_url( CP_Tags::page_url() ); ?>"><?php esc_html_e( 'Manage categories', 'hypeit' ); ?></a></p>
 				</div>
 				<div class="cpw-card">
 					<h3><?php esc_html_e( 'Lists', 'hypeit' ); ?></h3>
@@ -467,11 +474,18 @@ class CP_Blogger_CPT {
 			<?php /* ---------------- Status ---------------- */ ?>
 			<section class="cpw-panel" data-panel="status">
 				<div class="cpw-card">
+					<input type="hidden" name="cp_status_marker" value="1" />
+					<?php self::switch_row( 'cp_inactive', $inactive, __( 'Deactivated', 'hypeit' ), __( 'Keeps the profile and its campaign history, but hides it from campaigns, client selections, lists and the app. Turn off any time to bring them back.', 'hypeit' ) ); ?>
+				</div>
+				<div class="cpw-card">
 					<?php self::switch_row( 'cp_blocked', $blocked, __( 'Blocked', 'hypeit' ), __( 'Hidden from campaigns, lists and client pages, and can’t re-submit the onboarding form.', 'hypeit' ) ); ?>
 				</div>
 				<?php if ( 'auto-draft' !== $post->post_status && current_user_can( 'delete_post', $id ) ) : ?>
 					<div class="cpw-card cpw-danger">
 						<h3><?php esc_html_e( 'Delete', 'hypeit' ); ?></h3>
+						<?php if ( ! $inactive ) : ?>
+							<p class="cpw-muted"><?php esc_html_e( 'Just want them out of campaigns for now? Deactivate instead — nothing is lost.', 'hypeit' ); ?> <a href="<?php echo esc_url( self::action_url( 'cp_deactivate', $id ) ); ?>"><?php esc_html_e( 'Deactivate', 'hypeit' ); ?></a></p>
+						<?php endif; ?>
 						<p>
 							<a class="button" href="<?php echo esc_url( get_delete_post_link( $id ) ); ?>"><?php esc_html_e( 'Move to trash', 'hypeit' ); ?></a>
 							<a class="button" style="color:#b3261e;border-color:#e3b4b0;" href="<?php echo esc_url( self::action_url( 'cp_delete_block', $id ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this blogger permanently and block them from re-applying?', 'hypeit' ) ); ?>');"><?php esc_html_e( 'Delete & block', 'hypeit' ); ?></a>
@@ -516,7 +530,7 @@ class CP_Blogger_CPT {
 		?>
 		<div class="cpw-glance">
 			<div class="cpw-glance-stats">
-				<span><b><?php echo $f ? esc_html( number_format_i18n( $f ) ) : '—'; ?></b><?php esc_html_e( 'Followers', 'hypeit' ); ?></span>
+				<span><b><?php echo $f ? esc_html( number_format_i18n( $f ) ) . CP_Bloggers_UI::trend_html( $id ) : '—'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></b><?php esc_html_e( 'Followers', 'hypeit' ); ?></span>
 				<?php $eng = get_post_meta( $id, '_cp_engagement', true ); ?>
 				<?php if ( '' !== $eng ) : ?>
 					<span><b><?php echo esc_html( number_format_i18n( (float) $eng, 2 ) ); ?>%</b><?php esc_html_e( 'Engagement', 'hypeit' ); ?></span>
@@ -537,6 +551,16 @@ class CP_Blogger_CPT {
 				<div class="cpb-meter-bar"><i style="width:<?php echo (int) $comp['pct']; ?>%"></i></div>
 				<?php if ( $comp['missing'] ) : ?>
 					<p class="cpw-muted" style="margin:6px 0 0;"><?php echo esc_html( sprintf( /* translators: %s: missing fields. */ __( 'Missing: %s', 'hypeit' ), implode( ', ', $comp['missing'] ) ) ); ?></p>
+				<?php endif; ?>
+				<?php $manual = CP_Bloggers_UI::is_manual( $id ); ?>
+				<input type="hidden" name="cp_manual_marker" value="1" />
+				<label class="cpb-manual">
+					<input type="checkbox" name="cp_complete_manual" value="1" <?php checked( $manual ); ?> />
+					<span><strong><?php esc_html_e( 'Mark profile as complete', 'hypeit' ); ?></strong>
+					<small><?php esc_html_e( 'For bloggers you know personally — the basic profile and follower count are enough.', 'hypeit' ); ?></small></span>
+				</label>
+				<?php if ( $manual && ! CP_Bloggers_UI::manual_ready( $id ) ) : ?>
+					<p class="cpb-manual-warn"><?php esc_html_e( 'Add the Instagram username and follower count — the profile counts as complete once both are there.', 'hypeit' ); ?></p>
 				<?php endif; ?>
 			</div>
 		</div>
@@ -616,6 +640,20 @@ class CP_Blogger_CPT {
 		update_post_meta( $post_id, '_cp_birthday', isset( $_POST['cp_birthday'] ) ? sanitize_text_field( wp_unslash( $_POST['cp_birthday'] ) ) : '' );
 		update_post_meta( $post_id, '_cp_phone', isset( $_POST['cp_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['cp_phone'] ) ) : '' );
 		update_post_meta( $post_id, '_cp_whatsapp', isset( $_POST['cp_whatsapp'] ) ? sanitize_text_field( wp_unslash( $_POST['cp_whatsapp'] ) ) : '' );
+
+		// Marked complete by hand (sidebar).
+		if ( isset( $_POST['cp_manual_marker'] ) ) {
+			if ( ! empty( $_POST['cp_complete_manual'] ) ) {
+				update_post_meta( $post_id, CP_Bloggers_UI::MANUAL, '1' );
+			} else {
+				delete_post_meta( $post_id, CP_Bloggers_UI::MANUAL );
+			}
+		}
+
+		// Deactivated (Status tab).
+		if ( isset( $_POST['cp_status_marker'] ) ) {
+			CP_Library::set_inactive( $post_id, ! empty( $_POST['cp_inactive'] ) );
+		}
 
 		// Blocked.
 		$blocked = ! empty( $_POST['cp_blocked'] );
@@ -1009,6 +1047,17 @@ class CP_Blogger_CPT {
 		}
 		$blocked = '1' === (string) get_post_meta( $post->ID, '_cp_blocked', true );
 
+		if ( CP_Library::is_inactive( $post->ID ) ) {
+			$actions['cp_activate'] = '<a href="' . esc_url( self::action_url( 'cp_activate', $post->ID ) ) . '" style="color:#1b7f4b;font-weight:600;">' . esc_html__( 'Reactivate', 'hypeit' ) . '</a>';
+		} elseif ( 'trash' !== $post->post_status ) {
+			$actions['cp_deactivate'] = '<a href="' . esc_url( self::action_url( 'cp_deactivate', $post->ID ) ) . '" title="' . esc_attr__( 'Hide from campaigns, selections and lists — nothing is deleted.', 'hypeit' ) . '">' . esc_html__( 'Deactivate', 'hypeit' ) . '</a>';
+		}
+		if ( CP_Bloggers_UI::is_manual( $post->ID ) ) {
+			$actions['cp_unmark_complete'] = '<a href="' . esc_url( self::action_url( 'cp_unmark_complete', $post->ID ) ) . '">' . esc_html__( 'Unmark complete', 'hypeit' ) . '</a>';
+		} elseif ( (int) get_post_meta( $post->ID, '_cp_complete', true ) < 100 ) {
+			$actions['cp_mark_complete'] = '<a href="' . esc_url( self::action_url( 'cp_mark_complete', $post->ID ) ) . '" title="' . esc_attr__( 'Count this profile as complete with just the basic profile and follower count.', 'hypeit' ) . '">' . esc_html__( 'Mark complete', 'hypeit' ) . '</a>';
+		}
+
 		if ( $blocked ) {
 			$actions['cp_unblock'] = '<a href="' . esc_url( self::action_url( 'cp_unblock', $post->ID ) ) . '">' . esc_html__( 'Unblock', 'hypeit' ) . '</a>';
 		} else {
@@ -1075,6 +1124,54 @@ class CP_Blogger_CPT {
 	}
 
 	/**
+	 * Deactivate action.
+	 */
+	public static function action_deactivate() {
+		$id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
+		check_admin_referer( 'cp_deactivate_' . $id );
+		if ( $id && current_user_can( 'edit_post', $id ) ) {
+			CP_Library::set_inactive( $id, true );
+		}
+		self::back();
+	}
+
+	/**
+	 * Reactivate action.
+	 */
+	public static function action_activate() {
+		$id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
+		check_admin_referer( 'cp_activate_' . $id );
+		if ( $id && current_user_can( 'edit_post', $id ) ) {
+			CP_Library::set_inactive( $id, false );
+		}
+		self::back();
+	}
+
+	/**
+	 * Mark profile complete.
+	 */
+	public static function action_mark_complete() {
+		$id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
+		check_admin_referer( 'cp_mark_complete_' . $id );
+		if ( $id && current_user_can( 'edit_post', $id ) ) {
+			CP_Bloggers_UI::set_manual( $id, true );
+		}
+		self::back();
+	}
+
+	/**
+	 * Remove the manual "complete" mark.
+	 */
+	public static function action_unmark_complete() {
+		$id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
+		check_admin_referer( 'cp_unmark_complete_' . $id );
+		if ( $id && current_user_can( 'edit_post', $id ) ) {
+			CP_Bloggers_UI::set_manual( $id, false );
+		}
+		self::back();
+	}
+
+	/**
 	 * Delete & block action.
 	 */
 	public static function action_delete_block() {
@@ -1096,9 +1193,38 @@ class CP_Blogger_CPT {
 	 * @return array
 	 */
 	public static function bulk_actions( $actions ) {
-		$actions['cp_block']   = __( 'Block', 'hypeit' );
-		$actions['cp_unblock'] = __( 'Unblock', 'hypeit' );
+		$actions['cp_deactivate']      = __( 'Deactivate', 'hypeit' );
+		$actions['cp_activate']        = __( 'Reactivate', 'hypeit' );
+		$actions['cp_mark_complete']   = __( 'Mark profile complete', 'hypeit' );
+		$actions['cp_unmark_complete'] = __( 'Unmark profile complete', 'hypeit' );
+		$actions['cp_block']           = __( 'Block', 'hypeit' );
+		$actions['cp_unblock']         = __( 'Unblock', 'hypeit' );
 		return $actions;
+	}
+
+	/**
+	 * Confirmation after a bulk status change.
+	 */
+	public static function bulk_notice() {
+		$screen = get_current_screen();
+		if ( ! $screen || 'edit-' . CP_Library::CPT !== $screen->id || empty( $_GET['cp_bulk_done'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$n    = isset( $_GET['cp_bulk_n'] ) ? absint( $_GET['cp_bulk_n'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$done = sanitize_key( wp_unslash( $_GET['cp_bulk_done'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$msgs = array(
+			/* translators: %d: count. */
+			'deactivated' => _n( '%d blogger deactivated — hidden from campaigns, selections and lists.', '%d bloggers deactivated — hidden from campaigns, selections and lists.', $n, 'hypeit' ),
+			/* translators: %d: count. */
+			'activated'   => _n( '%d blogger reactivated.', '%d bloggers reactivated.', $n, 'hypeit' ),
+			/* translators: %d: count. */
+			'marked'      => _n( '%d profile marked complete.', '%d profiles marked complete.', $n, 'hypeit' ),
+			/* translators: %d: count. */
+			'unmarked'    => _n( '%d profile unmarked.', '%d profiles unmarked.', $n, 'hypeit' ),
+		);
+		if ( isset( $msgs[ $done ] ) ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( $msgs[ $done ], $n ) ) . '</p></div>';
+		}
 	}
 
 	/**
@@ -1110,6 +1236,27 @@ class CP_Blogger_CPT {
 	 * @return string
 	 */
 	public static function handle_bulk( $redirect, $action, $ids ) {
+		$status = array(
+			'cp_deactivate'      => 'deactivated',
+			'cp_activate'        => 'activated',
+			'cp_mark_complete'   => 'marked',
+			'cp_unmark_complete' => 'unmarked',
+		);
+		if ( isset( $status[ $action ] ) ) {
+			$n = 0;
+			foreach ( (array) $ids as $id ) {
+				if ( ! current_user_can( 'edit_post', $id ) ) {
+					continue;
+				}
+				if ( 'cp_deactivate' === $action || 'cp_activate' === $action ) {
+					CP_Library::set_inactive( $id, 'cp_deactivate' === $action );
+				} else {
+					CP_Bloggers_UI::set_manual( $id, 'cp_mark_complete' === $action );
+				}
+				$n++;
+			}
+			return add_query_arg( array( 'cp_bulk_done' => $status[ $action ], 'cp_bulk_n' => $n ), remove_query_arg( array( 'cp_bulk_done', 'cp_bulk_n', 'cp_bulk_blocked' ), $redirect ) );
+		}
 		if ( 'cp_block' !== $action && 'cp_unblock' !== $action ) {
 			return $redirect;
 		}

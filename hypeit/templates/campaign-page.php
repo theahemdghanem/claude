@@ -83,7 +83,7 @@ get_header();
 		<?php endif; ?>
 
 		<?php
-		$bloggers = CP_DB::get_bloggers( $campaign_id );
+		$bloggers = CP_DB::visible_bloggers( $campaign_id );
 		// Once the client has started choosing, show the ones still to review first.
 		$cp_counts = array( 'pending' => 0, 'confirmed' => 0, 'declined' => 0 );
 		foreach ( $bloggers as $cp_b ) {

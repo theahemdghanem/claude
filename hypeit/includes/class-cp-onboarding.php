@@ -404,6 +404,8 @@ class CP_Onboarding {
 		update_post_meta( $id, '_cp_address', $v['address'] );
 		update_post_meta( $id, '_cp_blocked', '0' );
 		update_post_meta( $id, '_cp_source', 'onboarding' );
+		// The blogger updated their own profile (Bloggers page: "Last updated by blogger").
+		update_post_meta( $id, '_cp_blogger_updated', time() );
 		update_post_meta( $id, '_cp_collab', empty( $v['collab'] ) ? '' : ',' . implode( ',', $v['collab'] ) . ',' );
 
 		if ( ! empty( $cats ) ) {
@@ -566,110 +568,166 @@ class CP_Onboarding {
 	}
 
 	/**
+	 * Settings page URL.
+	 *
+	 * @param string $anchor Optional #anchor.
+	 * @return string
+	 */
+	public static function settings_url( $anchor = '' ) {
+		return admin_url( 'edit.php?post_type=' . CP_POST_TYPE . '&page=cp-onboarding' ) . ( $anchor ? '#' . $anchor : '' );
+	}
+
+	/**
+	 * A card-style on/off switch (shared admin design).
+	 *
+	 * @param string $name    Field name.
+	 * @param bool   $checked State.
+	 * @param string $label   Label.
+	 * @param string $help    Help.
+	 */
+	private static function switch_row( $name, $checked, $label, $help = '' ) {
+		?>
+		<label class="cpw-switchrow">
+			<span class="cpw-switch"><input type="checkbox" name="<?php echo esc_attr( $name ); ?>" value="1" <?php checked( $checked ); ?> /><span class="cpw-slider" aria-hidden="true"></span></span>
+			<span class="cpw-switchtext"><strong><?php echo esc_html( $label ); ?></strong><?php if ( $help ) : ?><small><?php echo esc_html( $help ); ?></small><?php endif; ?></span>
+		</label>
+		<?php
+	}
+
+	/**
 	 * Render settings page.
 	 */
 	public static function render_settings() {
-		$v = self::get();
+		$v    = self::get();
+		$n    = self::OPTION;
+		$cp_q = get_option( CP_Digest::QUEUE, array() );
+		$cp_q = is_array( $cp_q ) ? count( $cp_q ) : 0;
+		global $wp_locale;
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Blogger Onboarding', 'hypeit' ); ?></h1>
-			<form method="post" action="options.php">
-				<?php settings_fields( 'cp_onboard_group' ); ?>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Enable onboarding page', 'hypeit' ); ?></th>
-						<td>
-							<label><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[enabled]" value="1" <?php checked( $v['enabled'], 1 ); ?> /> <?php esc_html_e( 'Enabled', 'hypeit' ); ?></label>
-							<?php if ( $v['enabled'] ) : ?>
-								<p class="description"><?php esc_html_e( 'Onboarding URL:', 'hypeit' ); ?> <a href="<?php echo esc_url( self::url() ); ?>" target="_blank" rel="noopener"><code><?php echo esc_html( self::url() ); ?></code></a></p>
-							<?php endif; ?>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="cp_ob_slug"><?php esc_html_e( 'Custom URL slug', 'hypeit' ); ?></label></th>
-						<td>
-							<code><?php echo esc_html( trailingslashit( home_url() ) ); ?></code>
-							<input type="text" id="cp_ob_slug" name="<?php echo esc_attr( self::OPTION ); ?>[slug]" value="<?php echo esc_attr( $v['slug'] ); ?>" class="regular-text" />
-							<p class="description"><?php esc_html_e( 'Default: campaigns/onboarding. May include slashes.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="cp_ob_intro"><?php esc_html_e( 'Introduction message', 'hypeit' ); ?></label></th>
-						<td><textarea id="cp_ob_intro" name="<?php echo esc_attr( self::OPTION ); ?>[intro]" rows="5" class="large-text"><?php echo esc_textarea( $v['intro'] ); ?></textarea></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="cp_ob_follow"><?php esc_html_e( 'Follow button', 'hypeit' ); ?></label></th>
-						<td>
-							<label><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[follow_on]" value="1" <?php checked( $v['follow_on'], 1 ); ?> /> <?php esc_html_e( 'Show a big “Follow us on Instagram” button on the thank-you page', 'hypeit' ); ?></label>
-							<p style="margin:8px 0 0;">@<input type="text" id="cp_ob_follow" name="<?php echo esc_attr( self::OPTION ); ?>[follow_user]" value="<?php echo esc_attr( $v['follow_user'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( self::follow_user() ); ?>" /></p>
-							<p class="description"><?php esc_html_e( 'Your Instagram username. Leave empty to use the account connected for Instagram sync.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Admin email on submission', 'hypeit' ); ?></th>
-						<td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[email_enabled]" value="1" <?php checked( $v['email_enabled'], 1 ); ?> /> <?php esc_html_e( 'Send an email when a blogger submits the form', 'hypeit' ); ?></label></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="cp_ob_email"><?php esc_html_e( 'Notification recipient(s)', 'hypeit' ); ?></label></th>
-						<td>
-							<input type="text" id="cp_ob_email" name="<?php echo esc_attr( self::OPTION ); ?>[email_to]" value="<?php echo esc_attr( $v['email_to'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
-							<p class="description"><?php esc_html_e( 'Comma-separated. Blank uses the site admin email.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Email delivery', 'hypeit' ); ?></th>
-						<td>
-							<?php
-							$cp_n    = esc_attr( self::OPTION );
-							$cp_hsel = '<select name="' . $cp_n . '[digest_hour]">';
-							for ( $h = 0; $h < 24; $h++ ) {
-								$cp_hsel .= '<option value="' . $h . '" ' . selected( (int) $v['digest_hour'], $h, false ) . '>' . esc_html( date_i18n( get_option( 'time_format' ), mktime( $h, 0, 0 ) ) ) . '</option>';
-							}
-							$cp_hsel .= '</select>';
-							$cp_dsel  = '<select name="' . $cp_n . '[digest_day]">';
-							global $wp_locale;
-							for ( $d = 0; $d < 7; $d++ ) {
-								$cp_dsel .= '<option value="' . $d . '" ' . selected( (int) $v['digest_day'], $d, false ) . '>' . esc_html( $wp_locale->get_weekday( $d ) ) . '</option>';
-							}
-							$cp_dsel .= '</select>';
-							?>
-							<fieldset>
-								<label style="display:block;margin-bottom:10px;"><input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[email_mode]" value="instant" <?php checked( $v['email_mode'], 'instant' ); ?> /> <strong><?php esc_html_e( 'Right away', 'hypeit' ); ?></strong> — <?php esc_html_e( 'one email per submission', 'hypeit' ); ?></label>
-								<label style="display:block;margin-bottom:10px;"><input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[email_mode]" value="daily" <?php checked( $v['email_mode'], 'daily' ); ?> /> <strong><?php esc_html_e( 'Daily digest', 'hypeit' ); ?></strong> — <?php esc_html_e( 'one email a day', 'hypeit' ); ?></label>
-								<label style="display:block;"><input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[email_mode]" value="weekly" <?php checked( $v['email_mode'], 'weekly' ); ?> /> <strong><?php esc_html_e( 'Weekly digest', 'hypeit' ); ?></strong> — <?php esc_html_e( 'one email a week', 'hypeit' ); ?></label>
-							</fieldset>
-							<p style="margin:12px 0 0;">
-								<?php esc_html_e( 'Send digests at', 'hypeit' ); ?> <?php echo $cp_hsel; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-								<?php esc_html_e( '— weekly on', 'hypeit' ); ?> <?php echo $cp_dsel; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-							</p>
-							<p class="description">
+		<div class="wrap cp-admin cp-wide cps">
+			<div class="cp-pagehead">
+				<div>
+					<h1><?php esc_html_e( 'Blogger Onboarding', 'hypeit' ); ?></h1>
+					<p class="cp-sub"><?php esc_html_e( 'The public form bloggers use to join your library — what it says, where it lives, who hears about new sign-ups, and the categories they can pick.', 'hypeit' ); ?></p>
+				</div>
+				<?php if ( $v['enabled'] ) : ?>
+					<div class="cps-live">
+						<span class="cps-dot is-on" aria-hidden="true"></span>
+						<code><?php echo esc_html( self::url() ); ?></code>
+						<button type="button" class="button cps-copy" data-link="<?php echo esc_url( self::url() ); ?>" data-done="<?php esc_attr_e( 'Copied!', 'hypeit' ); ?>"><?php esc_html_e( 'Copy', 'hypeit' ); ?></button>
+						<a class="button" href="<?php echo esc_url( self::url() ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open form', 'hypeit' ); ?></a>
+					</div>
+				<?php else : ?>
+					<div class="cps-live is-off"><span class="cps-dot" aria-hidden="true"></span><?php esc_html_e( 'The form is turned off', 'hypeit' ); ?></div>
+				<?php endif; ?>
+			</div>
+			<?php settings_errors(); ?>
+
+			<div class="cps-layout">
+				<form method="post" action="options.php" class="cps-main">
+					<?php settings_fields( 'cp_onboard_group' ); ?>
+
+					<section class="cpw-card">
+						<h3><?php esc_html_e( 'Form page', 'hypeit' ); ?></h3>
+						<?php self::switch_row( $n . '[enabled]', (bool) $v['enabled'], __( 'Onboarding page is on', 'hypeit' ), __( 'Turn off to stop new sign-ups; existing bloggers are not affected.', 'hypeit' ) ); ?>
+						<div class="cps-field">
+							<label for="cp_ob_slug"><?php esc_html_e( 'Page address', 'hypeit' ); ?></label>
+							<div class="cpw-slug"><code><?php echo esc_html( trailingslashit( home_url() ) ); ?></code><input type="text" id="cp_ob_slug" name="<?php echo esc_attr( $n ); ?>[slug]" value="<?php echo esc_attr( $v['slug'] ); ?>" /></div>
+							<p class="cpw-muted"><?php esc_html_e( 'Default: campaigns/onboarding. May include slashes.', 'hypeit' ); ?></p>
+						</div>
+						<div class="cps-field">
+							<label for="cp_ob_intro"><?php esc_html_e( 'Introduction message', 'hypeit' ); ?></label>
+							<textarea id="cp_ob_intro" name="<?php echo esc_attr( $n ); ?>[intro]" rows="5" class="large-text"><?php echo esc_textarea( $v['intro'] ); ?></textarea>
+							<p class="cpw-muted"><?php esc_html_e( 'Shown above the form.', 'hypeit' ); ?></p>
+						</div>
+					</section>
+
+					<section class="cpw-card">
+						<h3><?php esc_html_e( 'Thank-you page', 'hypeit' ); ?></h3>
+						<?php self::switch_row( $n . '[follow_on]', (bool) $v['follow_on'], __( 'Show a big “Follow us on Instagram” button', 'hypeit' ) ); ?>
+						<div class="cps-field">
+							<label for="cp_ob_follow"><?php esc_html_e( 'Your Instagram username', 'hypeit' ); ?></label>
+							<div class="cpb-at cps-at"><em>@</em><input type="text" id="cp_ob_follow" name="<?php echo esc_attr( $n ); ?>[follow_user]" value="<?php echo esc_attr( $v['follow_user'] ); ?>" placeholder="<?php echo esc_attr( self::follow_user() ); ?>" /></div>
+							<p class="cpw-muted"><?php esc_html_e( 'Leave empty to use the account connected for Instagram sync.', 'hypeit' ); ?></p>
+						</div>
+					</section>
+
+					<section class="cpw-card">
+						<h3><?php esc_html_e( 'New sign-up emails', 'hypeit' ); ?></h3>
+						<?php self::switch_row( $n . '[email_enabled]', (bool) $v['email_enabled'], __( 'Email me when a blogger submits the form', 'hypeit' ) ); ?>
+						<div class="cps-field">
+							<label for="cp_ob_email"><?php esc_html_e( 'Recipient(s)', 'hypeit' ); ?></label>
+							<input type="text" id="cp_ob_email" name="<?php echo esc_attr( $n ); ?>[email_to]" value="<?php echo esc_attr( $v['email_to'] ); ?>" class="large-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
+							<p class="cpw-muted"><?php esc_html_e( 'Comma-separated. Blank uses the site admin email.', 'hypeit' ); ?></p>
+						</div>
+						<div class="cps-field">
+							<span class="cps-label"><?php esc_html_e( 'Delivery', 'hypeit' ); ?></span>
+							<div class="cps-options">
 								<?php
-								$cp_q = get_option( CP_Digest::QUEUE, array() );
-								echo esc_html(
-									sprintf(
-										/* translators: %s: timezone. */
-										__( 'Times use your site timezone (%s). A digest lists every new or updated blogger since the last one; nothing is sent if nobody new joined.', 'hypeit' ),
-										wp_timezone_string()
-									)
+								$modes = array(
+									'instant' => array( __( 'Right away', 'hypeit' ), __( 'One email per submission', 'hypeit' ) ),
+									'daily'   => array( __( 'Daily digest', 'hypeit' ), __( 'One email a day', 'hypeit' ) ),
+									'weekly'  => array( __( 'Weekly digest', 'hypeit' ), __( 'One email a week', 'hypeit' ) ),
 								);
-								if ( is_array( $cp_q ) && $cp_q ) {
-									echo ' ' . esc_html( sprintf( /* translators: %d: count. */ _n( '%d blogger is waiting for the next digest.', '%d bloggers are waiting for the next digest.', count( $cp_q ), 'hypeit' ), count( $cp_q ) ) );
-								}
-								?>
-							</p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Existing Instagram accounts', 'hypeit' ); ?></th>
-						<td>
-							<label><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[allow_update]" value="1" <?php checked( $v['allow_update'], 1 ); ?> /> <?php esc_html_e( 'Allow updating an existing profile if the Instagram username already exists', 'hypeit' ); ?></label>
-							<p class="description"><?php esc_html_e( 'Off by default: submissions with an existing username are rejected as duplicates.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-				</table>
-				<?php submit_button(); ?>
-			</form>
+								foreach ( $modes as $mk => $ml ) :
+									?>
+									<label class="cps-option"><input type="radio" name="<?php echo esc_attr( $n ); ?>[email_mode]" value="<?php echo esc_attr( $mk ); ?>" <?php checked( $v['email_mode'], $mk ); ?> /><span><strong><?php echo esc_html( $ml[0] ); ?></strong><small><?php echo esc_html( $ml[1] ); ?></small></span></label>
+								<?php endforeach; ?>
+							</div>
+						</div>
+						<div class="cps-field cps-inline">
+							<label><?php esc_html_e( 'Send digests at', 'hypeit' ); ?>
+								<select name="<?php echo esc_attr( $n ); ?>[digest_hour]">
+									<?php for ( $h = 0; $h < 24; $h++ ) : ?>
+										<option value="<?php echo (int) $h; ?>" <?php selected( (int) $v['digest_hour'], $h ); ?>><?php echo esc_html( date_i18n( get_option( 'time_format' ), mktime( $h, 0, 0 ) ) ); ?></option>
+									<?php endfor; ?>
+								</select>
+							</label>
+							<label><?php esc_html_e( 'Weekly on', 'hypeit' ); ?>
+								<select name="<?php echo esc_attr( $n ); ?>[digest_day]">
+									<?php for ( $d = 0; $d < 7; $d++ ) : ?>
+										<option value="<?php echo (int) $d; ?>" <?php selected( (int) $v['digest_day'], $d ); ?>><?php echo esc_html( $wp_locale->get_weekday( $d ) ); ?></option>
+									<?php endfor; ?>
+								</select>
+							</label>
+						</div>
+						<p class="cpw-muted">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %s: timezone. */
+									__( 'Times use your site timezone (%s). A digest lists every new or updated blogger since the last one; nothing is sent if nobody new joined.', 'hypeit' ),
+									wp_timezone_string()
+								)
+							);
+							if ( $cp_q ) {
+								echo ' ' . esc_html( sprintf( /* translators: %d: count. */ _n( '%d blogger is waiting for the next digest.', '%d bloggers are waiting for the next digest.', $cp_q, 'hypeit' ), $cp_q ) );
+							}
+							?>
+						</p>
+					</section>
+
+					<section class="cpw-card">
+						<h3><?php esc_html_e( 'Existing Instagram accounts', 'hypeit' ); ?></h3>
+						<?php self::switch_row( $n . '[allow_update]', (bool) $v['allow_update'], __( 'Let bloggers update their existing profile', 'hypeit' ), __( 'Off: a submission with a username that’s already in the library is rejected as a duplicate.', 'hypeit' ) ); ?>
+					</section>
+
+					<div class="cps-save"><?php submit_button( __( 'Save settings', 'hypeit' ), 'primary', 'submit', false ); ?></div>
+				</form>
+
+				<aside class="cps-side">
+					<?php CP_Tags::render_card(); ?>
+				</aside>
+			</div>
 		</div>
+		<script>
+		document.addEventListener( 'click', function ( e ) {
+			var b = e.target.closest( '.cps-copy' );
+			if ( ! b ) { return; }
+			var done = function () { var t = b.textContent; b.textContent = b.getAttribute( 'data-done' ); setTimeout( function () { b.textContent = t; }, 1400 ); };
+			if ( navigator.clipboard && window.isSecureContext ) { navigator.clipboard.writeText( b.getAttribute( 'data-link' ) ).then( done ); }
+		} );
+		</script>
 		<?php
 	}
 }

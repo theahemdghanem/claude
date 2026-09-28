@@ -48,6 +48,30 @@ class CP_DB {
 	}
 
 	/**
+	 * Rows shown in the campaign UI (client page, editor, app, exports):
+	 * every row except those of deactivated bloggers. Their records stay in
+	 * the table and reappear if the blogger is reactivated.
+	 *
+	 * @param int $campaign_id Campaign ID.
+	 * @return array
+	 */
+	public static function visible_bloggers( $campaign_id ) {
+		$rows = self::get_bloggers( $campaign_id );
+		$off  = class_exists( 'CP_Library' ) ? CP_Library::inactive_handles() : array();
+		if ( ! $off ) {
+			return $rows;
+		}
+		return array_values(
+			array_filter(
+				$rows,
+				static function ( $r ) use ( $off ) {
+					return ! isset( $off[ strtolower( $r->ig_account ) ] );
+				}
+			)
+		);
+	}
+
+	/**
 	 * Get a single blogger row.
 	 *
 	 * @param int $id Blogger ID.
@@ -226,6 +250,10 @@ class CP_DB {
 		$posts = $wpdb->posts;
 		$statuses = $include_drafts ? "'publish','draft','pending','private','future'" : "'publish'";
 
+		// Deactivated bloggers' rows are kept but not counted (hidden from the campaign UI).
+		$off    = class_exists( 'CP_Library' ) ? array_keys( CP_Library::inactive_handles() ) : array();
+		$hide   = $off ? $wpdb->prepare( ' AND LOWER( b.ig_account ) NOT IN ( ' . implode( ',', array_fill( 0, count( $off ), '%s' ) ) . ' )', $off ) : ''; // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders
+
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT p.ID AS id, p.post_title AS title, p.post_status AS pstatus, p.post_date AS pdate,
@@ -235,7 +263,7 @@ class CP_DB {
 					SUM( CASE WHEN b.status NOT IN ( 'confirmed', 'declined' ) THEN 1 ELSE 0 END ) AS pending,
 					SUM( CASE WHEN b.status = 'confirmed' THEN b.extra_guests ELSE 0 END ) AS extra_guests
 				FROM {$posts} p
-				LEFT JOIN {$table} b ON b.campaign_id = p.ID
+				LEFT JOIN {$table} b ON b.campaign_id = p.ID{$hide}
 				WHERE p.post_type = %s AND p.post_status IN ( {$statuses} )
 				GROUP BY p.ID, p.post_title, p.post_status, p.post_date
 				ORDER BY p.post_date DESC",
@@ -265,13 +293,13 @@ class CP_DB {
 	}
 
 	/**
-	 * Aggregate statistics for a campaign.
+	 * Aggregate statistics for a campaign (visible rows only).
 	 *
 	 * @param int $campaign_id Campaign ID.
 	 * @return array
 	 */
 	public static function stats( $campaign_id ) {
-		$rows      = self::get_bloggers( $campaign_id );
+		$rows      = self::visible_bloggers( $campaign_id );
 		$total     = count( $rows );
 		$confirmed = 0;
 		$declined  = 0;

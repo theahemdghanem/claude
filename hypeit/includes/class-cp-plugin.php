@@ -66,6 +66,7 @@ final class CP_Plugin {
 			CP_Lists::init();
 			CP_Tags::init();
 			CP_Insights::init();
+			CP_Campaigns_UI::init();
 		}
 	}
 }

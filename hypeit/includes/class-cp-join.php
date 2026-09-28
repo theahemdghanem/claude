@@ -119,11 +119,7 @@ class CP_Join {
 				'no_found_rows'          => false,
 				'update_post_meta_cache' => false,
 				'update_post_term_cache' => false,
-				'meta_query'             => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-					'relation' => 'OR',
-					array( 'key' => '_cp_blocked', 'compare' => 'NOT EXISTS' ),
-					array( 'key' => '_cp_blocked', 'value' => '1', 'compare' => '!=' ),
-				),
+				'meta_query'             => CP_Library::active_clause(), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 			)
 		);
 		$n = (int) $q->found_posts;
@@ -161,7 +157,7 @@ class CP_Join {
 	 * @param string $key     Meta key.
 	 */
 	public static function bust_on_block( $meta_id, $post_id, $key ) {
-		if ( '_cp_blocked' === $key ) {
+		if ( '_cp_blocked' === $key || CP_Library::META_INACTIVE === $key ) {
 			self::bust();
 		}
 	}

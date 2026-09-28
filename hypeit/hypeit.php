@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HypeIt
  * Description: Blogger management for agencies — a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want. Includes insights, a companion app and push notifications.
- * Version:     2.1.0
+ * Version:     2.2.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author:      iLike Agency
@@ -37,7 +37,7 @@ if ( defined( 'CP_VERSION' ) ) {
 	return;
 }
 
-define( 'CP_VERSION', '2.1.0' );
+define( 'CP_VERSION', '2.2.0' );
 define( 'CP_FILE', __FILE__ );
 define( 'CP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CP_URL', plugin_dir_url( __FILE__ ) );
@@ -76,6 +76,7 @@ require_once CP_DIR . 'includes/class-cp-digest.php';
 require_once CP_DIR . 'includes/class-cp-roster.php';
 require_once CP_DIR . 'includes/class-cp-dupes.php';
 require_once CP_DIR . 'includes/class-cp-bloggers-ui.php';
+require_once CP_DIR . 'includes/class-cp-campaigns-ui.php';
 require_once CP_DIR . 'includes/class-cp-plugin.php';
 
 register_activation_hook( __FILE__, array( 'CP_Install', 'activate' ) );
@@ -129,8 +130,10 @@ add_action(
 		$app['delete_data'] = 0;
 		update_option( 'cp_app', $app );
 
-		// Profile completeness + "missing info" for every blogger (Bloggers page filters).
+		// Profile completeness + "missing info" for every blogger (Bloggers page
+		// filters), plus the "completed at" / "updated by blogger" sort keys.
 		CP_Bloggers_UI::refresh_all();
+		CP_Insights::bust();
 
 		// Tidy campaigns: drop waiting rows of bloggers no longer in the library
 		// (deleted / blocked / old usernames). Client decisions are always kept.

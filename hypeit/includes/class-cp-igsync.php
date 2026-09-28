@@ -400,7 +400,20 @@ class CP_IGSync {
 
 		// Update numbers without re-triggering our own "handle changed" hook.
 		remove_action( 'updated_post_meta', array( __CLASS__, 'on_handle_change' ), 10 );
-		update_post_meta( $id, '_cp_followers', (int) $r['followers'] );
+
+		// Follower trend: compare with the count from the previous sync (not a
+		// self-reported number), so the arrow always reflects real movement.
+		$new  = (int) $r['followers'];
+		$last = get_post_meta( $id, '_cp_followers_synced', true );
+		if ( '' !== $last && (int) $last > 0 && $new > 0 ) {
+			update_post_meta( $id, '_cp_followers_prev', (int) $last );
+			update_post_meta( $id, '_cp_followers_delta', $new - (int) $last );
+		} else {
+			update_post_meta( $id, '_cp_followers_delta', 0 );
+		}
+		update_post_meta( $id, '_cp_followers_synced', $new );
+
+		update_post_meta( $id, '_cp_followers', $new );
 		update_post_meta( $id, '_cp_ig_following', (int) $r['following'] );
 		update_post_meta( $id, '_cp_ig_posts', (int) $r['posts'] );
 		update_post_meta( $id, '_cp_ig_name', sanitize_text_field( $r['name'] ) );
@@ -444,6 +457,10 @@ class CP_IGSync {
 		if ( '_cp_ig' === $key ) {
 			delete_post_meta( $post_id, '_cp_ig_synced' );
 			delete_post_meta( $post_id, '_cp_ig_status' );
+			// A different account: start the follower trend again.
+			delete_post_meta( $post_id, '_cp_followers_synced' );
+			delete_post_meta( $post_id, '_cp_followers_delta' );
+			delete_post_meta( $post_id, '_cp_followers_prev' );
 		}
 	}
 
@@ -524,11 +541,8 @@ class CP_IGSync {
 			'no_found_rows'  => true,
 			'posts_per_page' => $limit,
 		);
-		$not_blocked = array(
-			'relation' => 'OR',
-			array( 'key' => '_cp_blocked', 'compare' => 'NOT EXISTS' ),
-			array( 'key' => '_cp_blocked', 'value' => '1', 'compare' => '!=' ),
-		);
+		// Blocked and deactivated bloggers aren't refreshed (saves Instagram quota).
+		$not_blocked = CP_Library::active_clause();
 
 		// 1) Never synced.
 		$ids = get_posts(
@@ -1007,98 +1021,102 @@ class CP_IGSync {
 		}
 
 		global $wpdb;
-		$counts = $wpdb->get_results( "SELECT meta_value AS st, COUNT(*) AS n FROM {$wpdb->postmeta} WHERE meta_key = '_cp_ig_status' GROUP BY meta_value", OBJECT_K ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$counts   = $wpdb->get_results( "SELECT meta_value AS st, COUNT(*) AS n FROM {$wpdb->postmeta} WHERE meta_key = '_cp_ig_status' GROUP BY meta_value", OBJECT_K ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$ok       = isset( $counts['ok'] ) ? (int) $counts['ok']->n : 0;
 		$personal = isset( $counts['personal'] ) ? (int) $counts['personal']->n : 0;
 		$accounts = isset( $s['accounts'] ) && is_array( $s['accounts'] ) ? $s['accounts'] : array();
+		$ready    = self::ready();
+		$paused   = (int) $s['paused'] > time();
 		?>
-		<div class="cp-card" style="max-width:920px;border:1px solid #c3c4c7;border-radius:12px;padding:18px 20px;background:#fff;margin:14px 0 22px;">
-			<h2 style="margin-top:0;"><?php esc_html_e( 'Automatic Instagram sync — no login needed', 'hypeit' ); ?></h2>
-			<p class="description"><?php esc_html_e( 'Your agency’s Instagram account reads bloggers’ public numbers (followers, posts, engagement) and their bio. Bloggers never log in. Works for Business and Creator accounts.', 'hypeit' ); ?></p>
+		<section class="cpw-card cpv-conn">
+			<div class="cpv-head">
+				<div>
+					<h3><?php esc_html_e( 'Automatic Instagram sync', 'hypeit' ); ?></h3>
+					<p class="cpw-muted"><?php esc_html_e( 'Your agency’s Instagram account reads bloggers’ public numbers (followers, posts, engagement) and their bio. Bloggers never log in. Works for Business and Creator accounts.', 'hypeit' ); ?></p>
+				</div>
+				<?php if ( $ready ) : ?>
+					<span class="cpc-pill is-live"><?php echo esc_html( $s['ig_user'] ? sprintf( /* translators: %s: account. */ __( 'Connected as @%s', 'hypeit' ), $s['ig_user'] ) : __( 'Connected', 'hypeit' ) ); ?></span>
+				<?php else : ?>
+					<span class="cpc-pill is-closed"><?php esc_html_e( 'Not connected', 'hypeit' ); ?></span>
+				<?php endif; ?>
+			</div>
 
-			<?php if ( self::ready() ) : ?>
-				<p style="font-size:14px;margin:14px 0;">
-					<span style="color:#1b7f4b;font-weight:700;">● <?php esc_html_e( 'Connected', 'hypeit' ); ?></span>
-					<?php echo $s['ig_user'] ? ' ' . esc_html( sprintf( /* translators: %s: account. */ __( 'as @%s', 'hypeit' ), $s['ig_user'] ) ) : ''; ?>
-					· <?php echo esc_html( sprintf( /* translators: %d: synced. */ __( '%d bloggers synced', 'hypeit' ), $ok ) ); ?>
-					· <?php if ( $personal ) : ?><a href="<?php echo esc_url( self::personal_list_url() ); ?>"><?php echo esc_html( sprintf( /* translators: %d: count. */ _n( '%d personal account', '%d personal accounts', $personal, 'hypeit' ), $personal ) ); ?> →</a><?php else : ?><?php esc_html_e( '0 personal accounts', 'hypeit' ); ?><?php endif; ?>
-					<?php if ( $s['last_run'] ) : ?> · <?php echo esc_html( sprintf( /* translators: %s: time ago. */ __( 'last run %s ago', 'hypeit' ), human_time_diff( (int) $s['last_run'] ) ) ); ?><?php endif; ?>
-					<?php if ( (int) $s['expires'] ) : ?> · <?php echo esc_html( sprintf( /* translators: %s: date. */ __( 'token renews by %s', 'hypeit' ), date_i18n( get_option( 'date_format' ), (int) $s['expires'] ) ) ); ?><?php endif; ?>
-					<?php if ( (int) $s['paused'] > time() ) : ?> · <span style="color:#b26a00;"><?php esc_html_e( 'paused briefly (Instagram rate limit)', 'hypeit' ); ?></span><?php endif; ?>
-				</p>
+			<?php if ( $ready ) : ?>
+				<div class="cpv-stats">
+					<div><b><?php echo esc_html( number_format_i18n( $ok ) ); ?></b><span><?php esc_html_e( 'Bloggers synced', 'hypeit' ); ?></span></div>
+					<a href="<?php echo esc_url( self::personal_list_url() ); ?>"<?php echo $personal ? ' class="is-warn"' : ''; ?>><b><?php echo esc_html( number_format_i18n( $personal ) ); ?></b><span><?php esc_html_e( 'Personal accounts', 'hypeit' ); ?> →</span></a>
+					<div><b><?php echo $s['last_run'] ? esc_html( human_time_diff( (int) $s['last_run'] ) ) : '—'; ?></b><span><?php esc_html_e( 'Since last run', 'hypeit' ); ?></span></div>
+					<div><b><?php echo (int) $s['expires'] ? esc_html( date_i18n( 'M j', (int) $s['expires'] ) ) : '∞'; ?></b><span><?php esc_html_e( 'Token renews by', 'hypeit' ); ?></span></div>
+				</div>
+				<?php if ( $paused ) : ?>
+					<p class="cpv-note is-warn"><?php esc_html_e( 'Paused briefly — Instagram’s rate limit was reached. It resumes on its own.', 'hypeit' ); ?></p>
+				<?php endif; ?>
 			<?php elseif ( in_array( $s['status'], array( 'token', 'perm' ), true ) && $s['error'] ) : ?>
-				<p style="color:#b3261e;margin:14px 0;"><strong><?php esc_html_e( 'Not connected:', 'hypeit' ); ?></strong> <?php echo esc_html( $s['error'] ); ?></p>
+				<p class="cpv-note is-bad"><strong><?php esc_html_e( 'Not connected:', 'hypeit' ); ?></strong> <?php echo esc_html( $s['error'] ); ?></p>
 			<?php endif; ?>
 
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="cpv-form">
 				<input type="hidden" name="action" value="cp_igsync_save" />
 				<?php wp_nonce_field( 'cp_igsync_save', 'cp_igsync_nonce' ); ?>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row"><label for="cp-igs-token"><?php esc_html_e( 'Access token', 'hypeit' ); ?></label></th>
-						<td>
-							<input type="password" id="cp-igs-token" name="token" class="large-text" autocomplete="off" placeholder="<?php echo esc_attr( $s['token'] ? __( 'Saved — paste a new token only to replace it', 'hypeit' ) : __( 'Paste the System User access token', 'hypeit' ) ); ?>" />
-							<p class="description"><?php esc_html_e( 'Paste a token from Graph API Explorer (with the App ID and App Secret below, it’s made permanent automatically) — or a System User token, which never expires. Permissions needed: instagram_basic, instagram_manage_insights, pages_show_list, pages_read_engagement, business_management, ads_read.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="cp-igs-app"><?php esc_html_e( 'App ID', 'hypeit' ); ?></label></th>
-						<td>
-							<input type="text" id="cp-igs-app" name="app_id" class="regular-text" value="<?php echo esc_attr( $s['app_id'] ); ?>" autocomplete="off" />
-							<p class="description"><?php esc_html_e( 'From your sync app (e.g. iLike Sync) → App settings → Basic.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="cp-igs-secret"><?php esc_html_e( 'App Secret', 'hypeit' ); ?></label></th>
-						<td>
-							<input type="password" id="cp-igs-secret" name="app_secret" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr( $s['app_secret'] ? __( 'Saved', 'hypeit' ) : '' ); ?>" />
-							<p class="description"><?php esc_html_e( 'Same page, click “Show”. Only used to make the token permanent; stored privately.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
+
+				<details class="cpv-group"<?php echo $ready ? '' : ' open'; ?>>
+					<summary><?php esc_html_e( 'Connection', 'hypeit' ); ?> <small><?php echo esc_html( $s['token'] ? __( 'token saved', 'hypeit' ) : __( 'paste a token to start', 'hypeit' ) ); ?></small></summary>
+					<div class="cps-field">
+						<label for="cp-igs-token"><?php esc_html_e( 'Access token', 'hypeit' ); ?></label>
+						<input type="password" id="cp-igs-token" name="token" class="large-text" autocomplete="off" placeholder="<?php echo esc_attr( $s['token'] ? __( 'Saved — paste a new token only to replace it', 'hypeit' ) : __( 'Paste the System User access token', 'hypeit' ) ); ?>" />
+						<p class="cpw-muted"><?php esc_html_e( 'Paste a token from Graph API Explorer (with the App ID and App Secret below, it’s made permanent automatically) — or a System User token, which never expires. Permissions needed: instagram_basic, instagram_manage_insights, pages_show_list, pages_read_engagement, business_management, ads_read.', 'hypeit' ); ?></p>
+					</div>
+					<div class="cps-grid2">
+						<div class="cps-field">
+							<label for="cp-igs-app"><?php esc_html_e( 'App ID', 'hypeit' ); ?></label>
+							<input type="text" id="cp-igs-app" name="app_id" value="<?php echo esc_attr( $s['app_id'] ); ?>" autocomplete="off" />
+							<p class="cpw-muted"><?php esc_html_e( 'From your sync app (e.g. iLike Sync) → App settings → Basic.', 'hypeit' ); ?></p>
+						</div>
+						<div class="cps-field">
+							<label for="cp-igs-secret"><?php esc_html_e( 'App Secret', 'hypeit' ); ?></label>
+							<input type="password" id="cp-igs-secret" name="app_secret" autocomplete="off" placeholder="<?php echo esc_attr( $s['app_secret'] ? __( 'Saved', 'hypeit' ) : '' ); ?>" />
+							<p class="cpw-muted"><?php esc_html_e( 'Same page, click “Show”. Only used to make the token permanent; stored privately.', 'hypeit' ); ?></p>
+						</div>
+					</div>
 					<?php if ( count( $accounts ) > 1 ) : ?>
-						<tr>
-							<th scope="row"><label for="cp-igs-acc"><?php esc_html_e( 'Instagram account', 'hypeit' ); ?></label></th>
-							<td>
-								<select id="cp-igs-acc" name="ig_id">
-									<?php foreach ( $accounts as $a ) : ?>
-										<option value="<?php echo esc_attr( $a['id'] ); ?>" <?php selected( $s['ig_id'], $a['id'] ); ?>>@<?php echo esc_html( $a['username'] . ' — ' . $a['page'] ); ?></option>
-									<?php endforeach; ?>
-								</select>
-							</td>
-						</tr>
-					<?php endif; ?>
-					<tr>
-						<th scope="row"><label for="cp-igs-int"><?php esc_html_e( 'Refresh followers', 'hypeit' ); ?></label></th>
-						<td>
-							<select id="cp-igs-int" name="interval">
-								<?php foreach ( array( 1 => __( 'Every day', 'hypeit' ), 3 => __( 'Every 3 days', 'hypeit' ), 7 => __( 'Every week', 'hypeit' ), 14 => __( 'Every 2 weeks', 'hypeit' ), 30 => __( 'Every month', 'hypeit' ) ) as $d => $lab ) : ?>
-									<option value="<?php echo (int) $d; ?>" <?php selected( (int) $s['interval'], $d ); ?>><?php echo esc_html( $lab ); ?></option>
+						<div class="cps-field">
+							<label for="cp-igs-acc"><?php esc_html_e( 'Instagram account', 'hypeit' ); ?></label>
+							<select id="cp-igs-acc" name="ig_id">
+								<?php foreach ( $accounts as $a ) : ?>
+									<option value="<?php echo esc_attr( $a['id'] ); ?>" <?php selected( $s['ig_id'], $a['id'] ); ?>>@<?php echo esc_html( $a['username'] . ' — ' . $a['page'] ); ?></option>
 								<?php endforeach; ?>
 							</select>
-							<p class="description"><?php esc_html_e( 'New bloggers are checked right away. Up to 60 bloggers are refreshed per hour to stay within Instagram’s limits.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Verify by bio code', 'hypeit' ); ?></th>
-						<td>
-							<label><input type="checkbox" name="bio_verify" value="1" <?php checked( $s['bio_verify'] ); ?> /> <?php esc_html_e( 'Automatically verify bloggers who add their personal code to their Instagram bio', 'hypeit' ); ?></label>
-							<p class="description"><?php esc_html_e( 'Each blogger sees their code after submitting the form. It’s detected within a day; they can remove it once verified.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="cp-igs-msg"><?php esc_html_e( '“Switch to Creator” message', 'hypeit' ); ?></label></th>
-						<td>
-							<textarea id="cp-igs-msg" name="switch_msg" rows="6" class="large-text" placeholder="<?php echo esc_attr( self::default_switch_msg() ); ?>"><?php echo esc_textarea( $s['switch_msg'] ); ?></textarea>
-							<p class="description"><?php esc_html_e( 'Sent on WhatsApp from the “Ask to switch” buttons for personal accounts. Placeholders: {first} {handle}. Leave empty to use the default shown.', 'hypeit' ); ?></p>
-						</td>
-					</tr>
-				</table>
-				<p>
-					<?php submit_button( self::ready() ? __( 'Save', 'hypeit' ) : __( 'Test & connect', 'hypeit' ), 'primary', 'submit', false ); ?>
-					<?php if ( '' !== $s['token'] ) : ?>
-						<button type="submit" name="disconnect" value="1" class="button" onclick="return confirm('<?php echo esc_js( __( 'Disconnect automatic Instagram sync?', 'hypeit' ) ); ?>');"><?php esc_html_e( 'Disconnect', 'hypeit' ); ?></button>
+						</div>
 					<?php endif; ?>
-				</p>
+				</details>
+
+				<div class="cpv-group is-flat">
+					<div class="cps-field">
+						<label for="cp-igs-int"><?php esc_html_e( 'Refresh followers', 'hypeit' ); ?></label>
+						<select id="cp-igs-int" name="interval">
+							<?php foreach ( array( 1 => __( 'Every day', 'hypeit' ), 3 => __( 'Every 3 days', 'hypeit' ), 7 => __( 'Every week', 'hypeit' ), 14 => __( 'Every 2 weeks', 'hypeit' ), 30 => __( 'Every month', 'hypeit' ) ) as $d => $lab ) : ?>
+								<option value="<?php echo (int) $d; ?>" <?php selected( (int) $s['interval'], $d ); ?>><?php echo esc_html( $lab ); ?></option>
+							<?php endforeach; ?>
+						</select>
+						<p class="cpw-muted"><?php esc_html_e( 'New bloggers are checked right away. Up to 60 bloggers are refreshed per hour to stay within Instagram’s limits. Each refresh compares followers with the previous one (green ↑ / red ↓ on the Bloggers page and in the app). Deactivated and blocked bloggers are skipped.', 'hypeit' ); ?></p>
+					</div>
+					<label class="cpw-switchrow">
+						<span class="cpw-switch"><input type="checkbox" name="bio_verify" value="1" <?php checked( $s['bio_verify'] ); ?> /><span class="cpw-slider" aria-hidden="true"></span></span>
+						<span class="cpw-switchtext"><strong><?php esc_html_e( 'Verify by bio code', 'hypeit' ); ?></strong><small><?php esc_html_e( 'Automatically verify bloggers who add their personal code to their Instagram bio. Each blogger sees their code after submitting the form; it’s detected within a day and can be removed once verified.', 'hypeit' ); ?></small></span>
+					</label>
+					<div class="cps-field">
+						<label for="cp-igs-msg"><?php esc_html_e( '“Switch to Creator” message', 'hypeit' ); ?></label>
+						<textarea id="cp-igs-msg" name="switch_msg" rows="5" class="large-text" placeholder="<?php echo esc_attr( self::default_switch_msg() ); ?>"><?php echo esc_textarea( $s['switch_msg'] ); ?></textarea>
+						<p class="cpw-muted"><?php esc_html_e( 'Sent on WhatsApp from the “Ask to switch” buttons for personal accounts. Placeholders: {first} {handle}. Leave empty to use the default shown.', 'hypeit' ); ?></p>
+					</div>
+				</div>
+
+				<div class="cpv-actions">
+					<?php submit_button( $ready ? __( 'Save', 'hypeit' ) : __( 'Test & connect', 'hypeit' ), 'primary', 'submit', false ); ?>
+					<?php if ( '' !== $s['token'] ) : ?>
+						<button type="submit" name="disconnect" value="1" class="button cpv-danger" onclick="return confirm('<?php echo esc_js( __( 'Disconnect automatic Instagram sync?', 'hypeit' ) ); ?>');"><?php esc_html_e( 'Disconnect', 'hypeit' ); ?></button>
+					<?php endif; ?>
+				</div>
 			</form>
 			<?php
 			$test = get_transient( 'cp_igs_test_' . get_current_user_id() );
@@ -1106,70 +1124,68 @@ class CP_IGSync {
 				delete_transient( 'cp_igs_test_' . get_current_user_id() );
 				echo '<div class="notice notice-' . ( $test['ok'] ? 'success' : 'error' ) . ' inline" style="margin:12px 0;"><p>' . esc_html( $test['text'] ) . '</p></div>';
 			}
-			if ( '' !== $s['token'] ) :
-				?>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:14px 0 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-					<input type="hidden" name="action" value="cp_igsync_test" />
-					<?php wp_nonce_field( 'cp_igsync_test', 'cp_igsync_test_nonce' ); ?>
-					<strong><?php esc_html_e( 'Test a username:', 'hypeit' ); ?></strong>
-					<input type="text" name="username" placeholder="@username" required />
-					<button type="submit" class="button"><?php esc_html_e( 'Test', 'hypeit' ); ?></button>
-					<span class="description"><?php esc_html_e( 'Shows exactly what Instagram returns — handy for checking a blogger or your own account.', 'hypeit' ); ?></span>
-				</form>
-			<?php endif; ?>
-			<?php if ( self::ready() ) : ?>
-				<p style="margin:6px 0 0;"><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=cp_igsync_now' ), 'cp_igsync_now' ) ); ?>"><?php esc_html_e( 'Sync bloggers now', 'hypeit' ); ?></a> <span class="description"><?php esc_html_e( 'Runs one batch immediately (otherwise it runs every hour on its own).', 'hypeit' ); ?></span></p>
-			<?php endif; ?>
-			<?php
-			if ( self::ready() ) :
-				$next    = wp_next_scheduled( self::CRON );
-				$due     = count( self::due( 1000 ) );
-				$stale   = ! $s['last_run'] || (int) $s['last_run'] < time() - 2 * HOUR_IN_SECONDS;
-				$srv     = ! empty( $s['server_cron'] ) && (int) $s['server_cron'] > time() - 2 * HOUR_IN_SECONDS;
-				$link    = add_query_arg( 'hypeit_cron', self::cron_key(), home_url( '/' ) );
-				?>
-				<div style="margin:16px 0 0;padding:14px 16px;border:1px solid #e2e4e7;border-radius:10px;background:#fafafa;">
-					<p style="margin:0 0 6px;font-weight:600;"><?php esc_html_e( 'Automatic refresh status', 'hypeit' ); ?></p>
-					<p style="margin:0;">
-						<?php
-						echo esc_html(
-							sprintf(
-								/* translators: 1: last run, 2: next run, 3: due count. */
-								__( 'Last run: %1$s · Next scheduled: %2$s · Due for refresh now: %3$d bloggers', 'hypeit' ),
-								$s['last_run'] ? sprintf( /* translators: %s: time. */ __( '%s ago', 'hypeit' ), human_time_diff( (int) $s['last_run'] ) ) : __( 'never', 'hypeit' ),
-								$next ? ( $next > time() ? sprintf( /* translators: %s: time. */ __( 'in %s', 'hypeit' ), human_time_diff( $next ) ) : __( 'overdue', 'hypeit' ) ) : __( 'not scheduled', 'hypeit' ),
-								$due
-							)
-						);
-						?>
-					</p>
-					<p style="margin:6px 0 0;color:<?php echo $srv ? '#1b7f4b' : ( $stale ? '#b26a00' : '#646970' ); ?>;">
-						<?php
-						if ( $srv ) {
-							esc_html_e( '● Server timer connected — refresh runs every hour automatically.', 'hypeit' );
-						} elseif ( $stale ) {
-							esc_html_e( 'Background tasks aren’t running often enough on this server (usually because of page caching). Refreshes also run whenever you use the admin or the app — for fully automatic hourly refresh, add the server timer below.', 'hypeit' );
-						} else {
-							esc_html_e( 'Refresh runs about once an hour; adding the server timer below makes it fully reliable.', 'hypeit' );
-						}
-						?>
-					</p>
-					<details style="margin-top:10px;">
-						<summary style="cursor:pointer;font-weight:600;"><?php esc_html_e( 'Set up the server timer (Bluehost, 2 minutes)', 'hypeit' ); ?></summary>
-						<ol style="margin:10px 0 0 18px;">
-							<li><?php esc_html_e( 'In Bluehost, open Advanced → cPanel → Cron Jobs.', 'hypeit' ); ?></li>
-							<li><?php esc_html_e( 'Common Settings: “Once Per Hour”.', 'hypeit' ); ?></li>
-							<li><?php esc_html_e( 'Command — paste this line, then click “Add New Cron Job”:', 'hypeit' ); ?>
-								<br /><code style="display:inline-block;margin-top:6px;word-break:break-all;">curl -s "<?php echo esc_html( $link ); ?>" &gt;/dev/null 2&gt;&amp;1</code>
-							</li>
-						</ol>
-						<p class="description" style="margin:8px 0 0;"><?php esc_html_e( 'Keep this link private — it only runs the refresh, nothing else. The status above turns green within the hour once it works.', 'hypeit' ); ?></p>
-					</details>
-				</div>
-			<?php endif; ?>
-		</div>
-		<?php
+			?>
+		</section>
 
+		<?php if ( '' !== $s['token'] || $ready ) : ?>
+			<section class="cpw-card">
+				<h3><?php esc_html_e( 'Tools', 'hypeit' ); ?></h3>
+				<?php if ( '' !== $s['token'] ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="cpv-inline">
+						<input type="hidden" name="action" value="cp_igsync_test" />
+						<?php wp_nonce_field( 'cp_igsync_test', 'cp_igsync_test_nonce' ); ?>
+						<label for="cpv-test"><?php esc_html_e( 'Test a username', 'hypeit' ); ?></label>
+						<input type="text" id="cpv-test" name="username" placeholder="@username" required />
+						<button type="submit" class="button"><?php esc_html_e( 'Test', 'hypeit' ); ?></button>
+					</form>
+					<p class="cpw-muted"><?php esc_html_e( 'Shows exactly what Instagram returns — handy for checking a blogger or your own account.', 'hypeit' ); ?></p>
+				<?php endif; ?>
+				<?php if ( $ready ) : ?>
+					<p class="cpv-inline"><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=cp_igsync_now' ), 'cp_igsync_now' ) ); ?>"><?php esc_html_e( 'Sync bloggers now', 'hypeit' ); ?></a> <span class="cpw-muted"><?php esc_html_e( 'Runs one batch immediately (otherwise it runs every hour on its own).', 'hypeit' ); ?></span></p>
+				<?php endif; ?>
+			</section>
+		<?php endif; ?>
+
+		<?php
+		if ( $ready ) :
+			$next  = wp_next_scheduled( self::CRON );
+			$due   = count( self::due( 1000 ) );
+			$stale = ! $s['last_run'] || (int) $s['last_run'] < time() - 2 * HOUR_IN_SECONDS;
+			$srv   = ! empty( $s['server_cron'] ) && (int) $s['server_cron'] > time() - 2 * HOUR_IN_SECONDS;
+			$link  = add_query_arg( 'hypeit_cron', self::cron_key(), home_url( '/' ) );
+			?>
+			<section class="cpw-card">
+				<h3><?php esc_html_e( 'Automatic refresh status', 'hypeit' ); ?></h3>
+				<div class="cpv-stats is-small">
+					<div><b><?php echo $s['last_run'] ? esc_html( sprintf( /* translators: %s: time. */ __( '%s ago', 'hypeit' ), human_time_diff( (int) $s['last_run'] ) ) ) : esc_html__( 'never', 'hypeit' ); ?></b><span><?php esc_html_e( 'Last run', 'hypeit' ); ?></span></div>
+					<div><b><?php echo esc_html( $next ? ( $next > time() ? sprintf( /* translators: %s: time. */ __( 'in %s', 'hypeit' ), human_time_diff( $next ) ) : __( 'overdue', 'hypeit' ) ) : __( 'not scheduled', 'hypeit' ) ); ?></b><span><?php esc_html_e( 'Next scheduled', 'hypeit' ); ?></span></div>
+					<div><b><?php echo (int) $due; ?></b><span><?php esc_html_e( 'Due for refresh', 'hypeit' ); ?></span></div>
+				</div>
+				<p class="cpv-note <?php echo $srv ? 'is-ok' : ( $stale ? 'is-warn' : '' ); ?>">
+					<?php
+					if ( $srv ) {
+						esc_html_e( '● Server timer connected — refresh runs every hour automatically.', 'hypeit' );
+					} elseif ( $stale ) {
+						esc_html_e( 'Background tasks aren’t running often enough on this server (usually because of page caching). Refreshes also run whenever you use the admin or the app — for fully automatic hourly refresh, add the server timer below.', 'hypeit' );
+					} else {
+						esc_html_e( 'Refresh runs about once an hour; adding the server timer below makes it fully reliable.', 'hypeit' );
+					}
+					?>
+				</p>
+				<details class="cpv-group">
+					<summary><?php esc_html_e( 'Set up the server timer (Bluehost, 2 minutes)', 'hypeit' ); ?></summary>
+					<ol>
+						<li><?php esc_html_e( 'In Bluehost, open Advanced → cPanel → Cron Jobs.', 'hypeit' ); ?></li>
+						<li><?php esc_html_e( 'Common Settings: “Once Per Hour”.', 'hypeit' ); ?></li>
+						<li><?php esc_html_e( 'Command — paste this line, then click “Add New Cron Job”:', 'hypeit' ); ?>
+							<br /><code class="cpv-code">curl -s "<?php echo esc_html( $link ); ?>" &gt;/dev/null 2&gt;&amp;1</code>
+						</li>
+					</ol>
+					<p class="cpw-muted"><?php esc_html_e( 'Keep this link private — it only runs the refresh, nothing else. The status above turns green within the hour once it works.', 'hypeit' ); ?></p>
+				</details>
+			</section>
+		<?php endif; ?>
+		<?php
 	}
 
 	/**
@@ -1222,6 +1238,8 @@ class CP_IGSync {
 			'engagement' => '' === $eng ? null : (float) $eng,
 			'following'  => (int) get_post_meta( $id, '_cp_ig_following', true ),
 			'posts'      => (int) get_post_meta( $id, '_cp_ig_posts', true ),
+			'delta'      => (int) get_post_meta( $id, '_cp_followers_delta', true ),
+			'prev'       => (int) get_post_meta( $id, '_cp_followers_prev', true ),
 			'code'       => (string) get_post_meta( $id, '_cp_verify_code', true ),
 		);
 	}

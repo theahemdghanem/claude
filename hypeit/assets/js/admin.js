@@ -18,6 +18,12 @@
 			.replace( /%d/g, function () { return args[ i++ ]; } );
 	}
 	function num( n ) { return Number( n || 0 ).toLocaleString(); }
+	// Follower change at the last Instagram sync: green ↑ / red ↓ (none when unchanged).
+	function trend( d ) {
+		d = parseInt( d, 10 ) || 0;
+		if ( ! d ) { return ''; }
+		return ' <span class="cp-trend ' + ( d > 0 ? 'is-up' : 'is-down' ) + '" title="' + ( d > 0 ? '+' : '−' ) + num( Math.abs( d ) ) + '">' + ( d > 0 ? '↑' : '↓' ) + '</span>';
+	}
 	function hue( s ) { var h = 0; s = String( s || '' ); for ( var i = 0; i < s.length; i++ ) { h = ( h * 31 + s.charCodeAt( i ) ) % 360; } return h; }
 	function avatar( b, h ) {
 		if ( b && b.p ) { return '<img class="cpw-av" src="' + esc( b.p ) + '" alt="" loading="lazy" />'; }
@@ -190,7 +196,7 @@
 				html += '<tr class="' + ( it.removed ? 'is-removed' : '' ) + ( ! it.orig ? ' is-new' : '' ) + '">' +
 					'<td class="cpw-c-idx" data-label="#">' + n + '</td>' +
 					'<td data-label=""><div class="cpw-who">' + avatar( b, it.h ) + '<div>' + name + '<a href="' + esc( url ) + '" target="_blank" rel="noopener" class="cpw-handle">@' + esc( it.h ) + '</a>' + tags + '</div></div></td>' +
-					'<td data-label="' + esc( L.colFollowers ) + '">' + ( b && b.f ? num( b.f ) : '—' ) + '</td>' +
+					'<td data-label="' + esc( L.colFollowers ) + '">' + ( b && b.f ? num( b.f ) + trend( b.d ) : '—' ) + '</td>' +
 					'<td data-label="' + esc( L.colGender ) + '">' + esc( gender ) + '</td>' +
 					'<td data-label="' + esc( L.colCity ) + '">' + esc( b && b.c ? b.c : '—' ) + '</td>' +
 					'<td data-label="' + esc( L.colStatus ) + '">' + ( ! it.orig ? '<span class="cpw-muted">—</span>' : statusBadge( it.s ) ) + '</td>' +

@@ -424,6 +424,11 @@ class CP_Atrium {
 				continue;
 			}
 
+			// Deactivated bloggers aren't invited (existing guests are kept).
+			if ( CP_Library::handle_inactive( $r->ig_account ) ) {
+				continue;
+			}
+
 			$lib   = CP_Library::find_by_handle( $r->ig_account );
 			$name  = $lib ? trim( get_post_meta( $lib, '_cp_first', true ) . ' ' . get_post_meta( $lib, '_cp_last', true ) ) : '';
 			$phone = $lib ? ( get_post_meta( $lib, '_cp_whatsapp', true ) ? get_post_meta( $lib, '_cp_whatsapp', true ) : get_post_meta( $lib, '_cp_phone', true ) ) : '';

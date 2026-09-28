@@ -11,6 +11,8 @@
  * - Only rows still WAITING for the client are ever removed — a client's
  *   decision (selected / declined) is always kept as history.
  * - Closed campaigns are never touched.
+ * - Deactivated bloggers are never removed: their rows stay, hidden from the
+ *   campaign UI (see CP_DB::visible_bloggers), until they're reactivated.
  *
  * @package HypeIt
  */
@@ -182,7 +184,8 @@ class CP_Roster {
 		if ( ! $open ) {
 			return array( 'removed' => 0, 'campaigns' => 0 );
 		}
-		$active = array_flip( array_map( 'strtolower', CP_Everyone::all_handles() ) );
+		// Deactivated bloggers keep their rows (hidden, not removed) so reactivating restores them.
+		$active = array_merge( array_flip( array_map( 'strtolower', CP_Everyone::all_handles() ) ), CP_Library::inactive_handles() );
 		global $wpdb;
 		$t       = CP_DB::table();
 		$in      = implode( ',', $open );

@@ -78,7 +78,7 @@ class CP_Everyone {
 	}
 
 	/**
-	 * Handles of every active (published, non-blocked) library blogger.
+	 * Handles of every active (published, not blocked, not deactivated) library blogger.
 	 *
 	 * @return array
 	 */
@@ -91,11 +91,7 @@ class CP_Everyone {
 				'orderby'        => 'title',
 				'order'          => 'ASC',
 				'fields'         => 'ids',
-				'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-					'relation' => 'OR',
-					array( 'key' => '_cp_blocked', 'compare' => 'NOT EXISTS' ),
-					array( 'key' => '_cp_blocked', 'value' => '1', 'compare' => '!=' ),
-				),
+				'meta_query'     => CP_Library::active_clause(), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 			)
 		);
 		$out = array();
@@ -126,7 +122,7 @@ class CP_Everyone {
 		$added = 0;
 		foreach ( (array) $handles as $h ) {
 			$h = preg_replace( '/[^A-Za-z0-9._]/', '', ltrim( trim( (string) $h ), '@' ) );
-			if ( '' === $h || isset( $seen[ strtolower( $h ) ] ) ) {
+			if ( '' === $h || isset( $seen[ strtolower( $h ) ] ) || CP_Library::handle_inactive( $h ) ) {
 				continue;
 			}
 			$accounts[]               = $h;
@@ -207,7 +203,7 @@ class CP_Everyone {
 		if ( CP_Library::CPT !== get_post_type( $blogger_id ) || 'publish' !== get_post_status( $blogger_id ) ) {
 			return;
 		}
-		if ( '1' === (string) get_post_meta( $blogger_id, '_cp_blocked', true ) ) {
+		if ( '1' === (string) get_post_meta( $blogger_id, '_cp_blocked', true ) || CP_Library::is_inactive( $blogger_id ) ) {
 			return;
 		}
 		$handle = CP_Library::handle( $blogger_id );

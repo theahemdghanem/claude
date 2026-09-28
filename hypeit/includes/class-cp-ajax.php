@@ -47,7 +47,7 @@ class CP_Ajax {
 
 		// The blogger must belong to this campaign.
 		$blogger = CP_DB::get_blogger( $blogger_id );
-		if ( ! $blogger || (int) $blogger->campaign_id !== $campaign_id ) {
+		if ( ! $blogger || (int) $blogger->campaign_id !== $campaign_id || CP_Library::handle_inactive( $blogger->ig_account ) ) {
 			wp_send_json_error( array( 'message' => __( 'Blogger not found.', 'hypeit' ) ), 404 );
 		}
 
@@ -126,7 +126,7 @@ class CP_Ajax {
 
 		$only_confirmed = ! empty( $_POST['confirmed_only'] );
 		$accounts       = array();
-		foreach ( CP_DB::get_bloggers( $campaign_id ) as $row ) {
+		foreach ( CP_DB::visible_bloggers( $campaign_id ) as $row ) {
 			if ( $only_confirmed && 'confirmed' !== $row->status ) {
 				continue;
 			}

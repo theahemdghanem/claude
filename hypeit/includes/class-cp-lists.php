@@ -99,7 +99,7 @@ class CP_Lists {
 	 * @return bool
 	 */
 	public static function matches_blogger( $id, $r ) {
-		if ( '1' === (string) get_post_meta( $id, '_cp_blocked', true ) ) {
+		if ( '1' === (string) get_post_meta( $id, '_cp_blocked', true ) || CP_Library::is_inactive( $id ) ) {
 			return false;
 		}
 		if ( ! empty( $r['all'] ) ) {

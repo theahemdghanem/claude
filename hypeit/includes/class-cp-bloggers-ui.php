@@ -10,6 +10,11 @@
  *
  * Profile completeness is stored per blogger (_cp_complete = %, _cp_missing =
  * ",photo,email,") and refreshed automatically whenever a relevant field changes.
+ * An admin can mark a profile complete by hand (_cp_complete_manual) for
+ * bloggers they know personally: it then counts as 100% as soon as the basic
+ * profile (Instagram username) and a follower count are there.
+ * _cp_completed_at stamps when a profile became complete (0 = not complete) and
+ * _cp_blogger_updated when the blogger last updated their own profile (form).
  *
  * @package HypeIt
  */
@@ -24,7 +29,10 @@ class CP_Bloggers_UI {
 	private static $dirty = array();
 
 	/** Meta keys that affect completeness. */
-	const WATCH = array( '_cp_photo', '_cp_first', '_cp_last', '_cp_ig', '_cp_followers', '_cp_gender', '_cp_city', '_cp_collab', '_cp_phone', '_cp_whatsapp', '_cp_email', '_cp_birthday' );
+	const WATCH = array( '_cp_photo', '_cp_first', '_cp_last', '_cp_ig', '_cp_followers', '_cp_gender', '_cp_city', '_cp_collab', '_cp_phone', '_cp_whatsapp', '_cp_email', '_cp_birthday', self::MANUAL );
+
+	/** Meta flag: profile marked complete by an admin. */
+	const MANUAL = '_cp_complete_manual';
 
 	/**
 	 * Hooks.
@@ -103,13 +111,91 @@ class CP_Bloggers_UI {
 		);
 		$missing = array_keys( array_filter( $has, static function ( $v ) { return ! $v; } ) );
 
+		// Marked complete by an admin: the basic profile + follower count are enough.
+		if ( self::is_manual( $id ) && $has['instagram'] && $has['followers'] ) {
+			return array( 'missing' => array(), 'pct' => 100, 'manual' => true );
+		}
+
 		// Score over the 10 profile essentials (birthday is optional; phone/WhatsApp = one "contact").
 		$core = array(
 			$has['photo'], $has['instagram'], $has['name'], $has['followers'], $has['gender'],
 			$has['city'], $has['categories'], $has['collab'], $has['phone'] || $has['whatsapp'], $has['email'],
 		);
 		$pct = (int) round( count( array_filter( $core ) ) / count( $core ) * 100 );
-		return array( 'missing' => $missing, 'pct' => $pct );
+		return array( 'missing' => $missing, 'pct' => $pct, 'manual' => false );
+	}
+
+	/**
+	 * Has an admin marked this profile complete?
+	 *
+	 * @param int $id Blogger ID.
+	 * @return bool
+	 */
+	public static function is_manual( $id ) {
+		return '1' === (string) get_post_meta( $id, self::MANUAL, true );
+	}
+
+	/**
+	 * Mark / unmark a profile as complete (recomputed right away).
+	 *
+	 * @param int  $id Blogger ID.
+	 * @param bool $on Mark complete.
+	 * @return array Completeness after the change.
+	 */
+	public static function set_manual( $id, $on ) {
+		if ( $on ) {
+			update_post_meta( $id, self::MANUAL, '1' );
+		} else {
+			delete_post_meta( $id, self::MANUAL );
+		}
+		return self::refresh( $id );
+	}
+
+	/**
+	 * Can the manual "complete" mark take effect? (Needs a username + followers.)
+	 *
+	 * @param int $id Blogger ID.
+	 * @return bool
+	 */
+	public static function manual_ready( $id ) {
+		return '' !== trim( (string) get_post_meta( $id, '_cp_ig', true ) ) && (int) get_post_meta( $id, '_cp_followers', true ) > 0;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Follower tracking                                                   */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * Follower change measured at the last Instagram sync (0 = no change).
+	 *
+	 * @param int $id Blogger ID.
+	 * @return int
+	 */
+	public static function follower_delta( $id ) {
+		return (int) get_post_meta( $id, '_cp_followers_delta', true );
+	}
+
+	/**
+	 * Green ↑ / red ↓ next to a follower count ('' when unchanged).
+	 *
+	 * @param int $id Blogger ID.
+	 * @return string HTML.
+	 */
+	public static function trend_html( $id ) {
+		$d = self::follower_delta( $id );
+		if ( ! $d ) {
+			return '';
+		}
+		$prev = (int) get_post_meta( $id, '_cp_followers_prev', true );
+		$now  = (int) get_post_meta( $id, '_cp_followers', true );
+		$tip  = sprintf(
+			/* translators: 1: signed change, 2: previous count, 3: current count. */
+			__( '%1$s since the last sync (%2$s → %3$s)', 'hypeit' ),
+			( $d > 0 ? '+' : '−' ) . number_format_i18n( abs( $d ) ),
+			number_format_i18n( $prev ),
+			number_format_i18n( $now )
+		);
+		return '<span class="cp-trend ' . ( $d > 0 ? 'is-up' : 'is-down' ) . '" title="' . esc_attr( $tip ) . '" aria-label="' . esc_attr( $tip ) . '">' . ( $d > 0 ? '↑' : '↓' ) . '</span>';
 	}
 
 	/**
@@ -122,6 +208,21 @@ class CP_Bloggers_UI {
 		$c = self::compute( $id );
 		update_post_meta( $id, '_cp_complete', $c['pct'] );
 		update_post_meta( $id, '_cp_missing', $c['missing'] ? ',' . implode( ',', $c['missing'] ) . ',' : '' );
+
+		// When the profile became complete (for "Latest completed"); 0 while incomplete.
+		$raw  = get_post_meta( $id, '_cp_completed_at', true );
+		$done = (int) $raw;
+		if ( $c['pct'] >= 100 && ! $done ) {
+			// First time we look (upgrade): best guess is the profile's last change.
+			$when = '' === $raw ? (int) get_post_modified_time( 'U', true, $id ) : 0;
+			update_post_meta( $id, '_cp_completed_at', $when ? $when : time() );
+		} elseif ( $c['pct'] < 100 && ( $done || '' === $raw ) ) {
+			update_post_meta( $id, '_cp_completed_at', 0 );
+		}
+		// Every blogger carries the key so "Last updated by blogger" can sort everyone.
+		if ( '' === get_post_meta( $id, '_cp_blogger_updated', true ) ) {
+			update_post_meta( $id, '_cp_blogger_updated', 0 );
+		}
 		return $c;
 	}
 
@@ -288,6 +389,9 @@ class CP_Bloggers_UI {
 				if ( '1' === $get( '_cp_blocked' ) ) {
 					$badges .= '<span class="cpl-b is-bad">' . esc_html__( 'Blocked', 'hypeit' ) . '</span>';
 				}
+				if ( CP_Library::is_inactive( $id ) ) {
+					$badges .= '<span class="cpl-b is-off" title="' . esc_attr__( 'Hidden from campaigns, selections and lists. Past campaign records are kept.', 'hypeit' ) . '">' . esc_html__( 'Deactivated', 'hypeit' ) . '</span>';
+				}
 				if ( 'publish' !== get_post_status( $id ) ) {
 					$badges .= '<span class="cpl-b">' . esc_html( get_post_status_object( get_post_status( $id ) )->label ) . '</span>';
 				}
@@ -300,7 +404,7 @@ class CP_Bloggers_UI {
 			case 'cp_followers':
 				$f   = (int) $get( '_cp_followers' );
 				$eng = $get( '_cp_engagement' );
-				echo $f ? '<strong class="cpl-num">' . esc_html( self::compact( $f ) ) . '</strong>' : '<span class="cpl-muted">&mdash;</span>';
+				echo $f ? '<strong class="cpl-num" title="' . esc_attr( number_format_i18n( $f ) ) . '">' . esc_html( self::compact( $f ) ) . '</strong>' . self::trend_html( $id ) : '<span class="cpl-muted">&mdash;</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				if ( '' !== $eng ) {
 					echo '<span class="cpl-sub">' . esc_html( sprintf( /* translators: %s: rate. */ __( '%s%% eng.', 'hypeit' ), number_format_i18n( (float) $eng, 1 ) ) ) . '</span>';
 				}
@@ -355,12 +459,21 @@ class CP_Bloggers_UI {
 						$names[] = $items[ $k ];
 					}
 				}
-				$tone = $pct >= 90 ? 'is-good' : ( $pct >= 60 ? 'is-mid' : 'is-low' );
-				echo '<div class="cpl-pct ' . esc_attr( $tone ) . '" title="' . esc_attr( $names ? sprintf( /* translators: %s: items. */ __( 'Missing: %s', 'hypeit' ), implode( ', ', $names ) ) : __( 'Complete', 'hypeit' ) ) . '">'
+				$tone   = $pct >= 90 ? 'is-good' : ( $pct >= 60 ? 'is-mid' : 'is-low' );
+				$manual = self::is_manual( $id );
+				$title  = $names ? sprintf( /* translators: %s: items. */ __( 'Missing: %s', 'hypeit' ), implode( ', ', $names ) ) : __( 'Complete', 'hypeit' );
+				if ( $manual && $pct >= 100 ) {
+					$title = __( 'Marked complete by an admin', 'hypeit' );
+				}
+				echo '<div class="cpl-pct ' . esc_attr( $tone ) . '" title="' . esc_attr( $title ) . '">'
 					. '<span class="cpl-pct-bar"><i style="width:' . (int) $pct . '%"></i></span><span class="cpl-pct-n">' . (int) $pct . '%</span></div>';
 				// Count only what lowers the score (10 essentials; birthday is optional).
 				$gaps = (int) round( ( 100 - $pct ) / 10 );
-				if ( $gaps > 0 ) {
+				if ( $manual && $pct >= 100 ) {
+					echo '<span class="cpl-sub cpl-manual">✓ ' . esc_html__( 'Marked complete', 'hypeit' ) . '</span>';
+				} elseif ( $manual ) {
+					echo '<span class="cpl-sub" title="' . esc_attr__( 'Add the Instagram username and follower count to complete it.', 'hypeit' ) . '">' . esc_html__( 'Marked — needs followers', 'hypeit' ) . '</span>';
+				} elseif ( $gaps > 0 ) {
 					echo '<span class="cpl-sub">' . esc_html( sprintf( /* translators: %d: count. */ _n( '%d missing', '%d missing', $gaps, 'hypeit' ), $gaps ) ) . '</span>';
 				}
 				break;
@@ -406,6 +519,27 @@ class CP_Bloggers_UI {
 	}
 
 	/**
+	 * Sort menu (value = orderby:order).
+	 *
+	 * @return array
+	 */
+	public static function sorts() {
+		return array(
+			''                  => __( 'Newest first', 'hypeit' ),
+			'date:asc'          => __( 'Oldest first', 'hypeit' ),
+			'title:asc'         => __( 'Name A–Z', 'hypeit' ),
+			'title:desc'        => __( 'Name Z–A', 'hypeit' ),
+			'cp_followers:desc' => __( 'Most followers', 'hypeit' ),
+			'cp_followers:asc'  => __( 'Fewest followers', 'hypeit' ),
+			'cp_verified:desc'  => __( 'Verified first', 'hypeit' ),
+			'cp_completed:desc' => __( 'Latest completed', 'hypeit' ),
+			'cp_complete:desc'  => __( 'Most complete', 'hypeit' ),
+			'cp_complete:asc'   => __( 'Least complete', 'hypeit' ),
+			'cp_bupdated:desc'  => __( 'Last updated by blogger', 'hypeit' ),
+		);
+	}
+
+	/**
 	 * Current "missing" selection.
 	 *
 	 * @return array
@@ -426,6 +560,19 @@ class CP_Bloggers_UI {
 			return;
 		}
 		$meta = (array) $q->get( 'meta_query' );
+
+		// Deactivated bloggers only show when asked for (Status: Deactivated) or in Trash.
+		$state = isset( $_GET['cp_blocked_filter'] ) ? sanitize_key( wp_unslash( $_GET['cp_blocked_filter'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( 'inactive' === $state ) {
+			$meta[] = array( 'key' => CP_Library::META_INACTIVE, 'value' => '1' );
+		} elseif ( 'trash' !== $q->get( 'post_status' ) ) {
+			$meta[] = array(
+				'relation' => 'OR',
+				array( 'key' => CP_Library::META_INACTIVE, 'compare' => 'NOT EXISTS' ),
+				array( 'key' => CP_Library::META_INACTIVE, 'value' => '1', 'compare' => '!=' ),
+			);
+		}
+
 		$miss = self::sel_missing();
 		if ( $miss ) {
 			$mode   = isset( $_GET['cp_mmode'] ) && 'all' === $_GET['cp_mmode'] ? 'AND' : 'OR'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -442,9 +589,17 @@ class CP_Bloggers_UI {
 			$q->set( 'orderby', sanitize_key( $ob ) );
 			$q->set( 'order', 'asc' === $dir ? 'ASC' : 'DESC' );
 		}
-		if ( 'cp_complete' === $q->get( 'orderby' ) ) {
-			$q->set( 'meta_key', '_cp_complete' );
-			$q->set( 'orderby', 'meta_value_num' );
+		$num = array(
+			'cp_complete'  => '_cp_complete',
+			'cp_completed' => '_cp_completed_at',
+			'cp_bupdated'  => '_cp_blogger_updated',
+		);
+		if ( isset( $num[ $q->get( 'orderby' ) ] ) ) {
+			// Ties (e.g. never completed / never updated) fall back to newest first.
+			$dir = 'ASC' === strtoupper( (string) $q->get( 'order' ) ) ? 'ASC' : 'DESC';
+			$q->set( 'meta_key', $num[ $q->get( 'orderby' ) ] );
+			$q->set( 'meta_type', 'NUMERIC' );
+			$q->set( 'orderby', array( 'meta_value_num' => $dir, 'date' => 'DESC', 'ID' => 'DESC' ) );
 		} elseif ( 'cp_followers' === $q->get( 'orderby' ) ) {
 			$q->set( 'meta_key', '_cp_followers' );
 			$q->set( 'orderby', 'meta_value_num' );
@@ -483,8 +638,10 @@ class CP_Bloggers_UI {
 			$cmp = null === $val ? "pm.meta_value <> ''" : ( $like ? $wpdb->prepare( 'pm.meta_value LIKE %s', $val ) : $wpdb->prepare( 'pm.meta_value = %s', $val ) );
 			return $wpdb->prepare( "EXISTS (SELECT 1 FROM {$wpdb->postmeta} pm WHERE pm.post_id = p.ID AND pm.meta_key = %s AND ", $key ) . $cmp . ')';
 		};
-		$q = static function ( $where = '' ) use ( $wpdb, $base, $cpt ) {
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$base}", $cpt ) . ( $where ? ' AND ' . $where : '' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery
+		// Deactivated bloggers are counted on their own tile only.
+		$off = $has( CP_Library::META_INACTIVE, '1' );
+		$q   = static function ( $where = '' ) use ( $wpdb, $base, $cpt, $off ) {
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$base}", $cpt ) . ' AND NOT ' . $off . ( $where ? ' AND ' . $where : '' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery
 		};
 		$total    = $q();
 		$verified = $q( $has( '_cp_verified', '1' ) );
@@ -495,6 +652,7 @@ class CP_Bloggers_UI {
 			'personal'   => $q( $has( '_cp_ig_status', 'personal' ) ),
 			'nocontact'  => $q( $has( '_cp_missing', '%,phone,%', true ) . ' AND ' . $has( '_cp_missing', '%,whatsapp,%', true ) . ' AND ' . $has( '_cp_missing', '%,email,%', true ) ),
 			'blocked'    => $q( $has( '_cp_blocked', '1' ) ),
+			'inactive'   => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) {$base}", $cpt ) . ' AND ' . $off ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery
 		);
 	}
 
@@ -532,6 +690,7 @@ class CP_Bloggers_UI {
 			array( __( 'Personal accounts', 'hypeit' ), $c['personal'], array( 'cp_igstatus' => 'personal' ), 'is-warn' ),
 			array( __( 'No contact info', 'hypeit' ), $c['nocontact'], array( 'cp_missing' => array( 'phone', 'whatsapp', 'email' ), 'cp_mmode' => 'all' ), 'is-warn' ),
 			array( __( 'Blocked', 'hypeit' ), $c['blocked'], array( 'cp_blocked_filter' => 'blocked' ), 'is-bad' ),
+			array( __( 'Deactivated', 'hypeit' ), $c['inactive'], array( 'cp_blocked_filter' => 'inactive' ), 'is-off' ),
 		);
 		echo '<div class="cpl-stats">';
 		foreach ( $tiles as $t ) {
@@ -575,7 +734,7 @@ class CP_Bloggers_UI {
 				echo $sel( 'cp_city_filter', __( 'Any city', 'hypeit' ), $cities, $g( 'cp_city_filter' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				echo $sel( 'cp_verified_filter', __( 'Verified: any', 'hypeit' ), array( 'yes' => __( 'Verified', 'hypeit' ), 'no' => __( 'Not verified', 'hypeit' ) ), $g( 'cp_verified_filter' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				echo $sel( 'cp_igstatus', __( 'Instagram: any', 'hypeit' ), array( 'ok' => __( 'Creator / Business', 'hypeit' ), 'personal' => __( 'Personal / can’t read', 'hypeit' ), 'none' => __( 'Not checked yet', 'hypeit' ) ), $g( 'cp_igstatus' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				echo $sel( 'cp_blocked_filter', __( 'Active + blocked', 'hypeit' ), array( 'active' => __( 'Active only', 'hypeit' ), 'blocked' => __( 'Blocked only', 'hypeit' ) ), $g( 'cp_blocked_filter' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				echo $sel( 'cp_blocked_filter', __( 'Active + blocked', 'hypeit' ), array( 'active' => __( 'Active only', 'hypeit' ), 'blocked' => __( 'Blocked only', 'hypeit' ), 'inactive' => __( 'Deactivated', 'hypeit' ) ), $g( 'cp_blocked_filter' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				?>
 			</div>
 			<div class="cpl-row">
@@ -596,16 +755,7 @@ class CP_Bloggers_UI {
 				<label class="cpl-sort"><?php esc_html_e( 'Sort', 'hypeit' ); ?>
 					<select name="cp_sort">
 						<?php
-						$sorts = array(
-							''                  => __( 'Newest first', 'hypeit' ),
-							'date:asc'          => __( 'Oldest first', 'hypeit' ),
-							'title:asc'         => __( 'Name A–Z', 'hypeit' ),
-							'cp_followers:desc' => __( 'Most followers', 'hypeit' ),
-							'cp_followers:asc'  => __( 'Fewest followers', 'hypeit' ),
-							'cp_verified:desc'  => __( 'Verified first', 'hypeit' ),
-							'cp_complete:asc'   => __( 'Least complete first', 'hypeit' ),
-							'cp_complete:desc'  => __( 'Most complete first', 'hypeit' ),
-						);
+						$sorts = self::sorts();
 						foreach ( $sorts as $v => $l ) {
 							echo '<option value="' . esc_attr( $v ) . '"' . selected( $sort, $v, false ) . '>' . esc_html( $l ) . '</option>';
 						}

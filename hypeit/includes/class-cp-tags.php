@@ -1,6 +1,8 @@
 <?php
 /**
- * Manage Tags: add and remove blogger tags/categories.
+ * Blogger categories: add and remove the categories bloggers pick on the
+ * onboarding form. Managed from a card on the Onboarding settings page (the
+ * separate "Manage Categories" screen was folded in there).
  *
  * @package HypeIt
  */
@@ -12,24 +14,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 class CP_Tags {
 
 	public static function init() {
-		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_post_cp_tag_add', array( __CLASS__, 'handle_add' ) );
 		add_action( 'admin_post_cp_tag_delete', array( __CLASS__, 'handle_delete' ) );
+		// Old "Manage Categories" links/bookmarks land on the new card.
+		add_action( 'admin_page_access_denied', array( __CLASS__, 'redirect_old_page' ) );
 	}
 
-	public static function menu() {
-		add_submenu_page(
-			'edit.php?post_type=' . CP_POST_TYPE,
-			__( 'Manage Categories', 'hypeit' ),
-			__( 'Manage Categories', 'hypeit' ),
-			'manage_categories',
-			'cp-tags',
-			array( __CLASS__, 'render' )
-		);
+	/**
+	 * Where categories are managed now.
+	 *
+	 * @return string
+	 */
+	public static function page_url() {
+		return CP_Onboarding::settings_url( 'categories' );
 	}
 
-	private static function page_url() {
-		return admin_url( 'edit.php?post_type=' . CP_POST_TYPE . '&page=cp-tags' );
+	/**
+	 * Redirect the retired cp-tags screen.
+	 */
+	public static function redirect_old_page() {
+		if ( isset( $_GET['page'] ) && 'cp-tags' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			wp_safe_redirect( self::page_url() );
+			exit;
+		}
 	}
 
 	public static function handle_add() {
@@ -51,7 +58,7 @@ class CP_Tags {
 				$added++;
 			}
 		}
-		wp_safe_redirect( add_query_arg( 'cp_added', $added, self::page_url() ) );
+		wp_safe_redirect( add_query_arg( 'cp_added', $added, admin_url( 'edit.php?post_type=' . CP_POST_TYPE . '&page=cp-onboarding' ) ) . '#categories' );
 		exit;
 	}
 
@@ -61,60 +68,54 @@ class CP_Tags {
 		if ( $term_id && current_user_can( 'manage_categories' ) ) {
 			wp_delete_term( $term_id, CP_Library::TAX_TAG );
 		}
-		wp_safe_redirect( add_query_arg( 'cp_deleted', 1, self::page_url() ) );
+		wp_safe_redirect( add_query_arg( 'cp_deleted', 1, admin_url( 'edit.php?post_type=' . CP_POST_TYPE . '&page=cp-onboarding' ) ) . '#categories' );
 		exit;
 	}
 
-	public static function render() {
+	/**
+	 * Categories card (Onboarding settings page).
+	 */
+	public static function render_card() {
 		$tags = get_terms( array( 'taxonomy' => CP_Library::TAX_TAG, 'hide_empty' => false, 'orderby' => 'name' ) );
 		$tags = is_wp_error( $tags ) ? array() : $tags;
-
-		if ( isset( $_GET['cp_added'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( /* translators: %d count. */ __( '%d categor(y/ies) added.', 'hypeit' ), absint( $_GET['cp_added'] ) ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		}
-		if ( isset( $_GET['cp_deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Category deleted.', 'hypeit' ) . '</p></div>';
-		}
+		$can  = current_user_can( 'manage_categories' );
+		$list = admin_url( 'edit.php?post_type=' . CP_Library::CPT );
 		?>
-		<div class="wrap cp-admin">
-			<h1><?php esc_html_e( 'Manage Categories', 'hypeit' ); ?></h1>
-			<p class="cp-sub"><?php esc_html_e( 'Categories you can assign to bloggers and use in smart lists.', 'hypeit' ); ?></p>
+		<section class="cpw-card cps-cats" id="categories">
+			<h3><?php esc_html_e( 'Categories', 'hypeit' ); ?> <span class="cpw-pill"><?php echo (int) count( $tags ); ?></span></h3>
+			<p class="cpw-muted"><?php esc_html_e( 'Bloggers choose from these on the form. You can also filter, build smart lists and read insights by category.', 'hypeit' ); ?></p>
+			<?php if ( isset( $_GET['cp_added'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+				<p class="cps-flash"><?php echo esc_html( sprintf( /* translators: %d count. */ _n( '%d category added.', '%d categories added.', absint( $_GET['cp_added'] ), 'hypeit' ), absint( $_GET['cp_added'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?></p>
+			<?php elseif ( isset( $_GET['cp_deleted'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+				<p class="cps-flash"><?php esc_html_e( 'Category deleted.', 'hypeit' ); ?></p>
+			<?php endif; ?>
 
-			<div class="cp-card">
-				<h2 class="title"><?php esc_html_e( 'Add categories', 'hypeit' ); ?></h2>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php if ( $tags ) : ?>
+				<ul class="cps-catlist">
+					<?php foreach ( $tags as $t ) : ?>
+						<li>
+							<a class="cps-catname" href="<?php echo esc_url( add_query_arg( CP_Library::TAX_TAG, $t->slug, $list ) ); ?>" title="<?php esc_attr_e( 'See these bloggers', 'hypeit' ); ?>"><?php echo esc_html( $t->name ); ?></a>
+							<span class="cps-catn"><?php echo (int) $t->count; ?></span>
+							<?php if ( $can ) : ?>
+								<a class="cps-catdel" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=cp_tag_delete&term=' . $t->term_id ), 'cp_tag_delete_' . $t->term_id ) ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: category. */ __( 'Delete %s', 'hypeit' ), $t->name ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this category? It will be removed from all bloggers.', 'hypeit' ) ); ?>');">✕</a>
+							<?php endif; ?>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php else : ?>
+				<p class="cpw-empty"><?php esc_html_e( 'No categories yet.', 'hypeit' ); ?></p>
+			<?php endif; ?>
+
+			<?php if ( $can ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="cps-catadd">
 					<input type="hidden" name="action" value="cp_tag_add" />
 					<?php wp_nonce_field( 'cp_tag_add', 'cp_tag_nonce' ); ?>
-					<input type="text" name="cp_tag_names" class="regular-text" placeholder="<?php esc_attr_e( 'e.g. Skincare, Travel, Gaming', 'hypeit' ); ?>" />
-					<?php submit_button( __( 'Add', 'hypeit' ), 'primary', 'submit', false ); ?>
-					<p class="description"><?php esc_html_e( 'Separate multiple categories with commas.', 'hypeit' ); ?></p>
+					<input type="text" name="cp_tag_names" placeholder="<?php esc_attr_e( 'e.g. Skincare, Travel, Gaming', 'hypeit' ); ?>" aria-label="<?php esc_attr_e( 'New categories', 'hypeit' ); ?>" />
+					<button type="submit" class="button"><?php esc_html_e( 'Add', 'hypeit' ); ?></button>
 				</form>
-			</div>
-
-			<div class="cp-card">
-				<h2 class="title"><?php esc_html_e( 'Your categories', 'hypeit' ); ?></h2>
-				<?php if ( empty( $tags ) ) : ?>
-					<p class="description"><?php esc_html_e( 'No tags yet.', 'hypeit' ); ?></p>
-				<?php else : ?>
-					<table class="widefat striped">
-						<thead><tr>
-							<th><?php esc_html_e( 'Category', 'hypeit' ); ?></th>
-							<th><?php esc_html_e( 'Bloggers', 'hypeit' ); ?></th>
-							<th><?php esc_html_e( 'Action', 'hypeit' ); ?></th>
-						</tr></thead>
-						<tbody>
-						<?php foreach ( $tags as $t ) : ?>
-							<tr>
-								<td><strong><?php echo esc_html( $t->name ); ?></strong></td>
-								<td><?php echo (int) $t->count; ?></td>
-								<td><a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=cp_tag_delete&term=' . $t->term_id ), 'cp_tag_delete_' . $t->term_id ) ); ?>" style="color:#b3261e;" onclick="return confirm('<?php echo esc_js( __( 'Delete this category? It will be removed from all bloggers.', 'hypeit' ) ); ?>');"><?php esc_html_e( 'Delete', 'hypeit' ); ?></a></td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
-				<?php endif; ?>
-			</div>
-		</div>
+				<p class="cpw-muted"><?php esc_html_e( 'Separate several with commas.', 'hypeit' ); ?></p>
+			<?php endif; ?>
+		</section>
 		<?php
 	}
 }

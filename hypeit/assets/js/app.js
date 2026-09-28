@@ -31,6 +31,13 @@
 	var compactFmt = null;
 	try { compactFmt = new Intl.NumberFormat( undefined, { notation: 'compact', maximumFractionDigits: 1 } ); } catch ( e ) {}
 	function compact( n ) { n = Number( n || 0 ); return compactFmt ? compactFmt.format( n ) : num( n ); }
+	// Follower change at the last Instagram sync: green ↑ / red ↓, nothing when unchanged.
+	function ftrend( d ) {
+		d = parseInt( d, 10 ) || 0;
+		if ( ! d ) { return ''; }
+		var tip = d > 0 ? t( 'fUp', num( d ) ) : t( 'fDown', num( -d ) );
+		return '<span class="ftrend ' + ( d > 0 ? 'up' : 'down' ) + '" title="' + esc( tip ) + '" aria-label="' + esc( tip ) + '">' + ( d > 0 ? '↑' : '↓' ) + '</span>';
+	}
 	function lc( s ) { return String( s || '' ).toLowerCase(); }
 	function debounce( fn, ms ) { var tm; return function () { var a = arguments, s = this; clearTimeout( tm ); tm = setTimeout( function () { fn.apply( s, a ); }, ms ); }; }
 	function initials( name, handle ) {
@@ -619,14 +626,15 @@
 				return ( lc( r.b.account ) + ' ' + lc( r.l ? r.l.name : '' ) + ' ' + lc( r.b.city ) ).indexOf( q ) !== -1;
 			} );
 			var nm = function ( r ) { return lc( r.l && r.l.name ? r.l.name : r.b.account ); };
+			var fc = function ( r ) { return ( r.l && r.l.followers ) || r.b.followers || 0; };
 			rows.sort( function ( x, y ) {
 				var d = 0;
 				switch ( UP.sort ) {
 					case 'status': d = rank( x.b.status ) - rank( y.b.status ); break;
 					case 'status_rev': d = rank( y.b.status ) - rank( x.b.status ); break;
 					case 'name': d = nm( x ).localeCompare( nm( y ) ); break;
-					case 'followers_desc': d = ( y.b.followers || 0 ) - ( x.b.followers || 0 ); break;
-					case 'followers_asc': d = ( x.b.followers || 0 ) - ( y.b.followers || 0 ); break;
+					case 'followers_desc': d = fc( y ) - fc( x ); break;
+					case 'followers_asc': d = fc( x ) - fc( y ); break;
 					case 'people': d = ( y.b.people || 0 ) - ( x.b.people || 0 ); break;
 					case 'city': d = ( lc( x.b.city ) || '\uffff' ).localeCompare( lc( y.b.city ) || '\uffff' ); break;
 				}
@@ -637,14 +645,13 @@
 			if ( ! rows.length ) { box.innerHTML = '<p class="empty">' + esc( t( 'noResults' ) ) + '</p>'; return; }
 			box.innerHTML = '<div class="rows">' + rows.map( function ( r ) {
 				var b = r.b, name = r.l && r.l.name ? r.l.name : '';
-				var sub = [ '@' + b.account ];
-				if ( b.followers ) { sub.push( compact( b.followers ) ); }
-				if ( b.city ) { sub.push( b.city ); }
+				var fol = r.l && r.l.followers ? r.l.followers : b.followers; // Current count from the library.
+				var sub = esc( '@' + b.account ) + ( fol ? ' · <span class="fcount">' + esc( compact( fol ) ) + ftrend( r.l && r.l.fd ) + '</span>' : '' ) + ( b.city ? ' · ' + esc( b.city ) : '' );
 				var side = statusBadge( b.status ) + ( b.status === 'confirmed' ? '<small>' + b.people + ' ' + esc( t( 'people' ) ) + '</small>' : '' );
 				var ar = atRows[ lc( b.account ) ];
 				if ( ar && at.labels ) { side += '<small><span class="stg stg-' + esc( ar.stage ) + '">' + esc( at.labels[ ar.stage ] ) + '</span></small>'; }
 				return '<div class="row row-tap" data-row="' + b.row_id + '">' + avatar( name, b.account, false, b.photo || ( r.l && r.l.photo ) ) +
-					'<div class="row-main"><b>' + esc( name || '@' + b.account ) + ( b.verified ? ' <span class="ver">✓</span>' : '' ) + '</b><small>' + esc( sub.join( ' · ' ) ) + '</small></div>' +
+					'<div class="row-main"><b>' + esc( name || '@' + b.account ) + ( b.verified ? ' <span class="ver">✓</span>' : '' ) + '</b><small>' + sub + '</small></div>' +
 					'<div class="row-side">' + side + '</div><button type="button" class="row-more" data-more="' + b.row_id + '" aria-label="' + esc( t( 'more' ) ) + '">⋯</button></div>';
 			} ).join( '' ) + '</div>';
 			qsa( '.row-tap', box ).forEach( function ( el ) {
@@ -904,7 +911,7 @@
 			if ( ctx.stale() ) { return; }
 			var c = r[ 0 ], lib = r[ 1 ], meta = r[ 2 ];
 			var inCamp = {}; c.bloggers.forEach( function ( b ) { inCamp[ lc( b.account ) ] = 1; } );
-			var avail = lib.filter( function ( b ) { return ! b.blocked && b.handle && ! inCamp[ lc( b.handle ) ]; } );
+			var avail = lib.filter( function ( b ) { return ! b.blocked && ! b.inactive && b.handle && ! inCamp[ lc( b.handle ) ]; } );
 			view.innerHTML = '<div class="toolbar"><div class="search">' + searchBox( 'k-q', t( 'searchBloggers' ), '' ).replace( /^<label class="search">|<\/label>$/g, '' ) + '</div>' +
 				'<button type="button" class="iconbtn" id="k-filter">' + icon( 'filter' ) + '<span class="dot" id="k-dot" hidden></span></button>' +
 				'<button type="button" class="iconbtn" id="k-sort">' + icon( 'sort' ) + '</button></div>' +
@@ -941,9 +948,10 @@
 				if ( ! shown.length ) { box.innerHTML = '<p class="empty">' + esc( t( 'noResults' ) ) + '</p>'; return; }
 				box.innerHTML = '<div class="rows">' + shown.slice( 0, 400 ).map( function ( b ) {
 					var on = !! picked[ lc( b.handle ) ];
-					var sub = [ '@' + b.handle ]; if ( b.followers ) { sub.push( compact( b.followers ) ); } if ( b.city ) { sub.push( b.city ); }
+					var sub = [ '@' + b.handle ]; if ( b.city ) { sub.push( b.city ); }
 					return '<div class="row row-tap' + ( on ? ' is-picked' : '' ) + '" data-h="' + esc( b.handle ) + '"><span class="pickbox"></span>' + avatar( b.name, b.handle, false, b.photo ) +
-						'<div class="row-main"><b>' + esc( b.name || '@' + b.handle ) + ( b.verified ? ' <span class="ver">✓</span>' : '' ) + '</b><small>' + esc( sub.join( ' · ' ) ) + '</small></div></div>';
+						'<div class="row-main"><b>' + esc( b.name || '@' + b.handle ) + ( b.verified ? ' <span class="ver">✓</span>' : '' ) + '</b><small>' + esc( sub.join( ' · ' ) ) + '</small></div>' +
+						( b.followers ? '<div class="row-side"><b>' + esc( compact( b.followers ) ) + ftrend( b.fd ) + '</b></div>' : '' ) + '</div>';
 				} ).join( '' ) + '</div>';
 				qsa( '.row-tap', box ).forEach( function ( el ) {
 					el.addEventListener( 'click', function () {
@@ -964,11 +972,17 @@
 	/* ================================================================ Blogger filters (shared) */
 
 	function bloggerSorts() {
-		return [ [ 'name', t( 'sName' ) ], [ 'verified', t( 'sVerified' ) ], [ 'least_complete', t( 'sLeastComplete' ) ], [ 'most_complete', t( 'sMostComplete' ) ], [ 'followers_desc', t( 'sFollowersDesc' ) ], [ 'followers_asc', t( 'sFollowersAsc' ) ], [ 'newest', t( 'sNewestAdded' ) ], [ 'popular', t( 'sPopular' ) ], [ 'city', t( 'sCity' ) ] ];
+		return [ [ 'newest', t( 'sNewestAdded' ) ], [ 'oldest', t( 'sOldestAdded' ) ], [ 'name', t( 'sName' ) ], [ 'name_desc', t( 'sNameDesc' ) ], [ 'followers_desc', t( 'sFollowersDesc' ) ], [ 'followers_asc', t( 'sFollowersAsc' ) ], [ 'verified', t( 'sVerified' ) ], [ 'latest_done', t( 'sLatestDone' ) ], [ 'most_complete', t( 'sMostComplete' ) ], [ 'least_complete', t( 'sLeastComplete' ) ], [ 'bupd', t( 'sBloggerUpd' ) ], [ 'popular', t( 'sPopular' ) ], [ 'city', t( 'sCity' ) ] ];
 	}
 	function sortBloggers( arr, how ) {
+		var byName = function ( a, b ) { return lc( a.name || a.handle ).localeCompare( lc( b.name || b.handle ) ); };
+		var newest = function ( a, b ) { return String( b.date || '' ).localeCompare( String( a.date || '' ) ); };
 		arr.sort( function ( a, b ) {
 			switch ( how ) {
+				case 'oldest': return String( a.date || '' ).localeCompare( String( b.date || '' ) );
+				case 'name_desc': return byName( b, a );
+				case 'latest_done': return ( b.done_at || 0 ) - ( a.done_at || 0 ) || newest( a, b );
+				case 'bupd': return ( b.bupd || 0 ) - ( a.bupd || 0 ) || newest( a, b );
 				case 'followers_desc': return ( b.followers || 0 ) - ( a.followers || 0 );
 				case 'followers_asc': return ( a.followers || 0 ) - ( b.followers || 0 );
 				case 'verified': return ( b.verified ? 1 : 0 ) - ( a.verified ? 1 : 0 ) || lc( a.name || a.handle ).localeCompare( lc( b.name || b.handle ) );
@@ -991,7 +1005,7 @@
 		if ( F.verified ) { out.push( [ 'verified', t( 'verifiedOnly' ) ] ); }
 		if ( F.personal ) { out.push( [ 'personal', t( 'personalOnly' ) ] ); }
 		( F.missing || [] ).forEach( function ( k ) { out.push( [ 'miss:' + k, t( 'missingX', ( meta.missItems || {} )[ k ] || k ) ] ); } );
-		if ( F.state && F.state !== 'all' ) { out.push( [ 'state', F.state === 'blocked' ? t( 'onlyBlocked' ) : t( 'onlyActive' ) ] ); }
+		if ( F.state && F.state !== 'all' ) { out.push( [ 'state', F.state === 'blocked' ? t( 'onlyBlocked' ) : ( F.state === 'inactive' ? t( 'onlyInactive' ) : t( 'onlyActive' ) ) ] ); }
 		return out.map( function ( o ) { return '<button type="button" class="chip is-on" data-clear="' + o[ 0 ] + '">' + esc( o[ 1 ] ) + ' <span class="x">×</span></button>'; } ).join( '' );
 	}
 	function bindChips( box, F, cb ) {
@@ -1014,7 +1028,7 @@
 		h += sel( 'ff-city', t( 'city' ), ( meta.cities || [] ).map( function ( c ) { return [ c, c ]; } ), F.city );
 		if ( opt.collab ) { h += sel( 'ff-collab', t( 'openFor' ), Object.keys( meta.collab || {} ).map( function ( k ) { return [ k, meta.collab[ k ] ]; } ), F.collab ); }
 		if ( opt.state ) {
-			h += '<label class="field"><span>' + esc( t( 'state' ) ) + '</span><div class="seg" id="ff-state">' + [ [ 'all', t( 'all' ) ], [ 'active', t( 'onlyActive' ) ], [ 'blocked', t( 'onlyBlocked' ) ] ].map( function ( o ) {
+			h += '<label class="field"><span>' + esc( t( 'state' ) ) + '</span><div class="seg" id="ff-state">' + [ [ 'all', t( 'all' ) ], [ 'active', t( 'onlyActive' ) ], [ 'blocked', t( 'onlyBlocked' ) ], [ 'inactive', t( 'onlyInactive' ) ] ].map( function ( o ) {
 				return '<button type="button" data-v="' + o[ 0 ] + '" class="' + ( ( F.state || 'all' ) === o[ 0 ] ? 'is-on' : '' ) + '">' + esc( o[ 1 ] ) + '</button>';
 			} ).join( '' ) + '</div></label>';
 		}
@@ -1106,6 +1120,8 @@
 						var hit = F.missing.filter( function ( k ) { return bm.indexOf( k ) !== -1; } ).length;
 						if ( F.missMode === 'all' ? hit < F.missing.length : hit === 0 ) { return false; }
 					}
+					// Deactivated bloggers only show under Show → Deactivated.
+					if ( F.state === 'inactive' ) { if ( ! b.inactive ) { return false; } } else if ( b.inactive ) { return false; }
 					if ( F.state === 'blocked' && ! b.blocked ) { return false; }
 					if ( F.state === 'active' && b.blocked ) { return false; }
 					return ! q || ( lc( b.name ) + ' ' + lc( b.handle ) + ' ' + lc( b.city ) ).indexOf( q ) !== -1;
@@ -1120,9 +1136,10 @@
 				if ( ! rows.length ) { box.innerHTML = '<p class="empty">' + esc( t( 'noResults' ) ) + '</p>'; return; }
 				box.innerHTML = '<div class="rows">' + rows.slice( 0, limit ).map( function ( b ) {
 					var sub = [ '@' + b.handle ]; if ( b.city ) { sub.push( b.city ); }
-					var side = b.blocked ? '<span class="tag red">' + esc( t( 'blocked' ) ) + '</span>' : ( b.followers ? '<b>' + esc( compact( b.followers ) ) + '</b>' : '' );
-					if ( b.popularity && ! b.blocked ) { side += '<small>' + esc( b.popularity ) + '</small>'; }
-					return '<div class="row row-tap" data-id="' + b.id + '">' + avatar( b.name, b.handle, false, b.photo ) +
+					var side = b.blocked ? '<span class="tag red">' + esc( t( 'blocked' ) ) + '</span>' : ( b.inactive ? '<span class="tag">' + esc( t( 'deactivated' ) ) + '</span>' : '' );
+					if ( ! b.blocked && b.followers ) { side += '<b>' + esc( compact( b.followers ) ) + ftrend( b.fd ) + '</b>'; }
+					if ( b.popularity && ! b.blocked && ! b.inactive ) { side += '<small>' + esc( b.popularity ) + '</small>'; }
+					return '<div class="row row-tap' + ( b.inactive ? ' is-inactive' : '' ) + '" data-id="' + b.id + '">' + avatar( b.name, b.handle, false, b.photo ) +
 						'<div class="row-main"><b>' + esc( b.name || '@' + b.handle ) + ( b.verified ? ' <span class="ver">✓</span>' : '' ) + '</b><small>' + esc( sub.join( ' · ' ) ) + '</small></div><div class="row-side">' + side + '</div></div>';
 				} ).join( '' ) + '</div>' + ( rows.length > limit ? '<p class="center"><button type="button" class="btn btn-sm btn-ghost" id="b-more">+ ' + num( rows.length - limit ) + '</button></p>' : '' );
 				qsa( '.row-tap', box ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( '/b/' + el.getAttribute( 'data-id' ) ); } ); } );
@@ -1158,13 +1175,17 @@
 				'<a class="handle" href="' + esc( b.url || igUrl( b.handle ) ) + '" target="_blank" rel="noopener">@' + esc( b.handle ) + '</a><div class="meta">' +
 				( b.verified ? '<span class="pill live">' + esc( t( 'verified' ) ) + '</span>' : '' ) +
 				( b.blocked ? '<span class="pill" style="color:var(--red)">' + esc( t( 'blocked' ) ) + '</span>' : '' ) +
+				( b.inactive ? '<span class="pill">' + esc( t( 'deactivated' ) ) + '</span>' : '' ) +
 				( ins && ins.label && ins.label.label ? '<span class="pill nodot">' + esc( ins.label.label ) + '</span>' : '' ) + '</div></div>';
 			h += '<div class="quick">' +
 				'<a class="qa" href="' + esc( b.url || igUrl( b.handle ) ) + '" target="_blank" rel="noopener">' + icon( 'ig' ) + 'Instagram</a>' +
 				( wa ? '<a class="qa" href="https://wa.me/' + esc( wa ) + '" target="_blank" rel="noopener">' + icon( 'chat' ) + esc( t( 'whatsapp' ) ) + '</a>' : '<button type="button" class="qa" disabled>' + icon( 'chat' ) + esc( t( 'whatsapp' ) ) + '</button>' ) +
 				( tel ? '<a class="qa" href="tel:' + esc( tel ) + '">' + icon( 'phone' ) + esc( t( 'call' ) ) + '</a>' : '<button type="button" class="qa" disabled>' + icon( 'phone' ) + esc( t( 'call' ) ) + '</button>' ) +
 				'<button type="button" class="qa" id="bd-edit">' + icon( 'edit' ) + esc( t( 'edit' ) ) + '</button></div>';
-			h += '<div class="tiles t3"><div class="tile"><b>' + ( b.followers ? esc( compact( b.followers ) ) : '—' ) + '</b><span>' + esc( t( 'followers' ) ) + '</span></div>' +
+			if ( b.inactive ) {
+				h += '<div class="banner warn"><p>' + esc( t( 'deactivatedBanner' ) ) + '</p><button type="button" class="btn btn-sm" id="bd-activate2">' + esc( t( 'reactivate' ) ) + '</button></div>';
+			}
+			h += '<div class="tiles t3"><div class="tile"><b>' + ( b.followers ? esc( compact( b.followers ) ) + ftrend( b.fd ) : '—' ) + '</b><span>' + esc( t( 'followers' ) ) + '</span></div>' +
 				'<div class="tile"><b>' + ( b.reach ? esc( compact( b.reach ) ) : '—' ) + '</b><span>' + esc( t( 'reach' ) ) + '</span></div>' +
 				'<div class="tile green"><b>' + ( ins && ( ins.confirmed + ins.declined ) ? ins.acceptance_rate + '%' : '—' ) + '</b><span>' + esc( t( 'acceptance' ) ) + '</span></div></div>';
 			var ig = b.ig;
@@ -1181,6 +1202,11 @@
 			h += '<div class="section"><h3>' + esc( t( 'profile' ) ) + '</h3></div><div class="kvs">' +
 				( kv( t( 'gender' ), ( meta.genders || {} )[ b.gender ] || '' ) + kv( t( 'categories' ), ( b.tags || [] ).join( ', ' ) ) +
 				kv( t( 'location' ), b.city || '' ) + kv( t( 'openFor' ), collab.join( ', ' ) ) + kv( t( 'lists' ), listNames.join( ', ' ) ) || kv( t( 'profile' ), '—' ) ) + '</div>';
+			var cpct = Math.max( 0, Math.min( 100, b.complete || 0 ) );
+			h += '<div class="section"><h3>' + esc( t( 'completeness' ) ) + '</h3><span class="small">' + cpct + '%</span></div><div class="card ccard">' +
+				'<div class="cmeter"><i style="width:' + cpct + '%"></i></div>' +
+				( b.missing && b.missing.length ? '<p class="small muted">' + esc( t( 'missingX', b.missing.join( ', ' ) ) ) + '</p>' : '' ) +
+				'<div class="item" style="padding:12px 0 0"><div class="item-main"><b>' + esc( t( 'markComplete' ) ) + '</b><small>' + esc( b.complete_manual && ! b.manual_ready ? t( 'needsFollowers' ) : t( 'markCompleteHint' ) ) + '</small></div>' + sw( 'bd-manual', !! b.complete_manual ) + '</div></div>';
 			var priv = kv( t( 'email' ), b.email ) + kv( t( 'birthday' ), b.birthday ) + kv( t( 'phone' ), b.phone ) + kv( t( 'whatsapp' ), b.whatsapp ) + kv( t( 'source' ), b.source );
 			if ( priv ) { h += '<div class="section"><h3>' + esc( t( 'private' ) ) + '</h3></div><div class="kvs">' + priv + '</div>'; }
 			if ( ins && ins.included ) {
@@ -1201,6 +1227,7 @@
 						'<button type="button" class="btn btn-sm" id="bd-verify">' + esc( t( 'markVerified' ) ) + '</button>' ) +
 				'</div>';
 			h += '<div class="section"><h3>' + esc( t( 'dangerZone' ) ) + '</h3></div><div class="sheet-actions">' +
+				( b.inactive ? '<button type="button" class="btn" id="bd-activate">' + esc( t( 'reactivate' ) ) + '</button>' : '<button type="button" class="btn btn-ghost" id="bd-deactivate">' + esc( t( 'deactivate' ) ) + '</button>' ) +
 				( b.blocked ? '<button type="button" class="btn btn-ghost" id="bd-unblock">' + esc( t( 'unblock' ) ) + '</button>' : '<button type="button" class="btn btn-ghost" id="bd-block">' + esc( t( 'block' ) ) + '</button>' ) +
 				'<button type="button" class="btn btn-danger" id="bd-del">' + esc( t( 'delete' ) ) + '</button>' +
 				'<button type="button" class="btn btn-danger" id="bd-delblock">' + esc( t( 'deleteBlock' ) ) + '</button></div>';
@@ -1236,6 +1263,17 @@
 			var bv = $( 'bd-verify' ), buv = $( 'bd-unverify' );
 			if ( bv ) { bv.addEventListener( 'click', function () { act( 'verify', '', t( 'verifiedDone' ) ); } ); }
 			if ( buv ) { buv.addEventListener( 'click', function () { act( 'unverify', t( 'unverifyQ' ), t( 'unverify' ) ); } ); }
+			var bda = $( 'bd-deactivate' );
+			if ( bda ) { bda.addEventListener( 'click', function () { act( 'deactivate', t( 'deactivateQ' ), t( 'deactivatedDone' ) ); } ); }
+			[ 'bd-activate', 'bd-activate2' ].forEach( function ( bid ) {
+				var el = $( bid ); if ( el ) { el.addEventListener( 'click', function () { act( 'activate', '', t( 'reactivatedDone' ) ); } ); }
+			} );
+			$( 'bd-manual' ).addEventListener( 'change', function ( e ) {
+				var on = e.target.checked; e.target.disabled = true;
+				post( '/bloggers/' + id + '/action', { op: on ? 'complete' : 'uncomplete' } ).then( function () {
+					drop( 'library' ); toast( on ? t( 'markedComplete' ) : t( 'unmarkedComplete' ) ); render( true );
+				} ).catch( function ( er ) { e.target.checked = ! on; e.target.disabled = false; actErr( er ); } );
+			} );
 			var bl = $( 'bd-block' ), ub = $( 'bd-unblock' );
 			if ( bl ) { bl.addEventListener( 'click', function () { act( 'block', t( 'blockQ' ), t( 'block' ) ); } ); }
 			if ( ub ) { ub.addEventListener( 'click', function () { act( 'unblock', '', t( 'unblock' ) ); } ); }
@@ -1410,6 +1448,17 @@
 				var tot = x.confirmed + x.declined + x.pending;
 				return '<div class="tcol"><div class="tstack" style="height:' + Math.round( tot / mx * 100 ) + '%"><i class="c" style="flex:' + x.confirmed + '"></i><i class="d" style="flex:' + x.declined + '"></i><i class="p" style="flex:' + x.pending + '"></i></div><span>' + esc( x.month ) + '</span></div>';
 			} ).join( '' ) + '</div><div class="legend"><i class="c"></i>' + esc( t( 'confirmed' ) ) + ' <i class="d"></i>' + esc( t( 'declined' ) ) + ' <i class="p"></i>' + esc( t( 'waiting' ) ) + '</div></div>';
+
+			// Library health (verified, complete profiles, follower movement since the last sync).
+			var L = g.library || {};
+			if ( L.complete_pct !== undefined ) {
+				h += '<div class="section"><h3>' + esc( t( 'libHealth' ) ) + '</h3></div><div class="card">' +
+					'<div class="dimrow"><div class="dimtop"><span>' + esc( t( 'verified' ) ) + '</span><b>' + ( L.verified_pct || 0 ) + '%</b></div><div class="barline"><i style="width:' + ( L.verified_pct || 0 ) + '%"></i></div></div>' +
+					'<div class="dimrow"><div class="dimtop"><span>' + esc( t( 'completeProfiles' ) ) + '</span><b>' + ( L.complete_pct || 0 ) + '%</b></div><div class="barline blue"><i style="width:' + ( L.complete_pct || 0 ) + '%"></i></div></div>' +
+					'<div class="tiles t3" style="margin:12px 0 0"><div class="tile"><b>' + esc( compact( L.reach || 0 ) ) + '</b><span>' + esc( t( 'followers' ) ) + '</span></div>' +
+					'<div class="tile green"><b>↑ ' + num( L.growing || 0 ) + '</b><span>' + esc( t( 'growing' ) ) + '</span></div>' +
+					'<div class="tile red"><b>↓ ' + num( L.shrinking || 0 ) + '</b><span>' + esc( t( 'shrinking' ) ) + '</span></div></div></div>';
+			}
 
 			// What clients pick.
 			var dims = [ [ 'category', t( 'byCategory' ) ], [ 'tier', t( 'byTier' ) ], [ 'gender', t( 'byGender' ) ], [ 'city', t( 'byCity' ) ] ];

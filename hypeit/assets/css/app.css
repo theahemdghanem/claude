@@ -450,3 +450,15 @@ img.avatar { object-fit: cover; background: var(--s3); }
 .vrow small { display: block; color: var(--muted); font-size: 13px; }
 .vtick-big { flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; background: var(--green); color: #fff; }
 .vtick-big.is-off { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
+
+/* 2.2 — follower trend, deactivated bloggers, profile completeness */
+.ftrend { display: inline-block; margin-left: 3px; font-weight: 900; font-size: .95em; line-height: 1; }
+.ftrend.up { color: var(--green); }
+.ftrend.down { color: var(--red); }
+.fcount { white-space: nowrap; color: var(--text); font-weight: 600; }
+.row.is-inactive .avatar, .row.is-inactive .row-main b { opacity: .55; }
+.ccard .cmeter { height: 8px; border-radius: 999px; background: var(--s3); overflow: hidden; }
+.ccard .cmeter i { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+.ccard p { margin: 10px 0 0; }
+.ccard .item { border: 0; }
+.barline.blue i { background: var(--blue); }

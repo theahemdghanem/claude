@@ -15,6 +15,16 @@ class CP_Library {
 	const TAX_TAG  = 'cp_blogger_tag';
 	const TAX_LIST = 'cp_blogger_list';
 
+	/** Meta flag for deactivated bloggers. */
+	const META_INACTIVE = '_cp_inactive';
+
+	/**
+	 * Cache of deactivated handles.
+	 *
+	 * @var array|null
+	 */
+	private static $inactive = null;
+
 	/**
 	 * Gender options.
 	 *
@@ -181,6 +191,117 @@ class CP_Library {
 		update_option( 'cp_blocked_handles', array_values( $list ) );
 	}
 
+	/* ------------------------------------------------------------------ */
+	/* Deactivated bloggers                                                */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * Is this blogger deactivated? (Kept in the library and in past campaign
+	 * records, but hidden from campaigns, selections, lists and the app.)
+	 *
+	 * @param int $id Blogger ID.
+	 * @return bool
+	 */
+	public static function is_inactive( $id ) {
+		return '1' === (string) get_post_meta( $id, self::META_INACTIVE, true );
+	}
+
+	/**
+	 * Deactivate or reactivate a blogger.
+	 *
+	 * @param int  $id       Blogger ID.
+	 * @param bool $inactive Deactivate (true) or reactivate (false).
+	 */
+	public static function set_inactive( $id, $inactive ) {
+		$id = (int) $id;
+		if ( ! $id || self::CPT !== get_post_type( $id ) || (bool) $inactive === self::is_inactive( $id ) ) {
+			return;
+		}
+		if ( $inactive ) {
+			update_post_meta( $id, self::META_INACTIVE, '1' );
+			update_post_meta( $id, '_cp_inactive_at', time() );
+		} else {
+			delete_post_meta( $id, self::META_INACTIVE );
+			delete_post_meta( $id, '_cp_inactive_at' );
+		}
+		self::$inactive = null;
+		if ( class_exists( 'CP_Lists' ) ) {
+			CP_Lists::sync_blogger( $id );
+		}
+		if ( class_exists( 'CP_Join' ) ) {
+			CP_Join::bust();
+		}
+		if ( class_exists( 'CP_Insights' ) ) {
+			CP_Insights::bust();
+		}
+		// Back in the library: join open "Everyone" campaigns like a new blogger would.
+		if ( ! $inactive && class_exists( 'CP_Everyone' ) ) {
+			CP_Everyone::on_blogger_saved( $id );
+		}
+	}
+
+	/**
+	 * Lower-case handles of deactivated bloggers (handle => true).
+	 *
+	 * @return array
+	 */
+	public static function inactive_handles() {
+		if ( null !== self::$inactive ) {
+			return self::$inactive;
+		}
+		self::$inactive = array();
+		$ids = get_posts(
+			array(
+				'post_type'      => self::CPT,
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					array( 'key' => self::META_INACTIVE, 'value' => '1' ),
+				),
+			)
+		);
+		foreach ( (array) $ids as $id ) {
+			$h = strtolower( self::handle( $id ) );
+			if ( '' !== $h ) {
+				self::$inactive[ $h ] = true;
+			}
+		}
+		return self::$inactive;
+	}
+
+	/**
+	 * Is this username a deactivated blogger?
+	 *
+	 * @param string $handle Username.
+	 * @return bool
+	 */
+	public static function handle_inactive( $handle ) {
+		$list = self::inactive_handles();
+		return isset( $list[ strtolower( ltrim( trim( (string) $handle ), '@' ) ) ] );
+	}
+
+	/**
+	 * Meta query clause: not blocked and not deactivated.
+	 *
+	 * @return array
+	 */
+	public static function active_clause() {
+		return array(
+			'relation' => 'AND',
+			array(
+				'relation' => 'OR',
+				array( 'key' => '_cp_blocked', 'compare' => 'NOT EXISTS' ),
+				array( 'key' => '_cp_blocked', 'value' => '1', 'compare' => '!=' ),
+			),
+			array(
+				'relation' => 'OR',
+				array( 'key' => self::META_INACTIVE, 'compare' => 'NOT EXISTS' ),
+				array( 'key' => self::META_INACTIVE, 'value' => '1', 'compare' => '!=' ),
+			),
+		);
+	}
+
 	/**
 	 * Find a library blogger post ID by handle.
 	 *
@@ -282,11 +403,7 @@ class CP_Library {
 						'post_status'    => 'publish',
 						'posts_per_page' => -1,
 						'fields'         => 'ids',
-						'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-							'relation' => 'OR',
-							array( 'key' => '_cp_blocked', 'compare' => 'NOT EXISTS' ),
-							array( 'key' => '_cp_blocked', 'value' => '1', 'compare' => '!=' ),
-						),
+						'meta_query'     => self::active_clause(), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 					)
 				)
 			);
@@ -316,11 +433,7 @@ class CP_Library {
 		}
 
 		$meta   = array( 'relation' => 'AND' );
-		$meta[] = array(
-			'relation' => 'OR',
-			array( 'key' => '_cp_blocked', 'compare' => 'NOT EXISTS' ),
-			array( 'key' => '_cp_blocked', 'value' => '1', 'compare' => '!=' ),
-		);
+		$meta[] = self::active_clause();
 		if ( $gender ) {
 			$meta[] = array( 'key' => '_cp_gender', 'value' => $gender );
 		}
@@ -394,11 +507,7 @@ class CP_Library {
 		}
 
 		$meta = array( 'relation' => 'AND' );
-		$meta[] = array(
-			'relation' => 'OR',
-			array( 'key' => '_cp_blocked', 'compare' => 'NOT EXISTS' ),
-			array( 'key' => '_cp_blocked', 'value' => '1', 'compare' => '!=' ),
-		);
+		$meta[] = self::active_clause();
 		if ( $gender ) {
 			$meta[] = array( 'key' => '_cp_gender', 'value' => $gender );
 		}

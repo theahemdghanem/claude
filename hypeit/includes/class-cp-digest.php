@@ -143,7 +143,7 @@ class CP_Digest {
 		uasort( $q, static function ( $a, $b ) { return $a['time'] <=> $b['time']; } );
 		foreach ( $q as $id => $info ) {
 			$id = (int) $id;
-			if ( CP_Library::CPT !== get_post_type( $id ) || 'publish' !== get_post_status( $id ) || '1' === (string) get_post_meta( $id, '_cp_blocked', true ) ) {
+			if ( CP_Library::CPT !== get_post_type( $id ) || 'publish' !== get_post_status( $id ) || '1' === (string) get_post_meta( $id, '_cp_blocked', true ) || CP_Library::is_inactive( $id ) ) {
 				continue;
 			}
 			$since = min( $since, (int) $info['time'] );

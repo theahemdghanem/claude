@@ -781,31 +781,79 @@ class CP_Verify {
 
 	public static function render_settings() {
 		$v = self::get();
+		// Library verification numbers (active bloggers only).
+		$ids = get_posts(
+			array(
+				'post_type'      => CP_Library::CPT,
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'meta_query'     => CP_Library::active_clause(), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			)
+		);
+		$total   = count( $ids );
+		$methods = array( 'bio' => 0, 'meta' => 0, 'manual' => 0 );
+		$ver     = 0;
+		if ( $ids ) {
+			update_meta_cache( 'post', $ids );
+			foreach ( $ids as $id ) {
+				if ( self::is_verified( $id ) ) {
+					$ver++;
+					$m = (string) get_post_meta( $id, '_cp_verified_method', true );
+					$methods[ isset( $methods[ $m ] ) ? $m : 'manual' ]++;
+				}
+			}
+		}
+		$pct  = $total ? (int) round( $ver / $total * 100 ) : 0;
+		$list = admin_url( 'edit.php?post_type=' . CP_Library::CPT );
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Account Verification', 'hypeit' ); ?></h1>
-			<?php CP_IGSync::render_card(); ?>
+		<div class="wrap cp-admin cp-wide cps">
+			<div class="cp-pagehead">
+				<div>
+					<h1><?php esc_html_e( 'Account Verification', 'hypeit' ); ?></h1>
+					<p class="cp-sub"><?php esc_html_e( 'Confirm bloggers really own the Instagram account they signed up with, and keep their numbers fresh automatically.', 'hypeit' ); ?></p>
+				</div>
+			</div>
+			<?php settings_errors(); ?>
 
-			<form method="post" action="options.php">
-				<?php settings_fields( 'cp_verify_group' ); ?>
+			<div class="cps-layout">
+				<div class="cps-main">
+					<?php CP_IGSync::render_card(); ?>
+				</div>
 
-				<h2 class="title"><?php esc_html_e( 'Verification options', 'hypeit' ); ?></h2>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Enable', 'hypeit' ); ?></th>
-						<td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[code_enabled]" value="1" <?php checked( $v['code_enabled'], 1 ); ?> /> <?php esc_html_e( 'Offer code verification on the thank-you page', 'hypeit' ); ?></label></td>
-					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Client visibility', 'hypeit' ); ?></th>
-						<td>
-							<label><input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[require]" value="optional" <?php checked( $v['require'], 'optional' ); ?> /> <?php esc_html_e( 'Show all bloggers (verified or not)', 'hypeit' ); ?></label><br />
-							<label><input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[require]" value="require_show" <?php checked( $v['require'], 'require_show' ); ?> /> <?php esc_html_e( 'Only show verified bloggers to clients', 'hypeit' ); ?></label>
-						</td>
-					</tr>
-				</table>
+				<aside class="cps-side">
+					<section class="cpw-card cpv-summary">
+						<h3><?php esc_html_e( 'Verified bloggers', 'hypeit' ); ?></h3>
+						<div class="cpv-ring" style="--p:<?php echo (int) $pct; ?>">
+							<b><?php echo (int) $pct; ?>%</b>
+							<span><?php echo esc_html( sprintf( /* translators: 1: verified, 2: total. */ __( '%1$s of %2$s', 'hypeit' ), number_format_i18n( $ver ), number_format_i18n( $total ) ) ); ?></span>
+						</div>
+						<ul class="cpv-methods">
+							<li><span><?php esc_html_e( 'Bio code', 'hypeit' ); ?></span><b><?php echo (int) $methods['bio']; ?></b></li>
+							<li><span><?php esc_html_e( 'Instagram login', 'hypeit' ); ?></span><b><?php echo (int) $methods['meta']; ?></b></li>
+							<li><span><?php esc_html_e( 'Marked by an admin', 'hypeit' ); ?></span><b><?php echo (int) $methods['manual']; ?></b></li>
+						</ul>
+						<p><a class="button" href="<?php echo esc_url( add_query_arg( 'cp_verified_filter', 'no', $list ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: count. */ __( 'See %d not verified', 'hypeit' ), max( 0, $total - $ver ) ) ); ?></a></p>
+					</section>
 
-				<?php submit_button(); ?>
-			</form>
+					<form method="post" action="options.php" class="cpw-card">
+						<?php settings_fields( 'cp_verify_group' ); ?>
+						<h3><?php esc_html_e( 'Verification options', 'hypeit' ); ?></h3>
+						<label class="cpw-switchrow">
+							<span class="cpw-switch"><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[code_enabled]" value="1" <?php checked( $v['code_enabled'], 1 ); ?> /><span class="cpw-slider" aria-hidden="true"></span></span>
+							<span class="cpw-switchtext"><strong><?php esc_html_e( 'Code verification', 'hypeit' ); ?></strong><small><?php esc_html_e( 'Offer code verification on the thank-you page.', 'hypeit' ); ?></small></span>
+						</label>
+						<div class="cps-field">
+							<span class="cps-label"><?php esc_html_e( 'What clients see', 'hypeit' ); ?></span>
+							<div class="cps-options">
+								<label class="cps-option"><input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[require]" value="optional" <?php checked( $v['require'], 'optional' ); ?> /><span><strong><?php esc_html_e( 'All bloggers', 'hypeit' ); ?></strong><small><?php esc_html_e( 'Verified or not', 'hypeit' ); ?></small></span></label>
+								<label class="cps-option"><input type="radio" name="<?php echo esc_attr( self::OPTION ); ?>[require]" value="require_show" <?php checked( $v['require'], 'require_show' ); ?> /><span><strong><?php esc_html_e( 'Verified only', 'hypeit' ); ?></strong><small><?php esc_html_e( 'Unverified bloggers are hidden from clients', 'hypeit' ); ?></small></span></label>
+							</div>
+						</div>
+						<?php submit_button( __( 'Save options', 'hypeit' ), 'primary', 'submit', false ); ?>
+					</form>
+				</aside>
+			</div>
 		</div>
 		<?php
 	}

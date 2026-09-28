@@ -2,7 +2,7 @@
 Contributors: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: GPL-2.0-or-later
 
 Blogger management for agencies: a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want.
@@ -18,6 +18,15 @@ Blogger management for agencies: a blogger library with onboarding, verification
 * Email notifications: right away, daily digest or weekly digest.
 
 == Changelog ==
+
+= 2.2.0 =
+* Deactivate bloggers instead of deleting them: they disappear from campaigns, client selections, lists, the app and the public count, but their profile and campaign records are kept. Reactivate any time (row action, bulk action, Status tab or the app).
+* Mark a profile as complete by hand — for bloggers you know personally, the basic profile and follower count are enough.
+* Follower trend: after each Instagram sync the new count is compared with the previous sync — green ↑ when it grew, red ↓ when it dropped (Bloggers page, blogger editor, campaign editor and the app).
+* Bloggers page sorting: Newest/Oldest first, Name A–Z/Z–A, Most/Fewest followers, Verified first, Latest completed, Most complete, Last updated by blogger.
+* Redesigned Campaigns list (summary strip, status, client progress, attendance, copy link, close/reopen from the list).
+* Insights now uses the full screen width and adds a Library health card.
+* Refreshed Onboarding and Verification settings pages; categories are now managed on the Onboarding page (the separate Manage Categories screen was removed — old links redirect).
 
 = 2.1.0 =
 * Redesigned Bloggers page: summary strip, one toolbar, Missing info filter (any/all), sort menu, filter chips, new Contact and Profile columns.
