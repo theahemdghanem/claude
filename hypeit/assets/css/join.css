@@ -1,0 +1,139 @@
+/*
+ * Campaign — Join section.
+ * Every rule is wrapped in :where() (zero specificity), so the active theme's
+ * typography, colours, spacing and button styles always take priority.
+ */
+
+:where(.cp-join) {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	padding-block: clamp(2.5rem, 7vw, 5.5rem);
+	color: inherit;
+	font: inherit;
+}
+:where(.cp-join) *,
+:where(.cp-join) *::before,
+:where(.cp-join) *::after { box-sizing: border-box; }
+
+:where(.cp-join__inner) { display: flex; flex-direction: column; }
+:where(.cp-join__content) {
+	display: flex;
+	flex-direction: column;
+	gap: clamp(1rem, 2.4vw, 1.5rem);
+	max-width: 44rem;
+	width: 100%;
+}
+
+/* Alignment */
+:where(.cp-join--center) :where(.cp-join__inner) { align-items: center; text-align: center; }
+:where(.cp-join--center) :where(.cp-join__content) { align-items: center; margin-inline: auto; }
+:where(.cp-join--left) :where(.cp-join__content) { align-items: flex-start; text-align: start; }
+:where(.cp-join--split) :where(.cp-join__inner) {
+	display: grid;
+	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+	gap: clamp(2rem, 6vw, 5rem);
+	align-items: center;
+}
+:where(.cp-join--split) :where(.cp-join__content) { align-items: flex-start; text-align: start; }
+:where(.cp-join--split) :where(.cp-join__aside) { justify-self: end; text-align: end; }
+
+/* Text */
+:where(.cp-join__heading) { margin: 0; text-wrap: balance; }
+:where(.cp-join__text) { margin: 0; text-wrap: pretty; }
+:where(.cp-join__text) :where(p) { margin: 0 0 .85em; }
+:where(.cp-join__text) :where(p:last-child) { margin-bottom: 0; }
+
+/* Count */
+:where(.cp-join__stat) {
+	display: inline-flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: .1em .45em;
+	margin: 0;
+	line-height: 1;
+}
+:where(.cp-join--center) :where(.cp-join__stat) { justify-content: center; }
+:where(.cp-join__num) {
+	font-size: clamp(2.75rem, 7.5vw, 5.25rem);
+	font-weight: 600;
+	letter-spacing: -.035em;
+	font-variant-numeric: tabular-nums lining-nums;
+	white-space: nowrap;
+}
+:where(.cp-join__plus) { font-weight: 300; margin-inline-end: .03em; opacity: .7; }
+:where(.cp-join__label) {
+	font-size: clamp(.95rem, 1.5vw, 1.15rem);
+	letter-spacing: .08em;
+	text-transform: uppercase;
+	opacity: .7;
+}
+:where(.cp-join--split) :where(.cp-join__aside .cp-join__stat) { flex-direction: column; align-items: flex-end; gap: .5em; }
+:where(.cp-join--split) :where(.cp-join__aside .cp-join__num) { font-size: clamp(3.25rem, 9vw, 7rem); }
+
+/* Inline count shortcode */
+:where(.cp-join--inline) { display: inline; padding: 0; width: auto; }
+:where(.cp-join--inline) :where(.cp-join__num) { font-size: inherit; letter-spacing: inherit; }
+:where(.cp-join--inline) :where(.cp-join__label) { font-size: inherit; text-transform: none; letter-spacing: inherit; }
+
+/* Entrance: soft fade + rise (only once the script is active). */
+:where(.cp-join.is-armed) :where(.cp-join__stat) {
+	opacity: 0;
+	transform: translateY(.35em);
+	filter: blur(3px);
+	transition: opacity 1s cubic-bezier(.2, .7, .2, 1), transform 1.1s cubic-bezier(.2, .7, .2, 1), filter 1s ease;
+}
+:where(.cp-join.is-armed) :where(.cp-join__stat.is-in) { opacity: 1; transform: none; filter: none; }
+:where(.cp-join__val) { display: inline-block; transition: opacity .5s ease; }
+:where(.cp-join__stat.is-updating) :where(.cp-join__val) { opacity: .55; }
+
+/* Buttons — used only if the theme doesn't style its standard button classes. */
+:where(.cp-join__actions) {
+	display: flex;
+	flex-wrap: wrap;
+	gap: .75rem;
+	margin-top: .5rem;
+}
+:where(.cp-join--center) :where(.cp-join__actions) { justify-content: center; }
+:where(.cp-join__actions) :where(.wp-block-button) { margin: 0; }
+:where(.cp-join__btn) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 3rem;
+	padding: .85em 1.75em;
+	border: 1px solid currentColor;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+	cursor: pointer;
+	transition: opacity .25s ease, transform .25s ease, background-color .25s ease, color .25s ease;
+}
+:where(.cp-join__btn:hover) { opacity: .85; }
+:where(.cp-join__btn:focus-visible) { outline: 2px solid currentColor; outline-offset: 3px; }
+/* Main button fill: the page's text colour as background, the page's background as text
+   (both detected by the script, so it matches light and dark sites alike). */
+:where(.cp-join.is-inverted) :where(.cp-join__btn--primary) {
+	background: var(--cp-join-fg);
+	border-color: var(--cp-join-fg);
+	color: var(--cp-join-bg);
+}
+
+/* Mobile */
+@media (max-width: 781px) {
+	:where(.cp-join--split) :where(.cp-join__inner) { grid-template-columns: 1fr; gap: 1.75rem; }
+	:where(.cp-join--split) :where(.cp-join__aside) { justify-self: start; text-align: start; order: -1; }
+	:where(.cp-join--split) :where(.cp-join__aside .cp-join__stat) { align-items: flex-start; }
+}
+@media (max-width: 600px) {
+	:where(.cp-join__actions) { flex-direction: column; align-items: stretch; width: 100%; }
+	:where(.cp-join__actions) :where(.wp-block-button) { width: 100%; }
+	:where(.cp-join__btn) { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:where(.cp-join.is-armed) :where(.cp-join__stat) { opacity: 1; transform: none; filter: none; transition: none; }
+}

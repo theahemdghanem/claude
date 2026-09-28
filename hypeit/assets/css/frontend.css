@@ -1,0 +1,557 @@
+/* HypeIt — client-facing page.
+   Inherits the active theme by default; every value falls back to the theme
+   unless overridden from HypeIt → Custom Theme. */
+
+/* Only affects the campaign endpoint (body class added by the plugin). */
+body.cp-campaign-page {
+	overflow-x: hidden;
+}
+
+.cp-campaign {
+	--cp-top-offset: clamp(120px, 14vh, 180px);
+	--cp-side-offset: clamp(64px, 5vw, 88px);
+	font-family: var(--cp-font, inherit);
+	color: var(--cp-text, inherit);
+	background: var(--cp-bg, transparent);
+	box-sizing: border-box;
+	line-height: 1.5;
+	text-align: left;
+}
+
+.cp-campaign *,
+.cp-campaign *::before,
+.cp-campaign *::after {
+	box-sizing: border-box;
+}
+
+/* Full-width within the theme's content area, with a guaranteed side inset so
+   the content always clears any fixed side rail/gutter the theme overlays
+   (adjustable via Custom Theme → Side inset). */
+.cp-campaign--full {
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
+	padding: var(--cp-top-offset) var(--cp-side-offset) 2rem;
+}
+
+/* Header */
+.cp-header {
+	text-align: left;
+	margin-bottom: 2rem;
+}
+
+.cp-logo {
+	margin: 0 0 1rem;
+}
+
+.cp-logo-img {
+	display: block;
+	width: auto;
+	height: auto;
+	max-width: 260px;
+	max-height: 100px;
+	object-fit: contain;
+}
+
+.cp-title {
+	margin: 0;
+	font-size: clamp(1.5rem, 3vw, 2.25rem);
+	text-align: left;
+}
+
+.cp-brief {
+	max-width: 900px;
+	margin: 0 0 2rem;
+	text-align: left;
+	opacity: 0.9;
+}
+
+/* Password gate */
+.cp-gate {
+	max-width: 100%;
+	margin: 2rem 0;
+	text-align: left;
+}
+
+.cp-gate-text {
+	margin-bottom: 1rem;
+}
+
+.cp-gate-error {
+	color: #b3261e;
+	margin-bottom: 1rem;
+	font-weight: 600;
+}
+
+.cp-gate-form {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+}
+
+.cp-input {
+	font: inherit;
+	color: inherit;
+	padding: 0.6em 0.9em;
+	border: 1px solid currentColor;
+	border-radius: var(--cp-radius, 8px);
+	background: transparent;
+	width: 100%;
+	max-width: 360px;
+}
+
+/* Buttons — inherit theme where possible, kept neutral otherwise */
+.cp-btn {
+	display: inline-block;
+	font: inherit;
+	cursor: pointer;
+	padding: 0.6em 1.2em;
+	border: 1px solid currentColor;
+	border-radius: var(--cp-btn-radius, var(--cp-radius, 8px));
+	background: transparent;
+	color: inherit;
+	line-height: 1.2;
+	text-decoration: none;
+	transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.cp-btn:hover {
+	opacity: 0.85;
+}
+
+.cp-btn-primary {
+	background: var(--cp-btn-bg, var(--cp-primary, transparent));
+	color: var(--cp-btn-text, inherit);
+	border-color: var(--cp-btn-bg, var(--cp-primary, currentColor));
+}
+
+/* List */
+.cp-list {
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.cp-blogger {
+	border: 1px solid rgba(128, 128, 128, 0.35);
+	border-radius: var(--cp-radius, 10px);
+	padding: 1rem 1.25rem;
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-areas:
+		"main decision"
+		"guests guests"
+		"feedback feedback";
+	gap: 0.75rem 1rem;
+	align-items: center;
+}
+
+.cp-blogger-main {
+	grid-area: main;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	min-width: 0;
+}
+
+.cp-num {
+	font-weight: 700;
+	opacity: 0.6;
+	min-width: 1.5em;
+}
+
+.cp-account-wrap {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	gap: 2px;
+}
+
+.cp-account {
+	font-weight: 600;
+	color: inherit;
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+
+.cp-account-meta {
+	font-size: 0.8em;
+	opacity: 0.7;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cp-pop {
+	display: inline-block;
+	font-size: 0.68em;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 0.15em 0.55em;
+	border-radius: 999px;
+	margin-left: 0.4rem;
+	vertical-align: middle;
+	background: rgba(180, 130, 20, 0.16);
+	color: #b48214;
+}
+
+.cp-pop-top { background: rgba(27, 127, 75, 0.16); color: #1b7f4b; }
+.cp-pop-trending { background: rgba(37, 99, 235, 0.16); color: #2563eb; }
+
+.cp-verified {
+	color: #1b7f4b;
+	font-weight: 900;
+	margin-left: 0.15rem;
+}
+
+.cp-ob-verified {
+	color: #1b7f4b;
+	font-weight: 700;
+	margin-top: 1rem;
+}
+
+.cp-ob-verify {
+	margin-top: 1.5rem;
+	padding-top: 1rem;
+	border-top: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+a.cp-account:hover,
+a.cp-account:focus {
+	text-decoration: underline;
+}
+
+.cp-decision {
+	grid-area: decision;
+	display: flex;
+	gap: 0.5rem;
+}
+
+.cp-guests {
+	grid-area: guests;
+}
+
+.cp-guests[hidden] {
+	display: none;
+}
+
+.cp-guests-label {
+	display: block;
+	font-size: 0.85em;
+	opacity: 0.75;
+	margin-bottom: 0.4rem;
+}
+
+.cp-guest-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+
+.cp-guest {
+	font: inherit;
+	cursor: pointer;
+	padding: 0.4em 0.8em;
+	border: 1px solid rgba(128, 128, 128, 0.5);
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cp-guest.is-active {
+	background: var(--cp-primary, currentColor);
+	color: var(--cp-btn-text, var(--cp-bg, #000));
+	border-color: var(--cp-primary, currentColor);
+}
+
+.cp-total {
+	margin: 0.6rem 0 0;
+	font-size: 0.9em;
+	font-weight: 600;
+}
+
+.cp-feedback {
+	grid-area: feedback;
+	font-size: 0.85em;
+	min-height: 1.2em;
+	opacity: 0.8;
+}
+
+.cp-feedback.is-error {
+	color: #b3261e;
+}
+
+.cp-feedback.is-saved {
+	color: #1b7f4b;
+}
+
+/* State badge + card accents */
+.cp-state-badge {
+	font-size: 0.75em;
+	font-weight: 700;
+	padding: 0.2em 0.6em;
+	border-radius: 999px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.cp-status-confirmed {
+	border-color: rgba(27, 127, 75, 0.6);
+}
+
+.cp-status-confirmed .cp-state-badge {
+	background: rgba(27, 127, 75, 0.12);
+	color: #1b7f4b;
+}
+
+.cp-status-confirmed .cp-confirm {
+	background: #1b7f4b;
+	color: #fff;
+	border-color: #1b7f4b;
+}
+
+.cp-status-declined {
+	border-color: rgba(179, 38, 30, 0.5);
+}
+
+.cp-status-declined .cp-state-badge {
+	background: rgba(179, 38, 30, 0.12);
+	color: #b3261e;
+}
+
+.cp-status-declined .cp-decline {
+	background: #b3261e;
+	color: #fff;
+	border-color: #b3261e;
+}
+
+.cp-empty,
+.cp-notfound {
+	text-align: left;
+	margin: 3rem 0;
+	max-width: 900px;
+}
+
+/* Onboarding form */
+.cp-onboard .cp-ob-section {
+	margin: 1.75rem 0 0.75rem;
+	font-size: 1.1em;
+	border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+	padding-bottom: 0.4rem;
+}
+
+.cp-ob-intro {
+	max-width: 900px;
+}
+
+.cp-ob-errors {
+	border: 1px solid rgba(179, 38, 30, 0.5);
+	background: rgba(179, 38, 30, 0.08);
+	border-radius: var(--cp-radius, 10px);
+	padding: 0.75rem 1rem;
+	margin: 0 0 1.25rem;
+}
+
+.cp-ob-errors ul {
+	margin: 0;
+	padding-left: 1.1rem;
+}
+
+.cp-ob-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem 1.25rem;
+}
+
+.cp-ob-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.cp-ob-field > span {
+	font-size: 0.9em;
+	opacity: 0.85;
+}
+
+.cp-ob-full {
+	grid-column: 1 / -1;
+}
+
+.cp-onboard .cp-input {
+	width: 100%;
+	max-width: 100%;
+	display: block;
+	-webkit-appearance: none;
+	appearance: none;
+	min-height: 2.9em;
+}
+
+.cp-onboard select.cp-input {
+	appearance: auto;
+	-webkit-appearance: menulist;
+}
+
+.cp-onboard input[type="date"].cp-input {
+	-webkit-appearance: none;
+	appearance: none;
+	min-height: 2.9em;
+	line-height: 1.4;
+}
+
+.cp-ob-cats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1.25rem;
+}
+
+.cp-ob-check {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+.cp-ob-submit {
+	margin-top: 1.75rem;
+}
+
+.cp-ob-success {
+	max-width: 700px;
+}
+
+@media (max-width: 600px) {
+	.cp-ob-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Mobile: stack everything into a card */
+@media (max-width: 600px) {
+	.cp-blogger {
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"main"
+			"decision"
+			"guests"
+			"feedback";
+	}
+
+	.cp-decision {
+		width: 100%;
+	}
+
+	.cp-decision .cp-btn {
+		flex: 1 1 auto;
+	}
+}
+
+/* Onboarding form breathing room (desktop + mobile) */
+.cp-onboard .cp-ob-section { margin-top: 2.4rem; margin-bottom: 0.9rem; padding-bottom: 0.5rem; }
+.cp-onboard .cp-ob-grid { gap: 1.4rem 1.4rem; margin: 0.2rem 0 0.6rem; }
+.cp-onboard .cp-ob-field { gap: 0.5rem; margin-bottom: 0.2rem; }
+.cp-onboard .cp-input { padding: 0.75em 0.9em; }
+.cp-onboard .cp-btn { margin: 0.4rem 0 1rem; }
+.cp-onboard .description { line-height: 1.55; margin: 0.5rem 0 1.2rem; }
+.cp-onboard .cp-ob-cats { gap: 0.7rem 1.4rem; margin: 0.4rem 0 0.6rem; }
+.cp-onboard .cp-ob-intro { margin-bottom: 2rem; }
+.cp-onboard .cp-ob-submit { margin-top: 2.2rem; }
+@media (max-width: 600px) {
+	.cp-onboard .cp-ob-section { margin-top: 2rem; }
+	.cp-onboard .cp-ob-grid { gap: 1.1rem; }
+}
+
+/* Onboarding — profile photo picker */
+.cp-onboard .cp-ob-photo { position: relative; margin: 0.4rem 0 0.8rem; }
+.cp-onboard .cp-ob-photo-pick { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
+.cp-onboard .cp-ob-photo-circle {
+	width: 96px; height: 96px; border-radius: 50%; flex: 0 0 auto;
+	display: grid; place-items: center; background-color: rgba(127,127,127,.12);
+	background-size: cover; background-position: center; border: 1.5px dashed currentColor; opacity: .95;
+}
+.cp-onboard .cp-ob-photo-circle.has-photo, .cp-onboard .cp-ob-photo-circle[style] { border-style: solid; }
+.cp-onboard .cp-ob-photo-text strong { display: block; text-decoration: underline; text-underline-offset: 3px; }
+.cp-onboard .cp-ob-photo-text small { display: block; opacity: .7; margin-top: 2px; }
+.cp-onboard .cp-ob-photo-input { position: absolute; left: 0; top: 0; width: 96px; height: 96px; opacity: 0; pointer-events: none; }
+.cp-onboard .cp-ob-photo.is-busy .cp-ob-photo-circle { opacity: .5; }
+
+/* Client page — blogger photos */
+.cp-blogger-main .cp-photo {
+	width: 48px; height: 48px; border-radius: 50%; flex: 0 0 auto; padding: 0; border: 0; overflow: hidden;
+	background: rgba(127,127,127,.18); cursor: zoom-in; display: inline-grid; place-items: center;
+}
+.cp-blogger-main .cp-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cp-blogger-main .cp-photo--empty { cursor: default; font-weight: 700; font-size: 14px; letter-spacing: .02em; opacity: .75; }
+.cp-lightbox { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,.86); display: grid; place-items: center; padding: 24px; cursor: zoom-out; }
+.cp-lightbox img { max-width: min(92vw, 420px); max-height: 80vh; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.cp-lightbox span { position: absolute; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; text-align: center; color: #fff; font-weight: 600; }
+
+/* Onboarding — live Instagram check + bio code */
+.cp-onboard .cp-ob-igcheck { margin: .4rem 0 0; font-size: .95em; min-height: 1.2em; opacity: .85; }
+.cp-onboard .cp-ob-igcheck.is-ok { opacity: 1; color: #1b9e5a; }
+.cp-onboard .cp-ob-igcheck.is-warn { opacity: 1; }
+.cp-onboard .cp-ob-igcheck.is-busy { opacity: .6; }
+.cp-onboard input[readonly] { opacity: .8; }
+.cp-ob-code { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.cp-ob-code code { font-size: 1.35em; letter-spacing: .06em; padding: .35em .7em; border: 1px dashed currentColor; border-radius: 8px; background: transparent; }
+
+/* Thank-you — "Get verified" card (inherits theme colours) */
+.cp-ob-vcard { border: 1.5px solid currentColor; border-radius: 16px; padding: clamp(1.25rem, 3vw, 2rem); margin: 1.5rem 0 2rem; position: relative; }
+.cp-ob-vcard.is-verified { border-color: #1b9e5a; }
+.cp-ob-vtag { display: inline-block; font-size: .72em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: .35em .8em; border-radius: 999px; border: 1px solid currentColor; margin-bottom: .9rem; }
+.cp-ob-vtitle { margin: 0 0 .6rem; }
+.cp-ob-vcode { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin: 1.2rem 0; }
+.cp-ob-vcode > span { opacity: .7; }
+.cp-ob-vcode code { font-size: 1.4em; font-weight: 700; letter-spacing: .08em; padding: .35em .75em; border: 1px dashed currentColor; border-radius: 10px; background: transparent; }
+.cp-ob-steps { margin: 0 0 1.3rem 1.2em; padding: 0; line-height: 1.6; }
+.cp-ob-steps li { margin: .35em 0; }
+.cp-ob-steps li.is-important { font-weight: 500; }
+.cp-ob-vactions { margin: 0 0 .6rem; }
+.cp-ob-vstatus { min-height: 1.3em; margin: 0 0 .8rem; }
+.cp-ob-vstatus.is-ok { color: #1b9e5a; font-weight: 600; }
+.cp-ob-vstatus.is-busy { opacity: .7; }
+.cp-ob-vnote { font-size: .9em; opacity: .7; margin: 0; }
+.cp-onboard .cp-ob-vteaser { margin: .5rem 0 .4rem; padding: .75em 1em; border: 1px solid currentColor; border-radius: 10px; font-size: .95em; }
+
+/* Account-type notice — compact, scannable (inherits theme colours) */
+.cp-ob-acct { border: 1px solid rgba(127, 127, 127, .45); border-radius: 14px; padding: .9rem 1rem .35rem; margin: 0 0 1.5rem; font-size: .92em; line-height: 1.35; }
+.cp-ob-acct-title { margin: 0 0 .55rem; font-weight: 700; font-size: 1.05em; }
+.cp-ob-acct-list { list-style: none; margin: 0; padding: 0; }
+.cp-ob-acct-list li { display: flex; align-items: flex-start; gap: .65rem; padding: .5rem 0; border-top: 1px solid rgba(127, 127, 127, .2); }
+.cp-ob-acct-list li:first-child { border-top: 0; }
+.cp-ob-acct-list li strong { display: block; font-weight: 600; }
+.cp-ob-acct-list li small { display: block; opacity: .65; font-size: .9em; margin-top: .1rem; }
+.cp-ob-acct-ico { flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: .8em; font-weight: 700; border: 1px solid rgba(127, 127, 127, .5); margin-top: .05rem; }
+.cp-ob-acct-list li.is-good .cp-ob-acct-ico { color: #1b9e5a; border-color: currentColor; }
+.cp-ob-acct-list li.is-bad .cp-ob-acct-ico, .cp-ob-acct-list li.is-bad strong { color: #e0625c; }
+.cp-ob-acct-list li.is-bad .cp-ob-acct-ico { border-color: currentColor; }
+.cp-ob-guide { border-top: 1px solid rgba(127, 127, 127, .2); }
+.cp-ob-guide summary { cursor: pointer; padding: .65rem 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.cp-ob-guide summary::-webkit-details-marker { display: none; }
+.cp-ob-guide summary::after { content: "+"; font-size: 1.25em; line-height: 1; opacity: .6; }
+.cp-ob-guide[open] summary::after { content: "−"; }
+.cp-ob-guide-body { padding: 0 0 .75rem; }
+.cp-ob-guide-lead { margin: 0 0 .6rem; opacity: .75; }
+.cp-ob-guide dl { margin: 0; }
+.cp-ob-guide dt { font-weight: 600; margin: .55rem 0 .1rem; }
+.cp-ob-guide dt:first-child { margin-top: 0; }
+.cp-ob-guide dd { margin: 0; opacity: .8; }
+@media (min-width: 700px) {
+	.cp-ob-acct { padding: 1.1rem 1.3rem .45rem; }
+}
+
+/* Thank-you — big Follow button (inverted theme colours) */
+.cp-ob-follow { text-align: center; border: 1px solid currentColor; border-radius: 20px; padding: clamp(1.5rem, 5vw, 2.5rem) clamp(1.25rem, 4vw, 2rem); margin: 1.75rem 0 2rem; }
+.cp-ob-follow-kicker { margin: 0 0 .35rem; font-size: .78em; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .65; }
+.cp-ob-follow-title { margin: 0 0 .6rem; }
+.cp-ob-follow-text { margin: 0 auto 1.4rem; max-width: 34rem; opacity: .85; }
+.cp-ob-follow-btn { display: inline-flex; align-items: center; justify-content: center; gap: .65em; width: 100%; max-width: 26rem; min-height: 3.6rem; padding: .95em 1.6em; border-radius: 999px; font-size: 1.12em; font-weight: 700; text-decoration: none; background: var(--cp-ob-fg, #111); color: var(--cp-ob-bg, #fff); box-shadow: 0 10px 28px rgba(0, 0, 0, .25); transition: transform .2s ease, box-shadow .2s ease; }
+.cp-ob-follow-btn:hover, .cp-ob-follow-btn:focus-visible { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(0, 0, 0, .3); color: var(--cp-ob-bg, #fff); }
