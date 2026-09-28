@@ -354,9 +354,9 @@ $cpa_config = array(
 		'removePhoto'    => __( 'Remove', 'hypeit' ),
 		'photoFailed'    => __( 'The photo couldn’t be uploaded.', 'hypeit' ),
 		// Push.
-		'pushTitle'      => __( 'Notifications', 'hypeit' ),
-		'pushNew'        => __( 'New blogger submissions', 'hypeit' ),
-		'pushNewSub'     => __( 'Get a notification on this device when a blogger submits the form.', 'hypeit' ),
+		'pushTitle'      => __( 'Push alerts', 'hypeit' ),
+		'pushNew'        => __( 'Push alerts on this device', 'hypeit' ),
+		'pushNewSub'     => __( 'Pop-up alerts for new blogger submissions and profile updates (as chosen above), even when the app is closed.', 'hypeit' ),
 		'pushTest'       => __( 'Send a test notification', 'hypeit' ),
 		'pushTestSent'   => __( 'Test sent — it should arrive in a few seconds.', 'hypeit' ),
 		'pushOn'         => __( 'Notifications are on for this device.', 'hypeit' ),
@@ -430,6 +430,35 @@ $cpa_config = array(
 		// Connection.
 		'offlineBar'      => __( 'Offline — showing saved data', 'hypeit' ),
 		'backOnline'      => __( 'Back online', 'hypeit' ),
+		// Notifications inbox.
+		'inbox'           => __( 'Notifications', 'hypeit' ),
+		'markAllRead'     => __( 'Mark all as read', 'hypeit' ),
+		'allRead'         => __( 'All caught up.', 'hypeit' ),
+		'clearAll'        => __( 'Clear all', 'hypeit' ),
+		'clearAllQ'       => __( 'Clear all notifications? New ones will still come in.', 'hypeit' ),
+		'cleared'         => __( 'Notifications cleared.', 'hypeit' ),
+		'inboxEmpty'      => __( 'No notifications yet. New blogger submissions, profile updates and client responses show up here.', 'hypeit' ),
+		'unread'          => __( 'Unread', 'hypeit' ),
+		'responses'       => __( 'Responses', 'hypeit' ),
+		'today'           => __( 'Today', 'hypeit' ),
+		'yesterday'       => __( 'Yesterday', 'hypeit' ),
+		'earlier'         => __( 'Earlier', 'hypeit' ),
+		'justNow'         => __( 'just now', 'hypeit' ),
+		/* translators: %s: e.g. "5m". */
+		'agoN'            => __( '%s ago', 'hypeit' ),
+		'tagNew'          => __( 'New blogger', 'hypeit' ),
+		'tagUpdate'       => __( 'Profile update', 'hypeit' ),
+		'tagResponse'     => __( 'Client response', 'hypeit' ),
+		'openInbox'       => __( 'Open notifications', 'hypeit' ),
+		'showBubble'      => __( 'Bubble on the app icon', 'hypeit' ),
+		'showBubbleSub'   => __( 'Shows how many notifications are unread.', 'hypeit' ),
+		'nfNew'           => __( 'New blogger submissions', 'hypeit' ),
+		'nfNewSub'        => __( 'Someone fills in the join form.', 'hypeit' ),
+		'nfUpdate'        => __( 'Profile updates', 'hypeit' ),
+		'nfUpdateSub'     => __( 'A blogger updates their details.', 'hypeit' ),
+		'nfResponse'      => __( 'Client responses', 'hypeit' ),
+		'nfResponseSub'   => __( 'A client accepts or declines bloggers.', 'hypeit' ),
+		'saved'           => __( 'Saved.', 'hypeit' ),
 		// Select mode.
 		'select'          => __( 'Select', 'hypeit' ),
 		'actions'         => __( 'Actions', 'hypeit' ),
@@ -461,13 +490,10 @@ $cpa_config = array(
 	<title><?php echo esc_html( $app_name ); ?></title>
 	<link rel="manifest" href="<?php echo esc_url( CP_PWA::manifest_url() ); ?>" />
 	<?php if ( $icon_url ) : ?>
-		<?php $cp_ic = CP_Splash::icons(); ?>
+		<?php $cp_ic = CP_Icons::icons(); ?>
 		<link rel="apple-touch-icon" href="<?php echo esc_url( isset( $cp_ic['i180'] ) ? $cp_ic['i180'] : $icon_url ); ?>" />
 		<link rel="icon" href="<?php echo esc_url( $icon_url ); ?>" />
 	<?php endif; ?>
-	<?php foreach ( CP_Splash::links() as $cp_s ) : // One launch image per iPhone / iPad screen size. ?>
-		<link rel="apple-touch-startup-image" media="<?php echo esc_attr( $cp_s[1] ); ?>" href="<?php echo esc_url( $cp_s[0] ); ?>" />
-	<?php endforeach; ?>
 	<script>
 	( function () {
 		try {

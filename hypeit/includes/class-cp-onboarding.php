@@ -442,6 +442,7 @@ class CP_Onboarding {
 		CP_IGSync::queue( $id );
 
 		// Push to subscribed admin devices (sent after the response is flushed).
+		CP_Inbox::blogger( $id, (bool) $existing );
 		CP_Push::queue_new_blogger( $id, (bool) $existing );
 
 		wp_safe_redirect( add_query_arg( array( 'cp_ob' => 'success', 'b' => (int) $id, 't' => CP_Verify::token( $id ) ), self::url() ) );

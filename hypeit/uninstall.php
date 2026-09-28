@@ -80,6 +80,8 @@ $wpdb->query( "DROP TABLE IF EXISTS {$cp_table}" ); // phpcs:ignore WordPress.DB
 delete_option( 'cp_theme' );
 delete_option( 'cp_app' );
 delete_option( 'cp_app_splash' );
+delete_option( 'cp_app_icons' );
+delete_option( 'cp_inbox' );
 delete_option( 'cp_onboard' );
 delete_option( 'cp_verify' );
 delete_option( 'cp_blocked_handles' );
@@ -88,3 +90,6 @@ delete_option( 'cp_db_version' );
 
 // Remove app login tokens from all users.
 delete_metadata( 'user', 0, '_cp_app_tokens', '', true );
+foreach ( array( '_cp_inbox_read', '_cp_inbox_seen', '_cp_inbox_cleared', '_cp_inbox_prefs' ) as $cp_k ) {
+	delete_metadata( 'user', 0, $cp_k, '', true );
+}

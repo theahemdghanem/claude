@@ -347,9 +347,20 @@
 .cpw-empty { padding: 26px; text-align: center; color: var(--cpw-muted); margin: 0; }
 
 /* Details */
-.cpw-logo { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.cpw-logo-preview { width: 120px; height: 120px; border: 1px dashed #c3c4c7; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f6f7f7; }
-.cpw-logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.cpw-logo { display: flex; flex-direction: column; align-items: stretch; gap: 12px; max-width: 520px; }
+/* Dark stage by default so white logos are visible; the whole logo shows, never cropped. */
+.cpw-logo-preview { position: relative; width: 100%; height: 170px; box-sizing: border-box; padding: 18px; border: 1px solid #1d1d20; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #111113; color: #8c8f94; cursor: pointer; }
+.cpw-logo-preview img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+.cpw-logo-preview.is-light { background: #fff; border-color: #dcdcde; }
+.cpw-logo-preview.is-check { background-color: #fff; background-image: linear-gradient(45deg, #e4e4e7 25%, transparent 25%, transparent 75%, #e4e4e7 75%), linear-gradient(45deg, #e4e4e7 25%, transparent 25%, transparent 75%, #e4e4e7 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; border-color: #dcdcde; }
+.cpw-logo-bg { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+.cpw-logo-bg button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); cursor: pointer; padding: 0; }
+.cpw-logo-bg button.is-on { border-color: #2271b1; box-shadow: 0 0 0 2px #fff; }
+.cpw-logo-bg [data-bg="dark"] { background: #111113; }
+.cpw-logo-bg [data-bg="light"] { background: #fff; }
+.cpw-logo-bg [data-bg="check"] { background: repeating-conic-gradient(#d0d0d4 0 25%, #fff 0 50%) 50% / 10px 10px; }
+.cpw-logo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cpw-logo-actions small { flex-basis: 100%; }
 
 /* Results */
 .cpw-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 10px; }
@@ -1005,7 +1016,7 @@ a.cpw-rm { display: inline-grid; place-items: center; text-decoration: none; }
 .cpa-media small { display: block; color: #646970; margin: 2px 0 8px; }
 .cpa-media-btns { display: flex; gap: 10px; align-items: center; }
 .cpa-danger .cpw-switch input:checked + .cpw-slider { background: #b3261e; }
-.cpa-phones { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cpa-phones { display: grid; grid-template-columns: minmax(0, 200px); justify-content: center; gap: 12px; }
 .cpa-phone { position: relative; aspect-ratio: 9 / 16; border-radius: 22px; border: 6px solid #1d2327; background: linear-gradient(160deg, #3a4a6b, #8a5a7a); overflow: hidden; display: flex; flex-direction: column; }
 .cpa-bar { display: block; height: 14px; background: #000; }
 .cpa-home { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 6px; padding: 14px 8px; }
@@ -1014,12 +1025,7 @@ a.cpw-rm { display: inline-grid; place-items: center; text-decoration: none; }
 .cpa-app small { color: #fff; font-size: 9px; max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cpa-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px; overflow: hidden; background: #000; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
 .cpa-icon img { width: 100%; height: 100%; object-fit: cover; }
-.cpa-splash { align-items: center; justify-content: center; gap: 8px; background: #000; color: #fff; }
-.cpa-splash .cpa-icon { width: 46px; height: 46px; border-radius: 12px; font-size: 20px; }
-.cpa-splash b { font-size: 12px; }
-.cpa-splash.is-light { color: #1d2327; }
 .cpa-caption { position: absolute; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 9px; color: rgba(255,255,255,.75); }
-.cpa-splash.is-light .cpa-caption { color: rgba(0,0,0,.5); }
 .cpa-qr { width: 180px; margin: 4px auto 6px; padding: 8px; border: 1px solid #e2e4e7; border-radius: 12px; background: #fff; }
 .cpa-qr svg { display: block; width: 100%; height: auto; }
 .cpa-center { text-align: center; }
@@ -1028,7 +1034,6 @@ a.cpw-rm { display: inline-grid; place-items: center; text-decoration: none; }
 .cpa-push { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .cpa-push b { font-size: 28px; letter-spacing: -.02em; }
 .cpa-push span { color: #646970; }
-.cpa-splash.has-image .cpa-icon, .cpa-splash.has-image b { display: none; }
 
 /* Link expiry */
 .cpw-expiry h3 { display: flex; align-items: center; gap: 8px; }

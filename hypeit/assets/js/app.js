@@ -103,6 +103,8 @@
 		clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
 		check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
 		close: '<path d="M6 6l12 12M18 6L6 18"/>',
+		bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+		checks: '<path d="M2.5 12.5l4 4L15 8"/><path d="M11 16.5l.5.5L21 7.5"/>',
 		bolt: '<path d="M13 3 5 13h6l-1 8 8-10h-6z"/>',
 		select: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
 		lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
@@ -168,7 +170,7 @@
 	 * works offline), refreshed from the server in the background. When the
 	 * fresh copy differs, the current screen quietly repaints.
 	 */
-	var S = { campaigns: null, camp: {}, library: null, meta: null, lists: null, insights: null, user: null, home: null };
+	var S = { campaigns: null, camp: {}, library: null, meta: null, lists: null, insights: null, user: null, home: null, unread: 0, prefs: null };
 	var DISK = 'cpa:d:';
 	function diskGet( k ) { try { var v = localStorage.getItem( DISK + k ); return v ? JSON.parse( v ) : null; } catch ( e ) { return null; } }
 	function diskSet( k, v ) { try { localStorage.setItem( DISK + k, JSON.stringify( v ) ); } catch ( e ) {} }
@@ -234,6 +236,24 @@
 			if ( n > 0 && navigator.setAppBadge ) { navigator.setAppBadge( n ); } else if ( navigator.clearAppBadge ) { navigator.clearAppBadge(); }
 		} catch ( e ) {}
 	}
+
+	/* Notifications: unread count drives the icon bubble, the bell and the Home tab dot. */
+	function applyUnread( r ) {
+		if ( ! r ) { return; }
+		S.unread = r.unread || 0;
+		if ( r.prefs ) { S.prefs = r.prefs; }
+		setBadge( S.prefs && S.prefs.badge === false ? 0 : S.unread );
+		qsa( '.bar-badge[data-badge="inbox"]' ).forEach( function ( el ) { el.hidden = ! S.unread; el.textContent = S.unread > 99 ? '99+' : S.unread; } );
+		var tb = qs( '.tab[data-tab="home"]' ); if ( tb ) { tb.classList.toggle( 'has-dot', S.unread > 0 ); }
+	}
+	var inboxBusy = false;
+	function refreshUnread() {
+		if ( inboxBusy || ! getToken() || document.hidden ) { return Promise.resolve(); }
+		inboxBusy = true;
+		return api( '/inbox?count=1' ).then( applyUnread ).catch( function () {} ).then( function () { inboxBusy = false; } );
+	}
+	setInterval( refreshUnread, 60000 );
+	document.addEventListener( 'visibilitychange', function () { if ( ! document.hidden ) { refreshUnread(); } } );
 
 	/* ================================================================ UI: toast, sheet */
 
@@ -353,7 +373,7 @@
 		( o.actions || [] ).forEach( function ( a ) {
 			var b = document.createElement( 'button' );
 			b.type = 'button'; b.className = 'bar-btn'; b.setAttribute( 'aria-label', a.label ); b.title = a.label;
-			b.innerHTML = icon( a.icon );
+			b.innerHTML = icon( a.icon ) + ( a.badge ? '<span class="bar-badge" data-badge="' + esc( a.badge ) + '"' + ( S.unread ? '' : ' hidden' ) + '>' + ( S.unread > 99 ? '99+' : S.unread ) + '</span>' : '' );
 			b.addEventListener( 'click', a.onClick );
 			barActions.appendChild( b );
 		} );
@@ -385,6 +405,7 @@
 	var ROUTES = [
 		[ /^\/home$/, vHome, 'home' ],
 		[ /^\/search$/, vSearch, 'home', 'sub' ],
+		[ /^\/inbox$/, vInbox, 'home', 'sub' ],
 		[ /^\/campaigns$/, vCampaigns, 'campaigns' ],
 		[ /^\/campaigns\/new$/, vCampaignForm, 'campaigns', 'form' ],
 		[ /^\/c\/(\d+)$/, vCampaign, 'campaigns', 'sub' ],
@@ -571,14 +592,13 @@
 	/* ================================================================ Home */
 
 	function vHome( ctx ) {
-		setBar( { title: t( 'home' ), large: true, actions: [ { icon: 'search', label: t( 'search' ), onClick: function () { go( '/search' ); } }, { icon: 'refresh', label: t( 'refresh' ), onClick: function () { refreshAll(); } } ] } );
+		setBar( { title: t( 'home' ), large: true, actions: [ { icon: 'search', label: t( 'search' ), onClick: function () { go( '/search' ); } }, { icon: 'bell', label: t( 'inbox' ), badge: 'inbox', onClick: function () { go( '/inbox' ); } } ] } );
 		view.innerHTML = skeleton( 'hero', 4 );
 		return getHome( ctx.force ).then( function ( d ) {
 			if ( ctx.stale() ) { return; }
 			var st = d.stats || {}, hr = new Date().getHours();
 			var hello = hr < 12 ? t( 'goodMorning' ) : ( hr < 18 ? t( 'goodAfternoon' ) : t( 'goodEvening' ) );
 			var attn = d.attention || [];
-			setBadge( attn.filter( function ( a ) { return a.kind !== 'nopw'; } ).length );
 
 			var h = '<div class="home-hello"><small>' + esc( hello ) + '</small><h1 class="h1">' + esc( d.user || C.appName || '' ) + '</h1></div>';
 			h += '<button type="button" class="searchfake" id="h-search">' + icon( 'search' ) + '<span>' + esc( t( 'searchAll' ) ) + '</span></button>';
@@ -641,6 +661,76 @@
 				} );
 			} );
 		} ).catch( function ( e ) { fail( ctx, e ); } );
+	}
+
+	/* ================================================================ Notifications */
+
+	var UN = { f: 'all' };
+	function ago( ts ) {
+		var s = Math.max( 0, Math.floor( Date.now() / 1000 ) - ts );
+		if ( s < 60 ) { return t( 'justNow' ); }
+		if ( s < 3600 ) { return t( 'agoN', Math.floor( s / 60 ) + t( 'unitM' ) ); }
+		if ( s < 86400 ) { return t( 'agoN', Math.floor( s / 3600 ) + t( 'unitH' ) ); }
+		return new Date( ts * 1000 ).toLocaleDateString( undefined, { day: 'numeric', month: 'short' } );
+	}
+	function vInbox( ctx ) {
+		setBar( { title: t( 'inbox' ), back: true, actions: [ { icon: 'checks', label: t( 'markAllRead' ), onClick: function () { inboxOp( { op: 'read_all' }, t( 'allRead' ) ); } } ] } );
+		view.innerHTML = skeleton( 'row', 6 );
+		function inboxOp( body, msg ) {
+			return post( '/inbox', body ).then( function ( r ) { applyUnread( r ); if ( msg ) { toast( msg ); } paint( r ); } ).catch( actErr );
+		}
+		function paint( r ) {
+			if ( ctx.stale() ) { return; }
+			var items = ( r.items || [] ).filter( function ( it ) {
+				return UN.f === 'all' || ( UN.f === 'unread' ? ! it.read : ( UN.f === 'bloggers' ? it.kind !== 'response' : it.kind === 'response' ) );
+			} );
+			var h = '<div class="chips inbox-filter">' + [ [ 'all', t( 'all' ) ], [ 'unread', t( 'unread' ) + ( r.unread ? ' ' + r.unread : '' ) ], [ 'bloggers', t( 'bloggers' ) ], [ 'responses', t( 'responses' ) ] ].map( function ( o ) {
+				return '<button type="button" class="chip' + ( UN.f === o[ 0 ] ? ' is-on' : '' ) + '" data-f="' + o[ 0 ] + '">' + esc( o[ 1 ] ) + '</button>';
+			} ).join( '' ) + '</div>';
+			h += '<div class="inbox-tools"><button type="button" class="btn btn-sm btn-ghost" id="n-read"' + ( r.unread ? '' : ' disabled' ) + '>' + icon( 'checks' ) + esc( t( 'markAllRead' ) ) + '</button>' +
+				'<button type="button" class="btn btn-sm btn-ghost" id="n-clear"' + ( ( r.items || [] ).length ? '' : ' disabled' ) + '>' + icon( 'trash' ) + esc( t( 'clearAll' ) ) + '</button></div>';
+			if ( ! items.length ) {
+				h += emptyState( 'bell', ( r.items || [] ).length ? t( 'noResults' ) : t( 'inboxEmpty' ) );
+			} else {
+				var groups = {}, order = [], today = new Date(); today.setHours( 0, 0, 0, 0 );
+				var t0 = today.getTime() / 1000;
+				items.forEach( function ( it ) {
+					var g = it.t >= t0 ? t( 'today' ) : ( it.t >= t0 - 86400 ? t( 'yesterday' ) : t( 'earlier' ) );
+					if ( ! groups[ g ] ) { groups[ g ] = []; order.push( g ); }
+					groups[ g ].push( it );
+				} );
+				order.forEach( function ( g ) {
+					h += '<div class="section"><h3>' + esc( g ) + '</h3></div><div class="rows inbox">' + groups[ g ].map( function ( it ) {
+						var pic = it.kind === 'response'
+							? ( it.logo ? '<span class="inbox-logo"><img src="' + esc( it.logo ) + '" alt="" /></span>' : '<span class="inbox-ic resp">' + icon( 'campaigns' ) + '</span>' )
+							: avatar( it.name, it.handle, false, it.photo );
+						var tag = it.kind === 'blogger_new' ? '<span class="itag new">' + esc( t( 'tagNew' ) ) + '</span>' : ( it.kind === 'blogger_update' ? '<span class="itag upd">' + esc( t( 'tagUpdate' ) ) + '</span>' : '<span class="itag resp">' + esc( t( 'tagResponse' ) ) + '</span>' );
+						return '<div class="row row-tap inbox-item' + ( it.read ? '' : ' is-unread' ) + '" data-id="' + it.id + '" data-route="' + esc( it.route ) + '">' + pic +
+							'<div class="row-main"><b>' + esc( it.title ) + '</b><small>' + esc( it.body ) + '</small><span class="inbox-meta">' + tag + '<em>' + esc( ago( it.t ) ) + '</em></span></div>' +
+							( it.read ? '' : '<span class="udot" aria-label="' + esc( t( 'unread' ) ) + '"></span>' ) + '</div>';
+					} ).join( '' ) + '</div>';
+				} );
+			}
+			view.innerHTML = h;
+			qsa( '[data-f]', view ).forEach( function ( b ) { b.addEventListener( 'click', function () { UN.f = b.getAttribute( 'data-f' ); paint( r ); } ); } );
+			$( 'n-read' ).addEventListener( 'click', function () { inboxOp( { op: 'read_all' }, t( 'allRead' ) ); } );
+			$( 'n-clear' ).addEventListener( 'click', function () {
+				confirmSheet( t( 'clearAllQ' ), t( 'clearAll' ), true ).then( function ( ok ) { if ( ok ) { inboxOp( { op: 'clear' }, t( 'cleared' ) ); } } );
+			} );
+			qsa( '.inbox-item', view ).forEach( function ( el ) {
+				el.addEventListener( 'click', function () {
+					var id = parseInt( el.getAttribute( 'data-id' ), 10 );
+					if ( el.classList.contains( 'is-unread' ) ) {
+						r.items.forEach( function ( it ) { if ( it.id === id ) { it.read = true; } } );
+						r.unread = Math.max( 0, r.unread - 1 );
+						applyUnread( { unread: r.unread } );
+						post( '/inbox', { op: 'read', id: id } ).catch( function () {} );
+					}
+					go( el.getAttribute( 'data-route' ) );
+				} );
+			} );
+		}
+		return api( '/inbox' ).then( function ( r ) { applyUnread( r ); paint( r ); } ).catch( function ( e ) { fail( ctx, e ); } );
 	}
 
 	/* ================================================================ Search (everything) */
@@ -1986,6 +2076,12 @@
 			h += '<div class="section"><h3>' + esc( t( 'appearance' ) ) + '</h3></div><div class="seg" id="m-theme">' + [ [ 'dark', t( 'dark' ) ], [ 'light', t( 'light' ) ], [ 'system', t( 'system' ) ] ].map( function ( o ) {
 				return '<button type="button" data-v="' + o[ 0 ] + '" class="' + ( theme === o[ 0 ] ? 'is-on' : '' ) + '">' + esc( o[ 1 ] ) + '</button>';
 			} ).join( '' ) + '</div>';
+			h += '<div class="section"><h3>' + esc( t( 'inbox' ) ) + '</h3></div><div class="group">' +
+				'<div class="item item-tap" data-go="/inbox"><span class="item-ic">' + icon( 'bell' ) + '</span><div class="item-main"><b>' + esc( t( 'openInbox' ) ) + '</b></div>' + ( S.unread ? '<span class="countpill">' + S.unread + '</span>' : '' ) + '<span class="chev">›</span></div>' +
+				'<div class="item"><div class="item-main"><b>' + esc( t( 'showBubble' ) ) + '</b><small>' + esc( t( 'showBubbleSub' ) ) + '</small></div>' + sw( 'np-badge', true ) + '</div>' +
+				'<div class="item"><div class="item-main"><b>' + esc( t( 'nfNew' ) ) + '</b><small>' + esc( t( 'nfNewSub' ) ) + '</small></div>' + sw( 'np-new', true ) + '</div>' +
+				'<div class="item"><div class="item-main"><b>' + esc( t( 'nfUpdate' ) ) + '</b><small>' + esc( t( 'nfUpdateSub' ) ) + '</small></div>' + sw( 'np-update', true ) + '</div>' +
+				'<div class="item"><div class="item-main"><b>' + esc( t( 'nfResponse' ) ) + '</b><small>' + esc( t( 'nfResponseSub' ) ) + '</small></div>' + sw( 'np-response', true ) + '</div></div>';
 			h += '<div class="section"><h3>' + esc( t( 'pushTitle' ) ) + '</h3></div><div id="m-pushbox"></div>';
 			h += '<div class="section"><h3>' + esc( t( 'bloggers' ) ) + '</h3></div><div class="group">' +
 				'<div class="item item-tap" data-go="/lists">' + '<span class="item-ic">' + icon( 'lists' ) + '</span><div class="item-main"><b>' + esc( t( 'lists' ) ) + '</b></div><span class="chev">›</span></div>' +
@@ -2004,6 +2100,17 @@
 				} );
 			} );
 			qsa( '[data-go]', view ).forEach( function ( el ) { el.addEventListener( 'click', function () { go( el.getAttribute( 'data-go' ) ); } ); } );
+			// Notification choices (saved to the account, so every device follows them).
+			var npMap = { 'np-badge': 'badge', 'np-new': 'new', 'np-update': 'update', 'np-response': 'response' };
+			function paintPrefs( p ) { Object.keys( npMap ).forEach( function ( k ) { $( k ).checked = p[ npMap[ k ] ] !== false; } ); }
+			if ( S.prefs ) { paintPrefs( S.prefs ); }
+			api( '/inbox?count=1' ).then( function ( r ) { applyUnread( r ); if ( ! ctx.stale() && r.prefs ) { paintPrefs( r.prefs ); } } ).catch( function () {} );
+			Object.keys( npMap ).forEach( function ( k ) {
+				$( k ).addEventListener( 'change', function ( e ) {
+					var body = { op: 'prefs', prefs: {} }; body.prefs[ npMap[ k ] ] = e.target.checked;
+					post( '/inbox', body ).then( function ( r ) { applyUnread( r ); toast( t( 'saved' ) ); } ).catch( function ( er ) { e.target.checked = ! e.target.checked; actErr( er ); } );
+				} );
+			} );
 			$( 'm-reload' ).addEventListener( 'click', function () { drop( 'campaigns', 'camp', 'library', 'lists', 'insights', 'meta', 'user', 'home' ); toast( t( 'reloaded' ) ); } );
 			$( 'm-out' ).addEventListener( 'click', function () { post( '/logout' ).catch( function () {} ); signOut( '' ); } );
 			paintPush( $( 'm-pushbox' ) );
@@ -2036,6 +2143,7 @@
 		$( 'app' ).hidden = false;
 		if ( ! location.hash || location.hash === '#' || location.hash === '#/' ) { location.replace( '#/home' ); }
 		render();
+		refreshUnread();
 	}
 	function signOut( msg ) {
 		clearToken();
@@ -2104,6 +2212,7 @@
 			} );
 			// Tapping a notification while the app is open: jump to its screen.
 			navigator.serviceWorker.addEventListener( 'message', function ( e ) {
+				if ( e.data && e.data.type === 'cp-refresh' ) { refreshUnread(); return; }
 				var u = e.data && e.data.type === 'cp-open' ? String( e.data.url || '' ) : '';
 				var i = u.indexOf( '#' );
 				if ( i !== -1 ) { location.hash = u.slice( i + 1 ); }

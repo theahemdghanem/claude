@@ -77,6 +77,7 @@ class CP_Ajax {
 
 		// Buffer the change for a consolidated, session-based notification.
 		CP_Notify::record_change( $campaign_id, $blogger->status, (int) $blogger->extra_guests, $status, $guests );
+		CP_Inbox::response( $campaign_id, (string) $blogger->status, $status );
 		CP_Insights::bust();
 
 		wp_send_json_success(

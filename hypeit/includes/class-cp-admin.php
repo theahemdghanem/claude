@@ -550,13 +550,20 @@ class CP_Admin {
 				<div class="cpw-card">
 					<h3><?php esc_html_e( 'Client logo / image', 'hypeit' ); ?></h3>
 					<div class="cpw-logo">
-						<label class="cpw-logo-preview" id="cp_logo_preview" for="cp_logo_file" title="<?php esc_attr_e( 'Choose image', 'hypeit' ); ?>">
-							<?php if ( $logo_url ) : ?>
-								<img src="<?php echo esc_url( $logo_url ); ?>" alt="" />
-							<?php else : ?>
-								<span class="cpw-muted"><?php esc_html_e( 'No image', 'hypeit' ); ?></span>
-							<?php endif; ?>
-						</label>
+						<div class="cpw-logo-preview" id="cp_logo_box">
+							<label for="cp_logo_file" id="cp_logo_preview" title="<?php esc_attr_e( 'Choose image', 'hypeit' ); ?>" style="display:contents">
+								<?php if ( $logo_url ) : ?>
+									<img src="<?php echo esc_url( $logo_url ); ?>" alt="" />
+								<?php else : ?>
+									<span><?php esc_html_e( 'No image', 'hypeit' ); ?></span>
+								<?php endif; ?>
+							</label>
+							<span class="cpw-logo-bg" role="group" aria-label="<?php esc_attr_e( 'Preview background', 'hypeit' ); ?>">
+								<button type="button" data-bg="dark" class="is-on" title="<?php esc_attr_e( 'Dark background', 'hypeit' ); ?>"></button>
+								<button type="button" data-bg="light" title="<?php esc_attr_e( 'Light background', 'hypeit' ); ?>"></button>
+								<button type="button" data-bg="check" title="<?php esc_attr_e( 'Show transparency', 'hypeit' ); ?>"></button>
+							</span>
+						</div>
 						<span class="cpw-logo-actions">
 							<label class="button" for="cp_logo_file"><?php echo esc_html( $logo_url ? __( 'Change image', 'hypeit' ) : __( 'Choose image', 'hypeit' ) ); ?></label>
 							<input type="file" id="cp_logo_file" name="cp_logo_file" accept="image/jpeg,image/png,image/webp,image/gif" class="cpw-hidden" />
@@ -571,6 +578,18 @@ class CP_Admin {
 						var f = document.getElementById( 'cp_logo_file' ), p = document.getElementById( 'cp_logo_preview' ), rm = document.getElementById( 'cp_logo_remove' );
 						if ( f ) { f.addEventListener( 'change', function () { if ( f.files && f.files[0] ) { p.innerHTML = '<img src="' + URL.createObjectURL( f.files[0] ) + '" alt="" />'; if ( rm ) { rm.checked = false; } } } ); }
 						if ( rm ) { rm.addEventListener( 'change', function () { p.style.opacity = rm.checked ? '.3' : ''; } ); }
+						// Preview background (remembered): dark for white logos, light, or a checkerboard.
+						var box = document.getElementById( 'cp_logo_box' );
+						function setBg( v ) {
+							box.classList.toggle( 'is-light', 'light' === v ); box.classList.toggle( 'is-check', 'check' === v );
+							Array.prototype.forEach.call( box.querySelectorAll( '[data-bg]' ), function ( b ) { b.classList.toggle( 'is-on', b.getAttribute( 'data-bg' ) === v ); } );
+						}
+						try { setBg( localStorage.getItem( 'cp_logo_bg' ) || 'dark' ); } catch ( e ) {}
+						box.addEventListener( 'click', function ( e ) {
+							var b = e.target.closest( '[data-bg]' ); if ( ! b ) { return; }
+							e.preventDefault(); setBg( b.getAttribute( 'data-bg' ) );
+							try { localStorage.setItem( 'cp_logo_bg', b.getAttribute( 'data-bg' ) ); } catch ( er ) {}
+						} );
 					} )();
 					</script>
 				</div>

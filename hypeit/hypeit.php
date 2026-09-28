@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HypeIt
  * Description: Blogger management for agencies — a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want. Includes insights, a companion app and push notifications.
- * Version:     2.4.0
+ * Version:     2.4.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author:      iLike Agency
@@ -37,7 +37,7 @@ if ( defined( 'CP_VERSION' ) ) {
 	return;
 }
 
-define( 'CP_VERSION', '2.4.0' );
+define( 'CP_VERSION', '2.4.1' );
 define( 'CP_FILE', __FILE__ );
 define( 'CP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CP_URL', plugin_dir_url( __FILE__ ) );
@@ -67,13 +67,14 @@ require_once CP_DIR . 'includes/class-cp-pwa.php';
 require_once CP_DIR . 'includes/class-cp-notify.php';
 require_once CP_DIR . 'includes/class-cp-photo.php';
 require_once CP_DIR . 'includes/class-cp-logo.php';
-require_once CP_DIR . 'includes/class-cp-splash.php';
+require_once CP_DIR . 'includes/class-cp-icons.php';
 require_once CP_DIR . 'includes/class-cp-push.php';
 require_once CP_DIR . 'includes/class-cp-join.php';
 require_once CP_DIR . 'includes/class-cp-atrium.php';
 require_once CP_DIR . 'includes/class-cp-igsync.php';
 require_once CP_DIR . 'includes/class-cp-close.php';
 require_once CP_DIR . 'includes/class-cp-expiry.php';
+require_once CP_DIR . 'includes/class-cp-inbox.php';
 require_once CP_DIR . 'includes/class-cp-digest.php';
 require_once CP_DIR . 'includes/class-cp-roster.php';
 require_once CP_DIR . 'includes/class-cp-dupes.php';

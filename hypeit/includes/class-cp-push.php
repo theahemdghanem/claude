@@ -284,6 +284,11 @@ class CP_Push {
 			if ( ! user_can( $uid, 'edit_posts' ) ) {
 				continue;
 			}
+			// Same on/off choices as the in-app notifications.
+			$prefs = CP_Inbox::prefs( $uid );
+			if ( empty( $prefs[ $updated ? 'update' : 'new' ] ) ) {
+				continue;
+			}
 			foreach ( self::subs( $uid ) as $sub ) {
 				if ( empty( $sub['events']['blogger'] ) ) {
 					continue;

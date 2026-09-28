@@ -181,7 +181,7 @@ class CP_PWA {
 			),
 		);
 
-		$gen = class_exists( 'CP_Splash' ) ? CP_Splash::icons() : array();
+		$gen = class_exists( 'CP_Icons' ) ? CP_Icons::icons() : array();
 		$icon_id = (int) $app['app_icon_id'];
 		if ( isset( $gen['i192'], $gen['i512'], $gen['m512'] ) ) {
 			$manifest['icons'] = array(
@@ -274,6 +274,8 @@ self.addEventListener('push', function (e) {
 	if (ICON) { opts.icon = ICON; opts.badge = ICON; }
 	if (d.icon) { opts.icon = d.icon; }
 	var jobs = [self.registration.showNotification(d.title || 'HypeIt', opts)];
+	// Tell an open app to refresh its notification count.
+	jobs.push(self.clients.matchAll({ type: 'window' }).then(function (list) { list.forEach(function (c) { c.postMessage({ type: 'cp-refresh' }); }); }));
 	if (self.navigator && self.navigator.setAppBadge) { jobs.push(self.navigator.setAppBadge().catch(function () {})); }
 	e.waitUntil(Promise.all(jobs));
 });

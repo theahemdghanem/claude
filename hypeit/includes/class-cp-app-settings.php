@@ -35,7 +35,6 @@ class CP_App_Settings {
 			'app_theme_color'  => '#000000',
 			'app_bg_color'     => '#000000',
 			'app_icon_id'      => 0,
-			'app_splash_id'    => 0,
 			'notify_enabled'   => 0,
 			'notify_email'     => '',
 			'notify_inactivity'=> 45,
@@ -119,7 +118,6 @@ class CP_App_Settings {
 			'app_theme_color'  => sanitize_text_field( isset( $in['app_theme_color'] ) ? $in['app_theme_color'] : '' ),
 			'app_bg_color'     => sanitize_text_field( isset( $in['app_bg_color'] ) ? $in['app_bg_color'] : '' ),
 			'app_icon_id'      => absint( isset( $in['app_icon_id'] ) ? $in['app_icon_id'] : 0 ),
-			'app_splash_id'    => absint( isset( $in['app_splash_id'] ) ? $in['app_splash_id'] : 0 ),
 			'notify_enabled'   => empty( $in['notify_enabled'] ) ? 0 : 1,
 			'notify_email'     => sanitize_text_field( isset( $in['notify_email'] ) ? $in['notify_email'] : '' ),
 			'notify_inactivity'=> max( 1, absint( isset( $in['notify_inactivity'] ) ? $in['notify_inactivity'] : 45 ) ),
@@ -274,13 +272,12 @@ class CP_App_Settings {
 						<div class="cps-grid2">
 							<?php
 							self::color_field( 'app_theme_color', $v['app_theme_color'], __( 'Theme colour', 'hypeit' ), __( 'Colours the phone’s status bar.', 'hypeit' ) );
-							self::color_field( 'app_bg_color', $v['app_bg_color'], __( 'Launch background', 'hypeit' ), __( 'Behind the icon while the app opens.', 'hypeit' ) );
+							self::color_field( 'app_bg_color', $v['app_bg_color'], __( 'Background colour', 'hypeit' ), __( 'The app’s background colour on Android.', 'hypeit' ) );
 							?>
 						</div>
 						<div class="cps-grid2 cpa-medias">
 							<?php
 							self::media_field( 'app_icon_id', (int) $v['app_icon_id'], 'app_icon_preview', __( 'App icon', 'hypeit' ), __( 'Square PNG, at least 512×512.', 'hypeit' ) );
-							self::media_field( 'app_splash_id', (int) $v['app_splash_id'], 'app_splash_preview', __( 'Launch image', 'hypeit' ), __( 'Optional — iPhone launch screen.', 'hypeit' ) );
 							?>
 						</div>
 					</section>
@@ -322,11 +319,6 @@ class CP_App_Settings {
 									<span class="cpa-app is-ghost"></span><span class="cpa-app is-ghost"></span><span class="cpa-app is-ghost"></span>
 								</div>
 								<small class="cpa-caption"><?php esc_html_e( 'Home Screen', 'hypeit' ); ?></small>
-							</div>
-							<div class="cpa-phone cpa-splash" id="cpa-splash" aria-hidden="true">
-								<span class="cpa-icon" id="cpa-icon2"><?php echo $icon ? '<img src="' . esc_url( $icon ) . '" alt="" />' : esc_html( mb_substr( $short, 0, 1 ) ); ?></span>
-								<b id="cpa-name"><?php echo esc_html( $v['app_name'] ); ?></b>
-								<small class="cpa-caption"><?php esc_html_e( 'Opening', 'hypeit' ); ?></small>
 							</div>
 						</div>
 					</section>

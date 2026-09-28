@@ -2,7 +2,7 @@
 Contributors: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.4.0
+Stable tag: 2.4.1
 License: GPL-2.0-or-later
 
 Blogger management for agencies: a blogger library with onboarding, verification and automatic Instagram sync, plus private campaign pages where clients pick the bloggers they want.
@@ -20,10 +20,14 @@ Blogger management for agencies: a blogger library with onboarding, verification
 
 == Changelog ==
 
+= 2.4.1 =
+* App notifications: a bell on Home opens a Notifications screen with new blogger submissions, profile updates and client responses (grouped, with unread dots). “Mark all as read” and “Clear all” reset the bubble. The icon bubble now counts unread notifications, and a new Notifications section in More turns the bubble and each kind on or off. Push alerts follow the same choices.
+* Client logos show on a dark background, uncropped, at full width in the campaign editor (with dark / light / transparency preview) and throughout the app, so white logos are visible.
+* Removed the launch screen (launch image setting and generated images). The app icons are still generated at the sizes phones need.
+
 = 2.4.0 =
 * Client link expiry: set a date and time (or +24h / +3 days / +1 week) in the editor or the app. The client page shows a live countdown; once it passes, the list is hidden and the client sees “This link has expired” with WhatsApp / call / email buttons for the contact person. Extend any time to reopen the same link. Expired links are flagged in the campaigns list (new “Link expired” filter).
 * Client logo is now stored privately like blogger photos, not in the Media Library. Existing logos keep working.
-* Launch screen fixed: iPhone/iPad launch images are generated at every device size (iOS ignores a single image). Re-add the app to the Home Screen to pick them up. App icons are generated at the exact sizes phones need.
 * HypeIt app rebuilt: new Home tab (live numbers, “Needs you” list with one-tap Extend, live campaigns, top follower gainers, new bloggers), search across everything, select mode on Bloggers (add to campaign or list, mark complete, deactivate in bulk), deadline chips on campaigns, saved data shown instantly and offline, offline banner, icon badge, smoother transitions, faster start-up and image caching, app-icon shortcuts.
 
 = 2.3.0 =

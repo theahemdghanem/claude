@@ -24,33 +24,18 @@
 	}
 	function paint() {
 		var theme = HEX.test( val( 'app_theme_color' ) ) ? val( 'app_theme_color' ) : '#000000';
-		var bg = HEX.test( val( 'app_bg_color' ) ) ? val( 'app_bg_color' ) : '#000000';
 		var short = val( 'app_short_name' ) || val( 'app_name' );
 		if ( $( 'cpa-bar' ) ) { $( 'cpa-bar' ).style.background = theme; }
-		if ( $( 'cpa-splash' ) ) {
-			// Launch image (if chosen) fills the screen, like on the phone.
-			var sp = document.querySelector( '#app_splash_preview img' );
-			$( 'cpa-splash' ).style.background = sp ? bg + ' url("' + sp.getAttribute( 'src' ) + '") center / cover no-repeat' : bg;
-			$( 'cpa-splash' ).classList.toggle( 'has-image', !! sp );
-		}
-		[ 'cpa-icon', 'cpa-icon2' ].forEach( function ( id ) {
+		[ 'cpa-icon' ].forEach( function ( id ) {
 			var el = $( id ); if ( ! el ) { return; }
 			el.innerHTML = iconHtml();
 			el.style.background = document.querySelector( '#app_icon_preview img' ) ? 'transparent' : theme;
 		} );
 		if ( $( 'cpa-short' ) ) { $( 'cpa-short' ).textContent = short; }
-		if ( $( 'cpa-name' ) ) {
-			$( 'cpa-name' ).textContent = val( 'app_name' );
-			// Keep the name readable on light or dark launch colours.
-			var r = parseInt( bg.substr( 1, 2 ), 16 ), g = parseInt( bg.substr( 3, 2 ), 16 ), b = parseInt( bg.substr( 5, 2 ), 16 );
-			$( 'cpa-splash' ).classList.toggle( 'is-light', ( r * 299 + g * 587 + b * 114 ) / 1000 > 150 );
-		}
 	}
 	form.addEventListener( 'input', paint );
 	var prev = $( 'app_icon_preview' );
 	if ( prev && window.MutationObserver ) { new MutationObserver( paint ).observe( prev, { childList: true, subtree: true } ); }
-	var sprev = $( 'app_splash_preview' );
-	if ( sprev && window.MutationObserver ) { new MutationObserver( paint ).observe( sprev, { childList: true, subtree: true } ); }
 	paint();
 
 	// QR code for installing on a phone.

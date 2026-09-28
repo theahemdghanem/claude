@@ -50,13 +50,14 @@ final class CP_Plugin {
 		CP_Verify::init();
 		CP_Photo::init();
 		CP_Logo::init();
-		CP_Splash::init();
+		CP_Icons::init();
 		CP_Push::init();
 		CP_Join::init();
 		CP_Atrium::init();
 		CP_IGSync::init();
 		CP_Close::init();
 		CP_Expiry::init();
+		CP_Inbox::init();
 		CP_Digest::init();
 		CP_Roster::init();
 		CP_Dupes::init();
