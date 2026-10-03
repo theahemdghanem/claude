@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.7.2
+Stable tag: 2.8.0
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,26 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 2.8.0 =
+* Redesigned admin ("Studio") for four screens. All field names and stored data
+  are unchanged, so existing profiles, articles and settings carry over as-is.
+* Celebrities list: roster header with live counts (talent, published, drafts,
+  lead, private, needs work), Cards / List layout toggle, photo cards with status
+  badges, categories, a profile-strength meter and a one-click smart-link copy.
+  New filters: Lead, Private profile, Self-submitted, Needs work, and category.
+* Celebrity editor: tabbed workspace (Profile, Biography, Photos, Career, Awards,
+  Videos, Social, Share & Access) with a sticky Save bar (Ctrl/Cmd+S). Sidebar
+  profile card with live photo, name, badges and a profile-strength checklist
+  that jumps to the missing tab. Drag-to-reorder rows, "Sort by year", CSV
+  import, empty states, platform detection for video links.
+* Newsroom editor: classic-style workspace with an English / Arabic switch for
+  the story, plus Media, Related links and Social card tabs. Article sidebar
+  with celebrity picker (with photo), location and a ready-to-publish checklist.
+  The block editor is no longer used for articles.
+* Settings: sidebar navigation in groups, search, toggle switches, image pickers
+  (brand logo, app icon, signature, contract logo), unsaved-changes indicator,
+  "Settings saved" confirmation, copy buttons for every link and shortcode.
 
 = 2.7.2 =
 * Fixed: importing a talent's rate submission into an EXISTING rate card no longer
