@@ -586,7 +586,9 @@
 			$card.append($foot);
 			$wrap.append($card);
 		});
-		$wrap.insertBefore($table);
+		// Directly under the top toolbar, whatever other plugins add to the page.
+		var $top = $('.tablenav.top').first();
+		if ($top.length) { $wrap.insertAfter($top); } else { $wrap.insertBefore($table); }
 		return $wrap;
 	}
 

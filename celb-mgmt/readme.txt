@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.8.1
+Stable tag: 2.8.2
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,13 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 2.8.2 =
+* Admin colours: text #0a0a0a, accent #536878 across the Studio screens
+  (list, editors, settings, Artist Requests).
+* Fixed: card view showed the bulk-actions bar twice; one toolbar now sits
+  directly above the cards.
+* Fixed: on a request, the Status box overlapped the Screen Options tab.
 
 = 2.8.1 =
 * Fixed: roster cards no longer pick up columns added by other plugins (SEO

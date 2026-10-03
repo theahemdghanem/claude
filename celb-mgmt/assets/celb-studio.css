@@ -8,24 +8,24 @@
 	--cs-bg: #f4f2ee;
 	--cs-surface: #ffffff;
 	--cs-sunken: #faf9f6;
-	--cs-ink: #17150f;
+	--cs-ink: #0a0a0a;
 	--cs-ink-2: #55524b;
 	--cs-ink-3: #8b877e;
 	--cs-line: #e6e2da;
 	--cs-line-2: #d6d0c5;
-	--cs-gold: #a8834a;
-	--cs-gold-2: #c9aa6c;
-	--cs-gold-soft: #f5eddf;
+	--cs-gold: #536878;
+	--cs-gold-2: #8ea1b0;
+	--cs-gold-soft: #ebeff2;
 	--cs-ok: #2e7a4d;
 	--cs-ok-soft: #e5f2ea;
 	--cs-warn: #a86a12;
 	--cs-warn-soft: #fbf0dc;
 	--cs-danger: #b3262d;
 	--cs-danger-soft: #fbe9e9;
-	--cs-focus: 0 0 0 3px rgba(168, 131, 74, .28);
+	--cs-focus: 0 0 0 3px rgba(83, 104, 120, .3);
 	--cs-r: 14px;
 	--cs-r-sm: 10px;
-	--cs-shadow: 0 1px 2px rgba(23, 21, 15, .04), 0 4px 18px rgba(23, 21, 15, .04);
+	--cs-shadow: 0 1px 2px rgba(10, 10, 10, .04), 0 4px 18px rgba(10, 10, 10, .04);
 	--cs-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	--cs-display: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
 	--cs-bar-top: 32px;
@@ -55,10 +55,10 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .celb-studio .cs-btn:focus-visible { outline: 0; box-shadow: var(--cs-focus); }
 .celb-studio .cs-btn--sm { height: 32px; padding: 0 12px; font-size: 12.5px; gap: 6px; }
 .celb-studio .cs-btn--primary { background: var(--cs-ink); border-color: var(--cs-ink); color: #fff; }
-.celb-studio .cs-btn--primary:hover { background: #2c2920; border-color: #2c2920; color: #fff; }
+.celb-studio .cs-btn--primary:hover { background: #262626; border-color: #262626; color: #fff; }
 .celb-studio .cs-btn--primary[disabled] { opacity: .45; cursor: default; }
 .celb-studio .cs-btn--ghost { background: transparent; border-color: transparent; color: var(--cs-ink-2); }
-.celb-studio .cs-btn--ghost:hover { background: rgba(23, 21, 15, .05); border-color: transparent; }
+.celb-studio .cs-btn--ghost:hover { background: rgba(10, 10, 10, .05); border-color: transparent; }
 .celb-studio .cs-btn--danger { color: var(--cs-danger); }
 .celb-studio .cs-btn--danger:hover { color: var(--cs-danger); background: var(--cs-danger-soft); }
 .celb-studio .cs-btn.is-copied { border-color: var(--cs-ok); color: var(--cs-ok); }
@@ -152,7 +152,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .celb-studio .cs-badge--draft, .celb-studio .cs-badge--auto-draft { background: #eeebe5; color: var(--cs-ink-2); }
 .celb-studio .cs-badge--pending, .celb-studio .cs-badge--future { background: var(--cs-warn-soft); color: var(--cs-warn); }
 .celb-studio .cs-badge--lead { background: var(--cs-gold-soft); color: var(--cs-gold); }
-.celb-studio .cs-badge--locked { background: #23211b; color: #f1ece2; }
+.celb-studio .cs-badge--locked { background: #1a1a1a; color: #f2f4f6; }
 .celb-studio .cs-badge--sub { background: #ece9f6; color: #4b3f8f; }
 
 /* Meter */
@@ -203,7 +203,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .celb-studio .cs-media--logo .cs-media-img,
 .celb-studio .cs-media--signature .cs-media-img { background-size: contain; background-origin: content-box; padding: 18px 26px; }
 .celb-studio .cs-media--dark .cs-media-stage,
-.celb-studio .cs-media--dark.has-image .cs-media-stage { background-color: #17150f; border-color: #17150f; }
+.celb-studio .cs-media--dark.has-image .cs-media-stage { background-color: #0a0a0a; border-color: #0a0a0a; }
 .celb-studio .cs-media--dark .cs-media-empty { color: #b9b3a6; }
 
 .celb-studio .cs-hero-pair { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 18px; align-items: start; }
@@ -218,7 +218,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .celb-studio .cs-gallery-item:hover img { transform: scale(1.04); }
 .celb-studio .cs-gallery-item.ui-sortable-helper { cursor: grabbing; box-shadow: 0 12px 30px rgba(0, 0, 0, .2); transform: rotate(-2deg); }
 .celb-studio .cs-gallery-ph { aspect-ratio: 1 / 1; border-radius: 12px; border: 2px dashed var(--cs-gold-2); background: var(--cs-gold-soft); visibility: visible !important; list-style: none; }
-.celb-studio .cs-gallery-remove { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(23, 21, 15, .72); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s, background .15s; }
+.celb-studio .cs-gallery-remove { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(10, 10, 10, .72); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s, background .15s; }
 .celb-studio .cs-gallery-item:hover .cs-gallery-remove, .celb-studio .cs-gallery-remove:focus-visible { opacity: 1; }
 .celb-studio .cs-gallery-remove:hover { background: var(--cs-danger); }
 .celb-studio .cs-gallery-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; aspect-ratio: 1 / 1; border: 1.5px dashed var(--cs-line-2); border-radius: 12px; background: var(--cs-sunken); color: var(--cs-ink-3); font: 500 12.5px/1 var(--cs-font); cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
@@ -327,7 +327,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .celb-studio .cs-tabs-bar { position: sticky; top: var(--cs-bar-top); z-index: 20; display: flex; align-items: flex-start; gap: 10px; margin: 0 0 18px; padding: 6px; background: rgba(255, 255, 255, .86); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border: 1px solid var(--cs-line); border-radius: 26px; box-shadow: var(--cs-shadow); }
 .celb-studio .cs-tabs { display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .celb-studio .cs-tab { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 13px; border: 0; border-radius: 999px; background: transparent; color: var(--cs-ink-2); font: 500 13px/1 var(--cs-font); white-space: nowrap; cursor: pointer; transition: background .15s, color .15s; }
-.celb-studio .cs-tab:hover { background: rgba(23, 21, 15, .05); color: var(--cs-ink); }
+.celb-studio .cs-tab:hover { background: rgba(10, 10, 10, .05); color: var(--cs-ink); }
 .celb-studio .cs-tab.is-active { background: var(--cs-ink); color: #fff; }
 .celb-studio .cs-tab:focus-visible { outline: 0; box-shadow: var(--cs-focus); }
 .celb-studio .cs-tab-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; background: #ebe7df; color: var(--cs-ink-2); font-size: 11px; font-weight: 600; }
@@ -369,7 +369,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 
 /* Canvas cards */
 .celb-studio .cs-canvas-layout { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 20px; align-items: start; }
-.celb-studio .cs-canvas { display: block; width: 100%; max-width: 360px; height: auto; border-radius: 12px; background: #17150f; box-shadow: 0 8px 30px rgba(0, 0, 0, .16); }
+.celb-studio .cs-canvas { display: block; width: 100%; max-width: 360px; height: auto; border-radius: 12px; background: #0a0a0a; box-shadow: 0 8px 30px rgba(0, 0, 0, .16); }
 .celb-studio .cs-canvas-empty { display: grid; justify-items: center; gap: 8px; padding: 40px 16px; border: 1.5px dashed var(--cs-line-2); border-radius: 12px; color: var(--cs-ink-3); text-align: center; font-size: 13px; }
 .celb-studio .cs-canvas-empty p { margin: 0; }
 
@@ -393,7 +393,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .cs-screen-celebrity #submitdiv #publish,
 .cs-screen-news #submitdiv #publish { background: var(--cs-ink); border-color: var(--cs-ink); color: #fff; padding: 0 18px; }
 .cs-screen-celebrity #submitdiv #publish:hover,
-.cs-screen-news #submitdiv #publish:hover { background: #2c2920; }
+.cs-screen-news #submitdiv #publish:hover { background: #262626; }
 .cs-screen-celebrity #submitdiv a.submitdelete,
 .cs-screen-news #submitdiv a.submitdelete { color: var(--cs-danger); }
 .cs-screen-celebrity #postimagediv img,
@@ -401,7 +401,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 
 #celb_snapshot .inside, #news_details .inside { margin: 0; padding: 0; }
 .celb-studio .cs-snap { padding: 18px 16px 16px; text-align: center; }
-.celb-studio .cs-snap-photo { position: relative; width: 112px; height: 112px; margin: 0 auto 12px; border-radius: 50%; background: #23211b center / cover no-repeat; box-shadow: 0 0 0 4px #fff, 0 0 0 5px var(--cs-line), 0 10px 26px rgba(0, 0, 0, .14); display: grid; place-items: center; }
+.celb-studio .cs-snap-photo { position: relative; width: 112px; height: 112px; margin: 0 auto 12px; border-radius: 50%; background: #1a1a1a center / cover no-repeat; box-shadow: 0 0 0 4px #fff, 0 0 0 5px var(--cs-line), 0 10px 26px rgba(0, 0, 0, .14); display: grid; place-items: center; }
 .celb-studio .cs-snap-photo.has-photo .cs-snap-mono { display: none; }
 .celb-studio .cs-snap-mono { color: var(--cs-gold-2); font: 600 34px/1 var(--cs-display); letter-spacing: .02em; }
 .celb-studio .cs-snap-name { font: 600 22px/1.2 var(--cs-display); color: var(--cs-ink); word-break: break-word; }
@@ -416,7 +416,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .celb-studio .cs-checks { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 1px; }
 .celb-studio .cs-checks li { margin: 0; }
 .celb-studio .cs-checks button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 5px 6px; border: 0; border-radius: 7px; background: transparent; color: var(--cs-ink-2); font: 400 12.5px/1.3 var(--cs-font); text-align: left; cursor: pointer; }
-.celb-studio .cs-checks button:hover { background: rgba(23, 21, 15, .05); color: var(--cs-ink); }
+.celb-studio .cs-checks button:hover { background: rgba(10, 10, 10, .05); color: var(--cs-ink); }
 .celb-studio .cs-check-dot { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #cfc9be; color: transparent; flex: 0 0 auto; transition: all .2s; }
 .celb-studio .cs-checks li.is-done .cs-check-dot { background: var(--cs-ok); border-color: var(--cs-ok); color: #fff; }
 .celb-studio .cs-checks li.is-done button { color: var(--cs-ink-3); text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, .2); }
@@ -425,7 +425,7 @@ body.celb-studio #wpbody-content { background: var(--cs-bg); }
 .celb-studio .cs-story { padding: 0; }
 .celb-studio .cs-story-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid var(--cs-line); }
 .celb-studio .cs-story-head .cs-hint { margin: 0; flex: 1 1 260px; }
-.celb-studio .cs-lang-code { display: inline-grid; place-items: center; height: 18px; padding: 0 5px; border-radius: 5px; background: rgba(23, 21, 15, .08); font-size: 10px; font-weight: 700; letter-spacing: .05em; }
+.celb-studio .cs-lang-code { display: inline-grid; place-items: center; height: 18px; padding: 0 5px; border-radius: 5px; background: rgba(10, 10, 10, .08); font-size: 10px; font-weight: 700; letter-spacing: .05em; }
 .celb-studio .cs-seg-btn.is-active .cs-lang-code { background: var(--cs-ink); color: #fff; }
 .celb-studio .cs-seg-dot { width: 7px; height: 7px; border-radius: 50%; background: #cfc9be; }
 .celb-studio .cs-seg-dot.is-on { background: var(--cs-ok); }
@@ -470,7 +470,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .cs-screen-list .subsubsub { margin: 14px 0 6px; font-size: 12.5px; }
 .cs-screen-list .subsubsub li { color: transparent; }
 .cs-screen-list .subsubsub a { display: inline-block; padding: 5px 11px; margin: 0 2px 4px 0; border-radius: 999px; color: var(--cs-ink-2); }
-.cs-screen-list .subsubsub a:hover { background: rgba(23, 21, 15, .05); color: var(--cs-ink); }
+.cs-screen-list .subsubsub a:hover { background: rgba(10, 10, 10, .05); color: var(--cs-ink); }
 .cs-screen-list .subsubsub a.current { background: var(--cs-ink); color: #fff; }
 .cs-screen-list .subsubsub a .count { color: inherit; opacity: .6; }
 .cs-screen-list .search-box input[type=search] { min-height: 34px; border-radius: 999px; border-color: var(--cs-line-2); padding: 0 14px; }
@@ -491,7 +491,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .cs-screen-list .column-celb_strength { width: 120px; }
 .cs-screen-list .column-celb_link { width: 15%; }
 .cs-screen-list .column-date { width: 12%; }
-.celb-studio .cs-thumb { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: #23211b center / cover no-repeat; color: var(--cs-gold-2); font: 600 18px/1 var(--cs-display); text-decoration: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06); }
+.celb-studio .cs-thumb { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: #1a1a1a center / cover no-repeat; color: var(--cs-gold-2); font: 600 18px/1 var(--cs-display); text-decoration: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06); }
 .cs-screen-list .column-celb_thumb .cs-row-sub { display: none; }
 .cs-screen-list td.column-title strong { margin-bottom: 0; }
 .cs-screen-list td.column-title strong a.row-title { font: 600 15px/1.3 var(--cs-font); color: var(--cs-ink); }
@@ -503,7 +503,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-strength .cs-meter { flex: 1 1 auto; min-width: 40px; }
 .celb-studio .cs-strength b { font-size: 12px; font-weight: 600; color: var(--cs-ink-2); min-width: 34px; text-align: right; }
 .celb-studio .cs-strength--full .cs-meter > span { background: var(--cs-ok); }
-.celb-studio .cs-strength--low .cs-meter > span { background: #d79a52; }
+.celb-studio .cs-strength--low .cs-meter > span { background: #8ea1b0; }
 .celb-studio .cs-linkchip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 28px; padding: 0 10px; border: 1px solid var(--cs-line-2); border-radius: 999px; background: #fff; color: var(--cs-ink-2); font: 500 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; overflow: hidden; }
 .celb-studio .cs-linkchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .celb-studio .cs-linkchip:hover { border-color: var(--cs-gold); color: var(--cs-gold); }
@@ -514,9 +514,9 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .cs-roster-grid .cs-screen-list .cs-tcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; margin: 4px 0 16px; clear: both; }
 .cs-roster-grid .cs-screen-list .wp-list-table { display: none; }
 .celb-studio .cs-tcard { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--cs-surface); border: 1px solid var(--cs-line); border-radius: 16px; overflow: hidden; box-shadow: var(--cs-shadow); transition: transform .18s, box-shadow .18s, border-color .18s; }
-.celb-studio .cs-tcard:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(23, 21, 15, .12); }
+.celb-studio .cs-tcard:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(10, 10, 10, .12); }
 .celb-studio .cs-tcard.is-picked { border-color: var(--cs-ink); box-shadow: 0 0 0 2px var(--cs-ink); }
-.celb-studio .cs-tcard-media { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; background: #23211b center 20% / cover no-repeat; text-decoration: none; }
+.celb-studio .cs-tcard-media { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; background: #1a1a1a center 20% / cover no-repeat; text-decoration: none; }
 .celb-studio .cs-tcard-media:focus { box-shadow: inset 0 0 0 3px var(--cs-gold-2); outline: 0; }
 .celb-studio .cs-tcard-media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 30%; background: linear-gradient(to top, rgba(0, 0, 0, .28), transparent); pointer-events: none; }
 .celb-studio .cs-tcard-mono { color: var(--cs-gold-2); font: 600 64px/1 var(--cs-display); }
@@ -548,7 +548,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .cs-screen-settings .wrap.cs-settings { margin: 0 20px 0 0; }
 .celb-studio .cs-settings-bar { position: sticky; top: var(--cs-bar-top); z-index: 30; display: flex; align-items: center; gap: 18px; margin: 0 -20px 22px -20px; padding: 14px 20px 14px 22px; background: rgba(244, 242, 238, .88); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--cs-line); }
 .celb-studio .cs-settings-brand { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
-.celb-studio .cs-settings-logo { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #17150f; padding: 8px; box-sizing: border-box; }
+.celb-studio .cs-settings-logo { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #0a0a0a; padding: 8px; box-sizing: border-box; }
 .celb-studio .cs-settings-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .celb-studio .cs-settings-title { margin: 0; font: 600 26px/1 var(--cs-display); color: var(--cs-ink); }
 .celb-studio .cs-settings-search { position: relative; flex: 1 1 auto; max-width: 380px; margin-left: auto; }
@@ -564,7 +564,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-snav-title { margin: 0 0 6px 12px; color: var(--cs-ink-3); font: 600 10.5px/1 var(--cs-font); letter-spacing: .14em; text-transform: uppercase; }
 .celb-studio .cs-snav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--cs-ink-2); font: 500 13.5px/1 var(--cs-font); text-align: left; cursor: pointer; transition: background .15s, color .15s; }
 .celb-studio .cs-snav-item .cs-ic { color: var(--cs-ink-3); }
-.celb-studio .cs-snav-item:hover { background: rgba(23, 21, 15, .05); color: var(--cs-ink); }
+.celb-studio .cs-snav-item:hover { background: rgba(10, 10, 10, .05); color: var(--cs-ink); }
 .celb-studio .cs-snav-item.is-active { background: var(--cs-surface); color: var(--cs-ink); box-shadow: var(--cs-shadow), inset 0 0 0 1px var(--cs-line); }
 .celb-studio .cs-snav-item.is-active .cs-ic { color: var(--cs-gold); }
 .celb-studio .cs-snav-item:focus-visible { outline: 0; box-shadow: var(--cs-focus); }
@@ -591,11 +591,11 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-choice-swatch i { display: block; height: 6px; border-radius: 3px; background: #e2ddd3; }
 .celb-studio .cs-choice-swatch i:first-child { width: 60%; background: #c9c2b5; }
 .celb-studio .cs-choice-swatch i:last-child { width: 80%; }
-.celb-studio .cs-choice-item--dark .cs-choice-swatch { background: #17150f; }
+.celb-studio .cs-choice-item--dark .cs-choice-swatch { background: #0a0a0a; }
 .celb-studio .cs-choice-item--dark .cs-choice-swatch i { background: #3a372f; }
 .celb-studio .cs-choice-item--dark .cs-choice-swatch i:first-child { background: #6a6455; }
 .celb-studio .cs-choice-label { font-size: 12.5px; color: var(--cs-ink-2); }
-.celb-studio .cs-choice-item input:checked + .cs-choice-swatch { border-color: var(--cs-ink); box-shadow: 0 0 0 3px rgba(23, 21, 15, .1); }
+.celb-studio .cs-choice-item input:checked + .cs-choice-swatch { border-color: var(--cs-ink); box-shadow: 0 0 0 3px rgba(10, 10, 10, .1); }
 .celb-studio .cs-choice-item input:focus-visible + .cs-choice-swatch { box-shadow: var(--cs-focus); }
 .celb-studio .cs-field--color .wp-picker-container .wp-color-result.button { min-height: 36px; border-radius: 10px; border-color: var(--cs-line-2); }
 .celb-studio .cs-field--color .wp-color-result-text { border-radius: 0 9px 9px 0; line-height: 34px; }
@@ -605,10 +605,10 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-codes { display: grid; gap: 10px; }
 .celb-studio .cs-code { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px 14px; background: var(--cs-surface); border: 1px solid var(--cs-line); border-radius: 12px; }
 .celb-studio .cs-code p { margin: 0; color: var(--cs-ink-2); font-size: 13px; line-height: 1.5; }
-.celb-studio .cs-code-tag { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: #17150f; color: #f1ece2; cursor: pointer; transition: background .15s; }
+.celb-studio .cs-code-tag { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; height: 34px; padding: 0 12px; border: 0; border-radius: 8px; background: #0a0a0a; color: #f2f4f6; cursor: pointer; transition: background .15s; }
 .celb-studio .cs-code-tag code { background: none; padding: 0; color: inherit; font-size: 12.5px; }
 .celb-studio .cs-code-tag .cs-ic { color: var(--cs-gold-2); }
-.celb-studio .cs-code-tag:hover { background: #2c2920; }
+.celb-studio .cs-code-tag:hover { background: #262626; }
 .celb-studio .cs-code-tag.is-copied { background: var(--cs-ok); }
 .celb-studio .cs-code-tag.is-copied .cs-ic { color: #fff; }
 
@@ -697,7 +697,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .cs-screen-requests #the-list tr.cs-ar-read .cs-ar-excerpt { color: var(--cs-ink-3); }
 .celb-studio .cs-ar-excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--cs-ink-2); font-size: 13px; line-height: 1.5; }
 .celb-studio .cs-ar-stack { display: flex; margin-bottom: 4px; }
-.celb-studio .cs-ar-face { display: grid; place-items: center; width: 28px; height: 28px; margin-right: -8px; border-radius: 50%; border: 2px solid #fff; background: #23211b center / cover no-repeat; color: var(--cs-gold-2); font: 600 10px/1 var(--cs-font); }
+.celb-studio .cs-ar-face { display: grid; place-items: center; width: 28px; height: 28px; margin-right: -8px; border-radius: 50%; border: 2px solid #fff; background: #1a1a1a center / cover no-repeat; color: var(--cs-gold-2); font: 600 10px/1 var(--cs-font); }
 .celb-studio .cs-ar-face--more { background: #ebe7df; color: var(--cs-ink-2); }
 .celb-studio .cs-ar-names { display: block; color: var(--cs-ink-3); font-size: 12px; }
 .celb-studio .cs-ar-reach { display: flex; gap: 4px; }
@@ -739,7 +739,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-ar-artists { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .celb-studio .cs-ar-artist { display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--cs-line); border-radius: 12px; background: var(--cs-sunken); color: var(--cs-ink); text-decoration: none; transition: border-color .15s, background .15s; }
 .celb-studio .cs-ar-artist:hover { border-color: var(--cs-gold-2); background: var(--cs-gold-soft); color: var(--cs-ink); }
-.celb-studio .cs-ar-artist-photo { display: grid; place-items: center; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; background: #23211b center 20% / cover no-repeat; color: var(--cs-gold-2); font: 600 16px/1 var(--cs-display); }
+.celb-studio .cs-ar-artist-photo { display: grid; place-items: center; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; background: #1a1a1a center 20% / cover no-repeat; color: var(--cs-gold-2); font: 600 16px/1 var(--cs-display); }
 .celb-studio .cs-ar-artist-txt { display: grid; min-width: 0; }
 .celb-studio .cs-ar-artist-txt b { font: 600 17px/1.2 var(--cs-display); }
 .celb-studio .cs-ar-artist-txt small { color: var(--cs-ink-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -787,3 +787,9 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 	.celb-studio .cs-ar-name { font-size: 28px; }
 	.celb-studio .cs-ar-dl > div { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* Card view: one toolbar only (the bottom bar duplicates the top one). */
+.cs-roster-grid .cs-screen-roster .tablenav.bottom { display: none; }
+/* Request view: keep the sidebar clear of the Screen Options tab. */
+.cs-screen-request #poststuff { padding-top: 40px; }
+.cs-screen-request .cs-ar-nav { margin-top: -34px; }

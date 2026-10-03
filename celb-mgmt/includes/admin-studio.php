@@ -610,7 +610,7 @@ function celb_studio_celebrity_workspace( $post ) {
 
 	/* ---- Career ---- */
 	celb_studio_panel_open( 'career', $default );
-	celb_studio_card_open( __( 'Career history', 'celb-mgmt' ), __( 'Shown newest year first. “Coming soon” pins a project to the top with a gold badge.', 'celb-mgmt' ), 'film' );
+	celb_studio_card_open( __( 'Career history', 'celb-mgmt' ), __( 'Shown newest year first. “Coming soon” pins a project to the top with a badge.', 'celb-mgmt' ), 'film' );
 	celb_studio_repeater( 'career', $career, 'celb_studio_career_row', array(
 		'add'   => __( 'Add project', 'celb-mgmt' ),
 		'cols'  => array( __( 'Project', 'celb-mgmt' ), __( 'Character / role', 'celb-mgmt' ), __( 'Type', 'celb-mgmt' ), __( 'Year', 'celb-mgmt' ), __( 'Flags', 'celb-mgmt' ) ),
