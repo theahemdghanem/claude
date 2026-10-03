@@ -470,20 +470,124 @@
 	   --------------------------------------------------------------------- */
 	function initList() {
 		var root = document.documentElement;
+		var $table = $('.wp-list-table').first();
+		var $cards = buildCards($table);
+
 		function view(v) {
 			root.classList.toggle('cs-roster-grid', v === 'grid');
 			$('[data-cs-view]').each(function () { this.classList.toggle('is-active', this.getAttribute('data-cs-view') === v); });
 			sset('localStorage', 'celbRosterView', v);
+			// Keep card ticks in step with the table (bulk actions read the table).
+			if ($cards) {
+				$cards.find('[data-cs-pick]').each(function () {
+					var orig = document.getElementById(this.getAttribute('data-cs-pick'));
+					this.checked = !!(orig && orig.checked);
+					$(this).closest('.cs-tcard').toggleClass('is-picked', this.checked);
+				});
+			}
 		}
 		$(document).on('click', '[data-cs-view]', function () { view(this.getAttribute('data-cs-view')); });
 		view(root.classList.contains('cs-roster-grid') ? 'grid' : 'list');
 
-		// Role / nationality line sits under the name in both layouts.
+		moveSubs();
+
+		// Card ticks drive the real checkboxes; Quick Edit opens in the table.
+		$(document).on('change', '[data-cs-pick]', function () {
+			var orig = document.getElementById(this.getAttribute('data-cs-pick'));
+			if (orig) { orig.checked = this.checked; }
+			$(this).closest('.cs-tcard').toggleClass('is-picked', this.checked);
+		});
+		$(document).on('click', '[data-cs-quickedit]', function (e) {
+			e.preventDefault();
+			var row = this.getAttribute('data-cs-quickedit');
+			view('list');
+			var btn = document.querySelector('#' + row + ' .editinline');
+			if (btn) { btn.click(); }
+		});
+	}
+
+	/* Secondary line (role / nationality, or brand / email) under the row title. */
+	function moveSubs() {
 		$('#the-list tr').each(function () {
 			var $sub = $(this).find('[data-cs-sub]');
 			var $strong = $(this).find('td.column-title strong').first();
 			if ($sub.length && $strong.length) { $sub.insertAfter($strong); }
 		});
+	}
+
+	/* Artist request view: replying flips the status to Replied; notes save via Update. */
+	function initRequest() {
+		var $pub = $('#publish');
+		$(document).on('click', '[data-cs-ar-submit]', function (e) {
+			e.preventDefault();
+			if ($pub.length) { $pub.trigger('click'); }
+		});
+		$(document).on('click', '[data-cs-ar-replied]', function () {
+			var $cur = $('input[name="ar_status"]:checked');
+			if (!$cur.length || $cur.val() === 'new' || $cur.val() === 'progress') {
+				$('input[name="ar_status"][value="replied"]').prop('checked', true).trigger('change');
+				$('[data-cs-ar-hint]').prop('hidden', false);
+			}
+		});
+		$(document).on('keydown', function (e) {
+			if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); $pub.trigger('click'); }
+		});
+	}
+
+	/* Cards are built only from our own columns, so columns other plugins add
+	   (SEO scores, view counters…) never end up inside a card. */
+	function buildCards($table) {
+		if (!$table.length || !$('#the-list').length) { return null; }
+		var $wrap = $('<div class="cs-tcards" />');
+		$('#the-list > tr').each(function () {
+			var $tr = $(this), id = this.id;
+			if (!id || $tr.hasClass('no-items')) { return; }
+			var $link = $tr.find('a.row-title').first();
+			var $card = $('<article class="cs-tcard" />').attr('data-row', id);
+
+			var $media = $('<a class="cs-tcard-media" />').attr('href', $link.attr('href') || '#');
+			var $thumb = $tr.find('.cs-thumb').first();
+			var bg = $thumb.css('background-image');
+			if (bg && bg !== 'none') { $media.css('background-image', bg).addClass('has-photo'); }
+			else { $media.append($('<span class="cs-tcard-mono" />').text($.trim($thumb.text()))); }
+			$card.append($media);
+
+			var $cb = $tr.find('th.check-column input[type=checkbox]').first();
+			if ($cb.length) {
+				if (!$cb.attr('id')) { $cb.attr('id', 'cs-cb-' + id); }
+				$card.append($('<label class="cs-tcard-pick" />').append(
+					$('<input type="checkbox" />').attr('data-cs-pick', $cb.attr('id')).attr('aria-label', $.trim($link.text()))
+				));
+			}
+
+			var $body = $('<div class="cs-tcard-body" />');
+			$body.append($('<h3 class="cs-tcard-name" />').append($('<a />').attr('href', $link.attr('href') || '#').text($.trim($link.text()))));
+			$body.append($('<p class="cs-tcard-sub" />').text($.trim($tr.find('[data-cs-sub]').first().text())));
+			$body.append($tr.find('td.column-celb_flags .cs-badges').first().clone());
+			$body.append($tr.find('td.column-celb_cats .cs-cats').first().clone());
+			$body.append($tr.find('td.column-celb_strength .cs-strength').first().clone());
+			$card.append($body);
+
+			var $foot = $('<div class="cs-tcard-foot" />');
+			$foot.append($tr.find('td.column-celb_link .cs-linkchip').first().clone());
+			var $acts = $('<div class="cs-tcard-actions" />');
+			$tr.find('.row-actions > span').each(function () {
+				var $a = $(this).children('a, button').first();
+				if (!$a.length) { return; }
+				if ($a.hasClass('editinline')) {
+					$acts.append($('<button type="button" />').text($.trim($a.text())).attr('data-cs-quickedit', id));
+				} else {
+					var $c = $a.clone().removeAttr('aria-label');
+					if (this.className.indexOf('trash') !== -1 || this.className.indexOf('delete') !== -1) { $c.addClass('is-danger'); }
+					$acts.append($c);
+				}
+			});
+			$foot.append($acts);
+			$card.append($foot);
+			$wrap.append($card);
+		});
+		$wrap.insertBefore($table);
+		return $wrap;
 	}
 
 	/* ---------------------------------------------------------------------
@@ -604,6 +708,8 @@
 			$('body').addClass('cs-ready');
 		}
 		if (CFG.screen === 'list') { initList(); }
+		if (CFG.screen === 'requests') { moveSubs(); }
+		if (CFG.screen === 'request') { initRequest(); }
 		if (CFG.screen === 'settings') { initSettings(); }
 	});
 })(jQuery);

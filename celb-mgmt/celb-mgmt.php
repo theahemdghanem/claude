@@ -3,7 +3,7 @@
  * Plugin Name:       CELB MGMT
  * Plugin URI:        https://ilike.agency
  * Description:       Celebrity management directory for iLike Agency: profiles, grid, carousel, individual pages, awards, galleries, social links, and a password-protected front-end self-submission portal.
- * Version:           2.8.0
+ * Version:           2.8.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            iLike Agency
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CELB_VERSION', '2.8.0' );
+define( 'CELB_VERSION', '2.8.1' );
 define( 'CELB_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CELB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CELB_CPT', 'celebrity' );
@@ -26,6 +26,7 @@ require_once CELB_PATH . 'includes/works.php';
 
 /* Admin UI ("Studio"): celebrity list, celebrity + newsroom editors, settings. */
 require_once CELB_PATH . 'includes/admin-studio.php';
+require_once CELB_PATH . 'includes/admin-requests.php';
 
 /* -------------------------------------------------------------------------
  * 1. CUSTOM POST TYPE
@@ -7788,9 +7789,15 @@ add_action( 'admin_post_celb_cal_regen', function () {
 function celb_artreq_register() {
 	register_post_type( 'celb_artreq', array(
 		'labels'          => array(
-			'name'          => __( 'Artist Requests', 'celb-mgmt' ),
-			'singular_name' => __( 'Artist Request', 'celb-mgmt' ),
-			'menu_name'     => __( 'Artist Requests', 'celb-mgmt' ),
+			'name'               => __( 'Artist Requests', 'celb-mgmt' ),
+			'singular_name'      => __( 'Artist Request', 'celb-mgmt' ),
+			'menu_name'          => __( 'Artist Requests', 'celb-mgmt' ),
+			'all_items'          => __( 'Artist Requests', 'celb-mgmt' ),
+			'edit_item'          => __( 'Artist Request', 'celb-mgmt' ),
+			'view_item'          => __( 'View Request', 'celb-mgmt' ),
+			'search_items'       => __( 'Search Requests', 'celb-mgmt' ),
+			'not_found'          => __( 'No requests yet.', 'celb-mgmt' ),
+			'not_found_in_trash' => __( 'No requests in the trash.', 'celb-mgmt' ),
 		),
 		'public'          => false,
 		'show_ui'         => true,
@@ -7804,39 +7811,7 @@ function celb_artreq_register() {
 }
 add_action( 'init', 'celb_artreq_register' );
 
-/* Admin columns for the inbox. */
-add_filter( 'manage_celb_artreq_posts_columns', function ( $c ) {
-	return array(
-		'cb'       => isset( $c['cb'] ) ? $c['cb'] : '',
-		'title'    => __( 'Name', 'celb-mgmt' ),
-		'ar_contact' => __( 'Contact', 'celb-mgmt' ),
-		'ar_artists' => __( 'Artists', 'celb-mgmt' ),
-		'ar_msg'   => __( 'Details', 'celb-mgmt' ),
-		'date'     => __( 'Received', 'celb-mgmt' ),
-	);
-} );
-add_action( 'manage_celb_artreq_posts_custom_column', function ( $col, $post_id ) {
-	if ( 'ar_contact' === $col ) {
-		$email = get_post_meta( $post_id, '_ar_email', true );
-		$phone = get_post_meta( $post_id, '_ar_phone', true );
-		$wa    = get_post_meta( $post_id, '_ar_wa', true );
-		$bits  = array();
-		if ( $email ) { $bits[] = '<a href="mailto:' . esc_attr( $email ) . '">' . esc_html( $email ) . '</a>'; }
-		if ( $phone ) { $bits[] = esc_html__( 'Tel:', 'celb-mgmt' ) . ' ' . esc_html( $phone ); }
-		if ( $wa ) { $bits[] = 'WhatsApp: <a href="https://wa.me/' . esc_attr( preg_replace( '/[^0-9]/', '', $wa ) ) . '" target="_blank" rel="noopener">' . esc_html( $wa ) . '</a>'; }
-		echo wp_kses_post( implode( '<br>', $bits ) );
-	} elseif ( 'ar_artists' === $col ) {
-		$ids   = (array) get_post_meta( $post_id, '_ar_artists', true );
-		$names = array();
-		foreach ( $ids as $id ) {
-			$t = get_the_title( (int) $id );
-			if ( $t ) { $names[] = $t; }
-		}
-		echo $names ? esc_html( implode( ', ', $names ) ) : '<em>' . esc_html__( 'All artists', 'celb-mgmt' ) . '</em>';
-	} elseif ( 'ar_msg' === $col ) {
-		echo esc_html( wp_trim_words( (string) get_post_meta( $post_id, '_ar_details', true ), 22, '…' ) );
-	}
-}, 10, 2 );
+/* Inbox UI (list + request view): includes/admin-requests.php. */
 
 /* Live list of bookable artists (auto-updates as the roster changes). */
 function celb_artreq_artists() {
@@ -8072,9 +8047,9 @@ function celb_artreq_handle() {
 		$names[] = get_the_title( $id );
 	}
 	$to = ! empty( $s['contact_recipient'] ) ? $s['contact_recipient'] : get_option( 'admin_email' );
-	if ( function_exists( 'celb_send_notice' ) ) {
+	foreach ( array_filter( array_map( 'trim', explode( ',', $to ) ) ) as $recipient ) {
 		celb_send_notice(
-			$to,
+			$recipient,
 			sprintf( '[%1$s] %2$s — %3$s', get_bloginfo( 'name' ), __( 'New artist request', 'celb-mgmt' ), $name ),
 			__( 'New artist request', 'celb-mgmt' ),
 			array(

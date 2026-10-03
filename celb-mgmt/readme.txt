@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.8.0
+Stable tag: 2.8.1
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,26 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 2.8.1 =
+* Fixed: roster cards no longer pick up columns added by other plugins (SEO
+  scores, titles, view counters). Cards are built from the roster's own fields;
+  ticking a card selects it for bulk actions, Quick Edit opens in List view.
+* Fixed: Share & Access tab — cards stack per column, so a short card no longer
+  leaves a gap under it.
+* Fixed: opening an Artist Request showed an empty page. Requests now open in a
+  full request view.
+* New: Artist Requests inbox — header with counts per status, unread
+  highlighting and a menu badge, sender / request / artists / reach / received
+  columns, artist filter, search across every submitted field, bulk "Mark as…"
+  (status, read, unread).
+* New: request view — sender header with Reply by email, WhatsApp, Call and
+  Copy email; the full message; requested artists with photos linking to their
+  profiles; contact details; status (New, In progress, Replied, Booked, Closed);
+  internal notes and an activity log. Replying flips the status to Replied.
+* Fixed: artist request notifications now reach every address in the
+  comma-separated "Send requests to" setting (previously none were sent when
+  more than one address was entered).
 
 = 2.8.0 =
 * Redesigned admin ("Studio") for four screens. All field names and stored data

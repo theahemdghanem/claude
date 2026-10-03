@@ -297,7 +297,8 @@ function celb_studio_screen() {
 	if ( 'edit-' . CELB_CPT === $screen->id ) {
 		return 'list';
 	}
-	return '';
+	/* Other modules (e.g. Artist Requests) register their screens here. */
+	return (string) apply_filters( 'celb_studio_screen', '', $screen );
 }
 
 /* =========================================================================
@@ -313,7 +314,7 @@ function celb_studio_enqueue( $hook ) {
 	wp_enqueue_style( 'celb-studio', CELB_URL . 'assets/celb-studio.css', array(), CELB_VERSION );
 
 	$deps = array( 'jquery' );
-	if ( 'list' !== $which ) {
+	if ( in_array( $which, array( 'celebrity', 'news', 'settings' ), true ) ) {
 		wp_enqueue_media();
 		wp_enqueue_script( 'jquery-ui-sortable' );
 		$deps[] = 'jquery-ui-sortable';
@@ -407,7 +408,12 @@ add_action( 'admin_enqueue_scripts', 'celb_studio_enqueue' );
 /* Body classes so the stylesheet only ever touches our screens. */
 add_filter( 'admin_body_class', function ( $classes ) {
 	$which = celb_studio_screen();
-	return $which ? $classes . ' celb-studio cs-screen-' . $which . ' ' : $classes;
+	if ( ! $which ) {
+		return $classes;
+	}
+	/* Both inbox-style lists share the list styling. */
+	$extra = 'requests' === $which ? ' cs-screen-list' : ( 'list' === $which ? ' cs-screen-roster' : '' );
+	return $classes . ' celb-studio cs-screen-' . $which . $extra . ' ';
 } );
 
 /* =========================================================================
@@ -662,14 +668,15 @@ function celb_studio_celebrity_workspace( $post ) {
 
 	/* ---- Share & Access ---- */
 	celb_studio_panel_open( 'share', $default );
-	echo '<div class="cs-grid cs-grid--2">';
+	/* Two independent columns so a short card never leaves a gap beside a tall one. */
+	echo '<div class="cs-columns">';
+	echo '<div class="cs-col">';
 	celb_studio_smartlink_card( $post );
-	celb_studio_cal_card( $post );
-	echo '</div>';
-	echo '<div class="cs-grid cs-grid--2">';
 	celb_studio_announce_card( $post );
+	echo '</div><div class="cs-col">';
+	celb_studio_cal_card( $post );
 	celb_studio_login_card( $post );
-	echo '</div>';
+	echo '</div></div>';
 	celb_studio_panel_close();
 
 	echo '</div>';
