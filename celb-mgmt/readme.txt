@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.8.2
+Stable tag: 2.9.0
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,30 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 2.9.0 =
+* Studio redesign for the operations screens (new includes/admin-workspace.php).
+  Field names and stored data are unchanged.
+* Lists with a header, filter tiles and rebuilt columns: Projects (status,
+  dates, shooting-day progress, next day), Schedule (date tiles, Today / Next 7
+  days / Upcoming / Past, talent + type filters, sorted by date), Requests,
+  Contracts (terms summary, copy signing link / signed PDF), Contract Templates
+  (language, fields, contracts issued), Rate Cards (Live / Off / Templates,
+  services count, copy link) and Newsroom (thumbnail, talent, EN/AR, media).
+* Editors: Schedule entry (who & what, status picker with postponed date, when,
+  where, notes, attachments, at-a-glance sidebar), Contract (parties with talent
+  photo, commission grid with tokens, monthly retainer, signing sidebar) and
+  Contract Template (field rows with auto keys, click-to-insert placeholders,
+  language switch). Booking request view rebuilt as cards. Projects, Rate Cards
+  and all other CELB editors get the shared Studio skin.
+* Pages: Rate Card Onboarding (generate link, active links with copy / revoke,
+  submissions with a price preview and one-click import), Personal Data form
+  builder (section cards, drag-and-drop, dropdown options inline, sticky save)
+  and Personal Data submissions (card grid, search, tap-to-call / mailto, copy
+  as text, highlighted emergency section).
+* Fixed: attachments added to a Schedule entry in wp-admin were never saved.
+* Fixed: notification emails now reach every address in a comma-separated
+  recipient list (rate-card and personal-data notices included).
 
 = 2.8.2 =
 * Admin colours: text #0a0a0a, accent #536878 across the Studio screens

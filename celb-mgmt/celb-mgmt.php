@@ -3,7 +3,7 @@
  * Plugin Name:       CELB MGMT
  * Plugin URI:        https://ilike.agency
  * Description:       Celebrity management directory for iLike Agency: profiles, grid, carousel, individual pages, awards, galleries, social links, and a password-protected front-end self-submission portal.
- * Version:           2.8.2
+ * Version:           2.9.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            iLike Agency
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CELB_VERSION', '2.8.2' );
+define( 'CELB_VERSION', '2.9.0' );
 define( 'CELB_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CELB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CELB_CPT', 'celebrity' );
@@ -1800,27 +1800,6 @@ function celb_news_zip() {
 }
 add_action( 'wp_ajax_celb_news_zip', 'celb_news_zip' );
 add_action( 'wp_ajax_nopriv_celb_news_zip', 'celb_news_zip' );
-
-/* ---- Admin list column: which celebrity ---- */
-function celb_news_columns( $cols ) {
-	$new = array();
-	foreach ( $cols as $k => $v ) {
-		$new[ $k ] = $v;
-		if ( 'title' === $k ) {
-			$new['news_celebrity'] = __( 'Celebrity', 'celb-mgmt' );
-		}
-	}
-	return $new;
-}
-add_filter( 'manage_celeb_news_posts_columns', 'celb_news_columns' );
-
-function celb_news_column( $col, $post_id ) {
-	if ( 'news_celebrity' === $col ) {
-		$cid = (int) get_post_meta( $post_id, '_news_celebrity', true );
-		echo $cid ? esc_html( get_the_title( $cid ) ) : '&mdash;';
-	}
-}
-add_action( 'manage_celeb_news_posts_custom_column', 'celb_news_column', 10, 2 );
 
 /* ---- Image resolvers (dedicated header image, featured thumbnail) ---- */
 function celb_news_header_img( $news_id, $size = 'full' ) {
@@ -3948,52 +3927,7 @@ function celb_proj_box_updates( $post ) {
 	echo '</div>';
 }
 
-/* ---- Schedule box ---- */
-function celb_sched_box_details( $post ) {
-	wp_nonce_field( 'celb_sched_save', 'celb_sched_nonce' );
-	$celeb = (int) get_post_meta( $post->ID, '_sched_celeb', true );
-	$type  = get_post_meta( $post->ID, '_sched_type', true );
-	$date  = get_post_meta( $post->ID, '_sched_date', true );
-	$time  = get_post_meta( $post->ID, '_sched_time', true );
-	$dur   = (int) get_post_meta( $post->ID, '_sched_duration', true );
-	$loc   = get_post_meta( $post->ID, '_sched_location', true );
-	if ( ! is_array( $loc ) ) { $loc = array(); }
-	$desc = get_post_meta( $post->ID, '_sched_desc', true );
-	$prep = get_post_meta( $post->ID, '_sched_prep', true );
-	$rem  = (int) get_post_meta( $post->ID, '_sched_reminder', true );
-	echo '<table class="form-table"><tbody>';
-	echo '<tr><th>' . esc_html__( 'Celebrity', 'celb-mgmt' ) . '</th><td><select name="sched_celeb" class="widefat">' . celb_celeb_options( $celeb ) . '</select></td></tr>';
-	$s_email = get_post_meta( $post->ID, '_sched_celeb_email', true );
-	echo '<tr><th>' . esc_html__( 'Celebrity email', 'celb-mgmt' ) . '</th><td><input type="email" name="sched_celeb_email" class="widefat" value="' . esc_attr( $s_email ) . '" placeholder="name@email.com"><p class="description">' . esc_html__( 'Notifications about this schedule (new date, postponement, cancellation) are sent here.', 'celb-mgmt' ) . '</p></td></tr>';
-	$s_status = get_post_meta( $post->ID, '_sched_status', true );
-	echo '<tr><th>' . esc_html__( 'Status', 'celb-mgmt' ) . '</th><td>' . celb_admin_select( 'sched_status', celb_sched_statuses(), $s_status ) . '</td></tr>';
-	$type_o = get_post_meta( $post->ID, '_sched_type_other', true );
-	$s_other_style = ( 'Other' === $type ) ? '' : ' style="display:none"';
-	echo '<tr><th>' . esc_html__( 'Type', 'celb-mgmt' ) . '</th><td>' . celb_admin_select( 'sched_type', celb_sched_types(), $type, 'celb-type-select' ) . ' <span class="description">' . esc_html__( '“Unavailable” / “Personal” block off time.', 'celb-mgmt' ) . '</span></td></tr>';
-	echo '<tr class="celb-type-other"' . $s_other_style . '><th>' . esc_html__( 'Specify type', 'celb-mgmt' ) . '</th><td><input type="text" name="sched_type_other" class="widefat" value="' . esc_attr( $type_o ) . '"></td></tr>';
-	echo '<tr><th>' . esc_html__( 'Date', 'celb-mgmt' ) . '</th><td><input type="date" name="sched_date" value="' . esc_attr( $date ) . '"></td></tr>';
-	echo '<tr><th>' . esc_html__( 'Time', 'celb-mgmt' ) . '</th><td><input type="time" name="sched_time" value="' . esc_attr( $time ) . '"></td></tr>';
-	$s_ndate = get_post_meta( $post->ID, '_sched_new_date', true );
-	$s_ntime = get_post_meta( $post->ID, '_sched_new_time', true );
-	$pp_style = ( 'Postponed' === $s_status ) ? '' : ' style="display:none"';
-	echo '<tr class="celb-sched-postpone"' . $pp_style . '><th>' . esc_html__( 'Postponed to', 'celb-mgmt' ) . '</th><td><input type="date" name="sched_new_date" value="' . esc_attr( $s_ndate ) . '"> <input type="time" name="sched_new_time" value="' . esc_attr( $s_ntime ) . '"><p class="description">' . esc_html__( 'When Status is Postponed, the calendar event moves to this date/time and the celebrity is emailed.', 'celb-mgmt' ) . '</p></td></tr>';
-	echo '<tr><th>' . esc_html__( 'Duration (hours)', 'celb-mgmt' ) . '</th><td><input type="number" min="0" step="0.5" name="sched_duration" value="' . esc_attr( $dur ? rtrim( rtrim( number_format( $dur / 60, 2, '.', '' ), '0' ), '.' ) : '' ) . '"> <span class="description">' . esc_html__( 'e.g. 1.5 = 1 hour 30 min', 'celb-mgmt' ) . '</span></td></tr>';
-	$s_recur = get_post_meta( $post->ID, '_sched_recur', true );
-	$s_until = get_post_meta( $post->ID, '_sched_recur_until', true );
-	echo '<tr><th>' . esc_html__( 'Recurring', 'celb-mgmt' ) . '</th><td><label><input type="checkbox" name="sched_recur" value="1"' . checked( $s_recur, '1', false ) . '> ' . esc_html__( 'Repeat weekly on this weekday', 'celb-mgmt' ) . '</label> &nbsp; ' . esc_html__( 'until', 'celb-mgmt' ) . ' <input type="date" name="sched_recur_until" value="' . esc_attr( $s_until ) . '"><p class="description">' . esc_html__( 'For a weekly commitment (e.g. a TV show every Wednesday). Blocks the celebrity as unavailable each week from the date above.', 'celb-mgmt' ) . '</p></td></tr>';
-	echo '<tr><th>' . esc_html__( 'Location label', 'celb-mgmt' ) . '</th><td><input type="text" name="sched_loc_label" class="widefat" value="' . esc_attr( isset( $loc['label'] ) ? $loc['label'] : '' ) . '"></td></tr>';
-	echo '<tr><th>' . esc_html__( 'Address (Maps)', 'celb-mgmt' ) . '</th><td><input type="text" name="sched_loc_addr" class="widefat" value="' . esc_attr( isset( $loc['address'] ) ? $loc['address'] : '' ) . '">';
-	if ( ! empty( $loc['map'] ) ) { echo ' <a href="' . esc_url( $loc['map'] ) . '" target="_blank">' . esc_html__( 'Open in Maps', 'celb-mgmt' ) . '</a>'; }
-	echo '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Description', 'celb-mgmt' ) . '</th><td><textarea name="sched_desc" class="widefat" rows="3">' . esc_textarea( $desc ) . '</textarea></td></tr>';
-	echo '<tr><th>' . esc_html__( 'Preparation notes', 'celb-mgmt' ) . '</th><td><textarea name="sched_prep" class="widefat" rows="3">' . esc_textarea( $prep ) . '</textarea></td></tr>';
-	$remopts = array( '0' => __( 'No reminder', 'celb-mgmt' ), '5' => '5 min', '15' => '15 min', '30' => '30 min', '60' => '1 hour', '120' => '2 hours', '1440' => '1 day' );
-	echo '<tr><th>' . esc_html__( 'Reminder', 'celb-mgmt' ) . '</th><td><select name="sched_reminder">';
-	foreach ( $remopts as $v => $lab ) { echo '<option value="' . esc_attr( $v ) . '"' . selected( $rem, (int) $v, false ) . '>' . esc_html( $lab ) . '</option>'; }
-	echo '</select>';
-	if ( $post->ID && 'auto-draft' !== get_post_status( $post->ID ) ) { echo ' &nbsp; <a class="button" href="' . esc_url( celb_sched_ics_url( $post->ID ) ) . '">' . esc_html__( 'Add to calendar', 'celb-mgmt' ) . '</a>'; }
-	echo '</td></tr></tbody></table>';
-}
+/* UI: includes/admin-workspace.php */
 
 /* ---- Save ---- */
 function celb_wc_admin_save( $post_id ) {
@@ -4130,54 +4064,7 @@ function celb_wc_admin_save( $post_id ) {
 }
 add_action( 'save_post', 'celb_wc_admin_save' );
 
-/* ---- Admin list columns ---- */
-add_filter( 'manage_celb_project_posts_columns', function ( $cols ) {
-	$new = array();
-	foreach ( $cols as $k => $v ) {
-		$new[ $k ] = $v;
-		if ( 'title' === $k ) {
-			$new['celb_celeb']  = __( 'Celebrity', 'celb-mgmt' );
-			$new['celb_status'] = __( 'Status', 'celb-mgmt' );
-			$new['celb_days']   = __( 'Days (done/total)', 'celb-mgmt' );
-		}
-	}
-	return $new;
-} );
-add_action( 'manage_celb_project_posts_custom_column', function ( $col, $id ) {
-	if ( 'celb_celeb' === $col ) {
-		$c = (int) get_post_meta( $id, '_proj_celeb', true );
-		echo $c ? esc_html( get_the_title( $c ) ) : '—';
-	} elseif ( 'celb_status' === $col ) {
-		echo esc_html( get_post_meta( $id, '_proj_status', true ) ?: '—' );
-	} elseif ( 'celb_days' === $col ) {
-		$cnt = celb_project_counts( get_post_meta( $id, '_proj_days', true ) );
-		echo (int) $cnt['completed'] . ' / ' . (int) $cnt['total'];
-	}
-}, 10, 2 );
-add_filter( 'manage_celb_sched_posts_columns', function ( $cols ) {
-	$new = array();
-	foreach ( $cols as $k => $v ) {
-		$new[ $k ] = $v;
-		if ( 'title' === $k ) {
-			$new['celb_celeb'] = __( 'Celebrity', 'celb-mgmt' );
-			$new['celb_type']  = __( 'Type', 'celb-mgmt' );
-			$new['celb_when']  = __( 'When', 'celb-mgmt' );
-		}
-	}
-	return $new;
-} );
-add_action( 'manage_celb_sched_posts_custom_column', function ( $col, $id ) {
-	if ( 'celb_celeb' === $col ) {
-		$c = (int) get_post_meta( $id, '_sched_celeb', true );
-		echo $c ? esc_html( get_the_title( $c ) ) : '—';
-	} elseif ( 'celb_type' === $col ) {
-		echo esc_html( get_post_meta( $id, '_sched_type', true ) ?: '—' );
-	} elseif ( 'celb_when' === $col ) {
-		$d = get_post_meta( $id, '_sched_date', true );
-		$t = get_post_meta( $id, '_sched_time', true );
-		echo esc_html( trim( $d . ' ' . $t ) ?: '—' );
-	}
-}, 10, 2 );
+/* UI: includes/admin-workspace.php */
 
 /* ---- Admin assets ---- */
 function celb_wc_admin_assets( $hook ) {
@@ -4334,36 +4221,6 @@ add_shortcode( 'CLEB_request', 'celb_artreq_shortcode' );
 add_shortcode( 'CLEB_booking', 'celb_request_shortcode' );
 
 /* ---- Admin inbox: filter by celebrity + sort by date + status ---- */
-add_filter( 'manage_celb_request_posts_columns', function ( $cols ) {
-	return array(
-		'cb'         => isset( $cols['cb'] ) ? $cols['cb'] : '',
-		'title'      => __( 'Requester', 'celb-mgmt' ),
-		'celb_celeb' => __( 'Celebrity', 'celb-mgmt' ),
-		'celb_type'  => __( 'Type', 'celb-mgmt' ),
-		'celb_stat'  => __( 'Status', 'celb-mgmt' ),
-		'celb_contact' => __( 'Contact', 'celb-mgmt' ),
-		'date'       => __( 'Received', 'celb-mgmt' ),
-	);
-} );
-add_action( 'manage_celb_request_posts_custom_column', function ( $col, $id ) {
-	if ( 'celb_celeb' === $col ) {
-		$c = (int) get_post_meta( $id, '_req_celeb', true );
-		echo $c ? esc_html( get_the_title( $c ) ) : '—';
-	} elseif ( 'celb_type' === $col ) {
-		echo esc_html( get_post_meta( $id, '_req_type', true ) ?: '—' );
-	} elseif ( 'celb_stat' === $col ) {
-		echo esc_html( celb_request_status_label( get_post_meta( $id, '_req_status', true ) ?: 'new' ) );
-	} elseif ( 'celb_contact' === $col ) {
-		$e = get_post_meta( $id, '_req_email', true );
-		$p = get_post_meta( $id, '_req_phone', true );
-		$bits = array();
-		if ( $e ) { $bits[] = '<a href="mailto:' . esc_attr( $e ) . '">' . esc_html( $e ) . '</a>'; }
-		if ( $p ) { $bits[] = esc_html( $p ); }
-		echo $bits ? implode( '<br>', $bits ) : '—';
-	}
-}, 10, 2 );
-add_filter( 'manage_edit-celb_request_sortable_columns', function ( $c ) { $c['date'] = 'date'; return $c; } );
-
 add_action( 'restrict_manage_posts', function ( $pt ) {
 	if ( 'celb_request' !== $pt ) { return; }
 	$sel = isset( $_GET['req_celeb'] ) ? (int) $_GET['req_celeb'] : 0;
@@ -4389,29 +4246,7 @@ add_filter( 'parse_query', function ( $q ) {
 	return $q;
 } );
 
-/* Request detail meta box */
-add_action( 'add_meta_boxes', function () {
-	add_meta_box( 'celb_request_box', __( 'Request', 'celb-mgmt' ), 'celb_request_box_html', 'celb_request', 'normal', 'high' );
-} );
-function celb_request_box_html( $post ) {
-	wp_nonce_field( 'celb_request_admin', 'celb_request_admin_nonce' );
-	$d = celb_request_data( $post->ID );
-	echo '<table class="form-table"><tbody>';
-	echo '<tr><th>' . esc_html__( 'Celebrity', 'celb-mgmt' ) . '</th><td>' . esc_html( $d['celeb_name'] ?: '—' ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Name', 'celb-mgmt' ) . '</th><td>' . esc_html( $d['name'] ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Email', 'celb-mgmt' ) . '</th><td>' . ( $d['email'] ? '<a href="mailto:' . esc_attr( $d['email'] ) . '">' . esc_html( $d['email'] ) . '</a>' : '—' ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Phone', 'celb-mgmt' ) . '</th><td>' . esc_html( $d['phone'] ?: '—' ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Company', 'celb-mgmt' ) . '</th><td>' . esc_html( $d['company'] ?: '—' ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Type', 'celb-mgmt' ) . '</th><td>' . esc_html( $d['type'] ?: '—' ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Preferred date', 'celb-mgmt' ) . '</th><td>' . esc_html( $d['date'] ?: '—' ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Details', 'celb-mgmt' ) . '</th><td>' . nl2br( esc_html( $d['message'] ) ) . '</td></tr>';
-	echo '<tr><th>' . esc_html__( 'Status', 'celb-mgmt' ) . '</th><td><select name="req_status">';
-	foreach ( celb_request_statuses() as $st ) {
-		echo '<option value="' . esc_attr( $st ) . '"' . selected( $d['status'], $st, false ) . '>' . esc_html( celb_request_status_label( $st ) ) . '</option>';
-	}
-	echo '</select></td></tr>';
-	echo '</tbody></table>';
-}
+/* Request detail view: includes/admin-workspace.php. Status save: */
 add_action( 'save_post', function ( $post_id ) {
 	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) { return; }
 	if ( ! isset( $_POST['celb_request_admin_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['celb_request_admin_nonce'] ), 'celb_request_admin' ) ) { return; }
@@ -4684,142 +4519,7 @@ function celb_contract_render_body( $contract_id ) {
 	return strtr( $body, $repl );
 }
 
-/* ---- Contract Template: Fields Manager meta box ---- */
-function celb_cf_row( $i, $f ) {
-	$f     = wp_parse_args( $f, array( 'label' => '', 'key' => '', 'type' => 'text', 'required' => 0 ) );
-	$types = celb_ctpl_field_types();
-	?>
-	<tr class="celb-cf-row">
-		<td><input type="text" class="widefat celb-cf-label" name="celb_fields[<?php echo esc_attr( $i ); ?>][label]" value="<?php echo esc_attr( $f['label'] ); ?>" placeholder="<?php esc_attr_e( 'Full Name', 'celb-mgmt' ); ?>" /></td>
-		<td>
-			<input type="text" class="widefat celb-cf-key" name="celb_fields[<?php echo esc_attr( $i ); ?>][key]" value="<?php echo esc_attr( $f['key'] ); ?>" placeholder="full_name" style="font-family:monospace;" />
-			<code class="celb-cf-token" style="font-size:11px;color:#646970;">{{<?php echo esc_html( $f['key'] ); ?>}}</code>
-		</td>
-		<td>
-			<select name="celb_fields[<?php echo esc_attr( $i ); ?>][type]">
-				<?php foreach ( $types as $tk => $tl ) : ?>
-					<option value="<?php echo esc_attr( $tk ); ?>" <?php selected( $f['type'], $tk ); ?>><?php echo esc_html( $tl ); ?></option>
-				<?php endforeach; ?>
-			</select>
-		</td>
-		<td style="text-align:center;"><input type="checkbox" name="celb_fields[<?php echo esc_attr( $i ); ?>][required]" value="1" <?php checked( ! empty( $f['required'] ), true ); ?> /></td>
-		<td style="text-align:center;"><button type="button" class="button-link celb-cf-remove dashicons dashicons-no-alt" title="<?php esc_attr_e( 'Remove', 'celb-mgmt' ); ?>" style="color:#b32d2e;"></button></td>
-	</tr>
-	<?php
-}
-
-function celb_ctpl_fields_box( $post ) {
-	wp_nonce_field( 'celb_ctpl_save', 'celb_ctpl_nonce' );
-	$fields = celb_ctpl_fields( $post->ID );
-	if ( empty( $fields ) ) {
-		$fields = array(
-			array( 'label' => 'Full Name', 'key' => 'full_name', 'type' => 'text', 'required' => 1 ),
-			array( 'label' => 'National ID / Passport Number', 'key' => 'national_id', 'type' => 'text', 'required' => 1 ),
-			array( 'label' => 'Email Address', 'key' => 'email', 'type' => 'email', 'required' => 1 ),
-		);
-	}
-	?>
-	<p class="description" style="margin-top:0;"><?php esc_html_e( 'Define the fields the actor fills in. Each field has a key you drop into the contract body as a placeholder, e.g. {{full_name}}. One field should use the key "email" — that address receives the signed PDF.', 'celb-mgmt' ); ?></p>
-	<table class="widefat striped celb-cf-table">
-		<thead>
-			<tr>
-				<th style="width:34%;"><?php esc_html_e( 'Field label', 'celb-mgmt' ); ?></th>
-				<th style="width:30%;"><?php esc_html_e( 'Key / placeholder', 'celb-mgmt' ); ?></th>
-				<th style="width:18%;"><?php esc_html_e( 'Type', 'celb-mgmt' ); ?></th>
-				<th style="width:10%;text-align:center;"><?php esc_html_e( 'Required', 'celb-mgmt' ); ?></th>
-				<th style="width:8%;"></th>
-			</tr>
-		</thead>
-		<tbody class="celb-cf-rows">
-			<?php foreach ( $fields as $i => $f ) {
-				celb_cf_row( $i, $f );
-			} ?>
-		</tbody>
-	</table>
-	<p><button type="button" class="button celb-cf-add">+ <?php esc_html_e( 'Add field', 'celb-mgmt' ); ?></button></p>
-	<script type="text/template" class="celb-cf-tpl"><?php celb_cf_row( '__i__', array() ); ?></script>
-	<script>
-	(function () {
-		var box = document.getElementById('celb_ctpl_fields');
-		if (!box) { return; }
-		var rows = box.querySelector('.celb-cf-rows');
-		var tpl = box.querySelector('.celb-cf-tpl').innerHTML;
-		var idx = rows.querySelectorAll('.celb-cf-row').length;
-		function slugKey(s) {
-			return (s || '').toString().toLowerCase().trim()
-				.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-		}
-		box.querySelector('.celb-cf-add').addEventListener('click', function () {
-			var html = tpl.replace(/__i__/g, idx++);
-			var tr = document.createElement('tbody');
-			tr.innerHTML = '<table>' + html + '</table>';
-			rows.appendChild(tr.querySelector('.celb-cf-row'));
-		});
-		box.addEventListener('click', function (e) {
-			var rm = e.target.closest('.celb-cf-remove');
-			if (rm) {
-				e.preventDefault();
-				var all = rows.querySelectorAll('.celb-cf-row');
-				if (all.length <= 1) {
-					rm.closest('.celb-cf-row').querySelectorAll('input').forEach(function (i) { if (i.type !== 'checkbox') { i.value = ''; } });
-				} else {
-					rm.closest('.celb-cf-row').remove();
-				}
-			}
-		});
-		box.addEventListener('input', function (e) {
-			var row = e.target.closest('.celb-cf-row');
-			if (!row) { return; }
-			if (e.target.classList.contains('celb-cf-label')) {
-				var keyEl = row.querySelector('.celb-cf-key');
-				if (keyEl && !keyEl.dataset.touched) { keyEl.value = slugKey(e.target.value); syncToken(row); }
-			}
-			if (e.target.classList.contains('celb-cf-key')) {
-				e.target.dataset.touched = '1';
-				e.target.value = slugKey(e.target.value);
-				syncToken(row);
-			}
-		});
-		function syncToken(row) {
-			var k = row.querySelector('.celb-cf-key').value;
-			var t = row.querySelector('.celb-cf-token');
-			if (t) { t.textContent = '{{' + k + '}}'; }
-		}
-	})();
-	</script>
-	<?php
-}
-
-function celb_ctpl_help_box( $post ) {
-	$fields = celb_ctpl_fields( $post->ID );
-	?>
-	<p><?php esc_html_e( 'Write the contract in the main editor above. Wherever the actor\'s answer should appear, type the placeholder for that field.', 'celb-mgmt' ); ?></p>
-	<p><strong><?php esc_html_e( 'Available placeholders:', 'celb-mgmt' ); ?></strong></p>
-	<ul style="margin:0 0 10px 16px;list-style:disc;font-family:monospace;font-size:12px;">
-		<li>{{talent_name}}</li>
-		<li>{{date}}</li>
-		<?php foreach ( $fields as $f ) : if ( empty( $f['key'] ) ) { continue; } ?>
-			<li>{{<?php echo esc_html( $f['key'] ); ?>}}</li>
-		<?php endforeach; ?>
-	</ul>
-	<p class="description"><?php esc_html_e( 'Both signatures (the actor\'s drawn signature and the agency signature from Settings) are added automatically at the bottom of the generated PDF — you do not place those.', 'celb-mgmt' ); ?></p>
-	<?php
-}
-
-function celb_ctpl_meta_boxes() {
-	add_meta_box( 'celb_ctpl_fields', __( 'Form Fields (placeholders)', 'celb-mgmt' ), 'celb_ctpl_fields_box', 'celb_ctpl', 'normal', 'high' );
-	add_meta_box( 'celb_ctpl_lang', __( 'Contract Language', 'celb-mgmt' ), 'celb_ctpl_lang_box', 'celb_ctpl', 'side', 'high' );
-	add_meta_box( 'celb_ctpl_help', __( 'How templates work', 'celb-mgmt' ), 'celb_ctpl_help_box', 'celb_ctpl', 'side', 'default' );
-}
-function celb_ctpl_lang_box( $post ) {
-	$lang = get_post_meta( $post->ID, '_ctpl_lang', true );
-	$lang = ( 'ar' === $lang ) ? 'ar' : 'en';
-	echo '<p class="description" style="margin-top:0;">' . esc_html__( 'Controls how auto-filled values (fee, payment day, commission table) are written.', 'celb-mgmt' ) . '</p>';
-	echo '<label style="display:block;margin:6px 0;"><input type="radio" name="ctpl_lang" value="en"' . checked( $lang, 'en', false ) . '> ' . esc_html__( 'English', 'celb-mgmt' ) . '</label>';
-	echo '<label style="display:block;margin:6px 0;"><input type="radio" name="ctpl_lang" value="ar"' . checked( $lang, 'ar', false ) . '> ' . esc_html__( 'Arabic (العربية)', 'celb-mgmt' ) . '</label>';
-}
-add_action( 'add_meta_boxes', 'celb_ctpl_meta_boxes' );
-
+/* ---- Contract Template editor UI: includes/admin-workspace.php ---- */
 function celb_ctpl_save( $post_id ) {
 	if ( ! isset( $_POST['celb_ctpl_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['celb_ctpl_nonce'] ), 'celb_ctpl_save' ) ) {
 		return;
@@ -4858,108 +4558,7 @@ function celb_ctpl_save( $post_id ) {
 }
 add_action( 'save_post_celb_ctpl', 'celb_ctpl_save' );
 
-/* ---- Contract record: setup + status meta boxes ---- */
-function celb_contract_setup_box( $post ) {
-	wp_nonce_field( 'celb_contract_save', 'celb_contract_nonce' );
-	$tpl_id = (int) get_post_meta( $post->ID, '_contract_tpl', true );
-	$cel_id = (int) get_post_meta( $post->ID, '_contract_celeb', true );
-
-	$tpls = get_posts( array( 'post_type' => 'celb_ctpl', 'numberposts' => -1, 'post_status' => array( 'publish', 'draft' ), 'orderby' => 'title', 'order' => 'ASC' ) );
-	$cels = get_posts( array( 'post_type' => CELB_CPT, 'numberposts' => -1, 'post_status' => array( 'publish', 'draft' ), 'orderby' => 'title', 'order' => 'ASC' ) );
-	?>
-	<p>
-		<label for="contract_tpl"><strong><?php esc_html_e( 'Contract template', 'celb-mgmt' ); ?></strong></label><br />
-		<select id="contract_tpl" name="contract_tpl" class="widefat">
-			<option value="0"><?php esc_html_e( '— Select template —', 'celb-mgmt' ); ?></option>
-			<?php foreach ( $tpls as $t ) : ?>
-				<option value="<?php echo esc_attr( $t->ID ); ?>" <?php selected( $tpl_id, $t->ID ); ?>><?php echo esc_html( $t->post_title ); ?></option>
-			<?php endforeach; ?>
-		</select>
-		<?php if ( empty( $tpls ) ) : ?>
-			<span class="description"><?php esc_html_e( 'No templates yet — create one under Contract Templates first.', 'celb-mgmt' ); ?></span>
-		<?php endif; ?>
-	</p>
-	<p>
-		<label for="contract_celeb"><strong><?php esc_html_e( 'Assign to talent', 'celb-mgmt' ); ?></strong></label><br />
-		<select id="contract_celeb" name="contract_celeb" class="widefat">
-			<option value="0"><?php esc_html_e( '— Select talent —', 'celb-mgmt' ); ?></option>
-			<?php foreach ( $cels as $c ) : ?>
-				<option value="<?php echo esc_attr( $c->ID ); ?>" <?php selected( $cel_id, $c->ID ); ?>><?php echo esc_html( $c->post_title ); ?></option>
-			<?php endforeach; ?>
-		</select>
-	</p>
-	<p class="description"><?php esc_html_e( 'Pick a template and a talent, then Publish. A unique signing link appears in the Status box. Send that link to the actor to fill in and sign.', 'celb-mgmt' ); ?></p>
-	<?php
-}
-
-function celb_contract_status_box( $post ) {
-	$status = get_post_meta( $post->ID, '_contract_status', true );
-	$status = $status ? $status : ( get_post_meta( $post->ID, '_contract_token', true ) ? 'pending' : 'new' );
-	$saved  = get_post_meta( $post->ID, '_contract_token', true );
-
-	if ( 'signed' === $status ) {
-		echo '<p><span style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;text-transform:uppercase;color:#1a7f37;background:#e6f4ea;">' . esc_html__( 'Signed', 'celb-mgmt' ) . '</span></p>';
-		$ts = (int) get_post_meta( $post->ID, '_contract_signed_at', true );
-		$ip = get_post_meta( $post->ID, '_contract_signed_ip', true );
-		$em = get_post_meta( $post->ID, '_contract_email', true );
-		echo '<p style="margin:6px 0;font-size:12px;color:#50575e;">';
-		if ( $ts ) {
-			echo esc_html__( 'Signed at:', 'celb-mgmt' ) . ' ' . esc_html( date_i18n( 'Y-m-d H:i', $ts ) ) . '<br>';
-		}
-		if ( $em ) {
-			echo esc_html__( 'Sent to:', 'celb-mgmt' ) . ' ' . esc_html( $em ) . '<br>';
-		}
-		if ( $ip ) {
-			echo esc_html__( 'IP:', 'celb-mgmt' ) . ' ' . esc_html( $ip );
-		}
-		echo '</p>';
-		$path = get_post_meta( $post->ID, '_contract_pdf_path', true );
-		if ( $path && file_exists( $path ) ) {
-			$u = wp_nonce_url( admin_url( 'admin-post.php?action=celb_contract_download&contract=' . $post->ID ), 'celb_dl_' . $post->ID );
-			echo '<p><a class="button button-primary" href="' . esc_url( $u ) . '">' . esc_html__( 'Download signed PDF', 'celb-mgmt' ) . '</a></p>';
-		}
-		return;
-	}
-
-	echo '<p><span style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;text-transform:uppercase;color:#9a6700;background:#fcf3d7;">' . esc_html__( 'Pending', 'celb-mgmt' ) . '</span></p>';
-
-	if ( ! $saved ) {
-		echo '<p class="description">' . esc_html__( 'Publish this contract to generate the signing link.', 'celb-mgmt' ) . '</p>';
-		return;
-	}
-
-	$link = celb_contract_sign_link( $post->ID );
-	$s    = celb_get_settings();
-	if ( empty( $s['contract_sign_url'] ) ) {
-		echo '<p class="description" style="color:#b32d2e;">' . esc_html__( 'Set the Signing page URL in Settings, or this link defaults to /sign/.', 'celb-mgmt' ) . '</p>';
-	}
-	echo '<p><label style="font-weight:600;">' . esc_html__( 'Signing link', 'celb-mgmt' ) . '</label></p>';
-	echo '<input type="text" readonly class="widefat celb-sign-link" value="' . esc_attr( $link ) . '" onclick="this.select();" style="font-size:11px;" />';
-	echo '<p><button type="button" class="button celb-copy-link" data-link="' . esc_attr( $link ) . '">' . esc_html__( 'Copy link', 'celb-mgmt' ) . '</button></p>';
-	?>
-	<script>
-	(function () {
-		var b = document.querySelector('.celb-copy-link');
-		if (!b) { return; }
-		b.addEventListener('click', function () {
-			var v = b.getAttribute('data-link');
-			if (navigator.clipboard) { navigator.clipboard.writeText(v); }
-			var box = document.querySelector('.celb-sign-link');
-			if (box) { box.focus(); box.select(); }
-			var t = b.textContent; b.textContent = '<?php echo esc_js( __( 'Copied!', 'celb-mgmt' ) ); ?>';
-			setTimeout(function () { b.textContent = t; }, 1500);
-		});
-	})();
-	</script>
-	<?php
-}
-
-function celb_contract_meta_boxes() {
-	add_meta_box( 'celb_contract_setup', __( 'Contract Setup', 'celb-mgmt' ), 'celb_contract_setup_box', 'celb_contract', 'normal', 'high' );
-	add_meta_box( 'celb_contract_status', __( 'Status & Signing', 'celb-mgmt' ), 'celb_contract_status_box', 'celb_contract', 'side', 'high' );
-}
-add_action( 'add_meta_boxes', 'celb_contract_meta_boxes' );
-
+/* ---- Contract editor UI: includes/admin-workspace.php ---- */
 function celb_contract_save( $post_id ) {
 	if ( ! isset( $_POST['celb_contract_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['celb_contract_nonce'] ), 'celb_contract_save' ) ) {
 		return;
@@ -5027,56 +4626,6 @@ add_action( 'admin_post_celb_contract_download', 'celb_contract_download' );
 add_action( 'admin_post_nopriv_celb_contract_download', function () {
 	wp_die( esc_html__( 'Please open this link while signed in to your iLike dashboard.', 'celb-mgmt' ) );
 } );
-
-/* ---- Admin list: columns ---- */
-add_filter( 'manage_celb_contract_posts_columns', function ( $cols ) {
-	$new = array();
-	foreach ( $cols as $k => $v ) {
-		if ( 'date' === $k ) {
-			$new['c_talent'] = __( 'Talent', 'celb-mgmt' );
-			$new['c_tpl']    = __( 'Template', 'celb-mgmt' );
-			$new['c_status'] = __( 'Status', 'celb-mgmt' );
-			$new['c_signed'] = __( 'Signed', 'celb-mgmt' );
-			$new['c_dl']     = __( 'PDF', 'celb-mgmt' );
-		}
-		$new[ $k ] = $v;
-	}
-	return $new;
-} );
-
-add_action( 'manage_celb_contract_posts_custom_column', function ( $col, $id ) {
-	switch ( $col ) {
-		case 'c_talent':
-			$c = (int) get_post_meta( $id, '_contract_celeb', true );
-			echo $c ? esc_html( get_the_title( $c ) ) : '&mdash;';
-			break;
-		case 'c_tpl':
-			$t = (int) get_post_meta( $id, '_contract_tpl', true );
-			echo $t ? esc_html( get_the_title( $t ) ) : '&mdash;';
-			break;
-		case 'c_status':
-			$st    = get_post_meta( $id, '_contract_status', true );
-			$st    = $st ? $st : 'pending';
-			$is    = ( 'signed' === $st );
-			$color = $is ? '#1a7f37' : '#9a6700';
-			$bg    = $is ? '#e6f4ea' : '#fcf3d7';
-			echo '<span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;text-transform:uppercase;color:' . esc_attr( $color ) . ';background:' . esc_attr( $bg ) . ';">' . esc_html( ucfirst( $st ) ) . '</span>';
-			break;
-		case 'c_signed':
-			$ts = (int) get_post_meta( $id, '_contract_signed_at', true );
-			echo $ts ? esc_html( date_i18n( 'Y-m-d H:i', $ts ) ) : '&mdash;';
-			break;
-		case 'c_dl':
-			$path = get_post_meta( $id, '_contract_pdf_path', true );
-			if ( $path && file_exists( $path ) ) {
-				$u = wp_nonce_url( admin_url( 'admin-post.php?action=celb_contract_download&contract=' . $id ), 'celb_dl_' . $id );
-				echo '<a class="button button-small" href="' . esc_url( $u ) . '">' . esc_html__( 'Download', 'celb-mgmt' ) . '</a>';
-			} else {
-				echo '&mdash;';
-			}
-			break;
-	}
-}, 10, 2 );
 
 /* ---- Admin list: status + talent filters ---- */
 add_action( 'restrict_manage_posts', function ( $pt ) {
@@ -5269,35 +4818,6 @@ function celb_contract_monthly_row_html( $id, $lang = 'en' ) {
 	$lab = celb_contract_labels( $lang );
 	return '<tr><td style="padding:9px 12px;border:1px solid #cfcfcf;">' . esc_html( $lab['monthly'] ) . '</td><td style="padding:9px 12px;border:1px solid #cfcfcf;text-align:center;white-space:nowrap;font-weight:600;">' . $disp . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
 }
-
-function celb_contract_rates_box( $post ) {
-	$rates = celb_contract_rates( $post->ID );
-	echo '<p class="description" style="margin-top:0;">' . esc_html__( 'Commission percentage for this contract. Put {{commission_table}} in the template to print all four as a table, or {{rate_KEY}} for one value.', 'celb-mgmt' ) . '</p>';
-	echo '<table class="form-table" role="presentation"><tbody>';
-	foreach ( celb_contract_rate_defs() as $key => $label ) {
-		$val = isset( $rates[ $key ] ) ? $rates[ $key ] : '';
-		echo '<tr>';
-		echo '<th scope="row" style="font-weight:500;">' . esc_html( $label ) . '<br><code style="font-size:11px;color:#646970;">{{rate_' . esc_html( $key ) . '}}</code></th>';
-		echo '<td><input type="number" min="0" max="100" step="0.01" name="contract_rates[' . esc_attr( $key ) . ']" value="' . esc_attr( $val ) . '" class="small-text" /> %</td>';
-		echo '</tr>';
-	}
-	// Monthly fee + currency.
-	$m = celb_contract_monthly( $post->ID );
-	echo '<tr><th scope="row" style="border-top:2px solid #e2e4e7;padding-top:16px;">' . esc_html__( 'Monthly fee / retainer', 'celb-mgmt' ) . '</th><td style="border-top:2px solid #e2e4e7;padding-top:16px;"><label><input type="checkbox" name="contract_monthly_enabled" value="1"' . checked( $m['enabled'], true, false ) . ' /> ' . esc_html__( 'Enable a fixed monthly fee for this contract', 'celb-mgmt' ) . '</label></td></tr>';
-	echo '<tr><th scope="row" style="font-weight:500;">' . esc_html__( 'Amount', 'celb-mgmt' ) . '<br><code style="font-size:11px;color:#646970;">{{monthly_fee}}</code></th><td><input type="number" min="0" step="0.01" name="contract_monthly_fee" value="' . esc_attr( $m['amount'] ) . '" class="regular-text" style="max-width:160px" /></td></tr>';
-	$cur_sel = '<select name="contract_currency" class="regular-text" style="max-width:220px">';
-	foreach ( celb_contract_currencies() as $code => $clabel ) {
-		$cur_sel .= '<option value="' . esc_attr( $code ) . '"' . selected( $m['currency'], $code, false ) . '>' . esc_html( $clabel ) . '</option>';
-	}
-	$cur_sel .= '</select>';
-	echo '<tr><th scope="row" style="font-weight:500;">' . esc_html__( 'Currency', 'celb-mgmt' ) . '<br><code style="font-size:11px;color:#646970;">{{currency}}</code></th><td>' . $cur_sel . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
-	echo '<tr><th scope="row" style="font-weight:500;">' . esc_html__( 'Payment day', 'celb-mgmt' ) . '<br><code style="font-size:11px;color:#646970;">{{payment_day}}</code></th><td><input type="number" min="1" max="31" step="1" name="contract_monthly_day" value="' . esc_attr( $m['day'] ? $m['day'] : '' ) . '" class="small-text" /> <span class="description">' . esc_html__( 'Day of the month the fee is due (1–31).', 'celb-mgmt' ) . '</span></td></tr>';
-	echo '<tr><td colspan="2"><p class="description" style="margin:0;">' . esc_html__( 'Template tokens: {{monthly_fee}} prints e.g. "5,000 EGP / month, payable on the 5th" (blank if disabled), {{monthly_fee_amount}} prints just the number, {{currency}} the code, {{payment_day}} the day (e.g. 5th).', 'celb-mgmt' ) . '</p></td></tr>';
-	echo '</tbody></table>';
-}
-add_action( 'add_meta_boxes', function () {
-	add_meta_box( 'celb_contract_rates', __( 'Commission Percentages', 'celb-mgmt' ), 'celb_contract_rates_box', 'celb_contract', 'normal', 'default' );
-} );
 
 function celb_contract_rates_save( $post_id ) {
 	if ( ! isset( $_POST['celb_contract_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['celb_contract_nonce'] ), 'celb_contract_save' ) ) {
@@ -6913,37 +6433,6 @@ add_action( 'save_post_' . CELB_RATE_CPT, function ( $post_id ) {
 	}
 }, 10, 1 );
 
-/* ---- Admin list columns ---- */
-add_filter( 'manage_' . CELB_RATE_CPT . '_posts_columns', function ( $cols ) {
-	$new = array();
-	foreach ( $cols as $k => $v ) {
-		$new[ $k ] = $v;
-		if ( 'title' === $k ) {
-			$new['rate_talent'] = __( 'Talent', 'celb-mgmt' );
-			$new['rate_status'] = __( 'Status', 'celb-mgmt' );
-			$new['rate_link']   = __( 'Link', 'celb-mgmt' );
-		}
-	}
-	return $new;
-} );
-add_action( 'manage_' . CELB_RATE_CPT . '_posts_custom_column', function ( $col, $post_id ) {
-	if ( 'rate_talent' === $col ) {
-		$c = (int) get_post_meta( $post_id, '_rate_celeb', true );
-		echo $c ? esc_html( get_the_title( $c ) ) : '<span style="color:#b32d2e;">' . esc_html__( 'Unassigned', 'celb-mgmt' ) . '</span>';
-	} elseif ( 'rate_status' === $col ) {
-		$on = get_post_meta( $post_id, '_rate_enabled', true ) === '1';
-		$pw = (string) get_post_meta( $post_id, '_rate_pw', true );
-		if ( $on && '' !== $pw ) {
-			echo '<span style="color:#1a7f37;">● ' . esc_html__( 'Live', 'celb-mgmt' ) . '</span>';
-		} else {
-			echo '<span style="color:#8c8f94;">○ ' . esc_html__( 'Off', 'celb-mgmt' ) . '</span>';
-		}
-	} elseif ( 'rate_link' === $col ) {
-		$url = celb_rate_card_url( $post_id );
-		echo '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">/rate/' . esc_html( celb_rate_card_slug( $post_id ) ) . '</a>';
-	}
-}, 10, 2 );
-
 /* =========================================================================
  * 21. CALENDAR SYNC  (per-celebrity subscribable ICS feed)
  *     /celeb-cal/{token}.ics  — Projects, Schedule, confirmed Requests.
@@ -7381,6 +6870,13 @@ function celb_cal_output( $celeb_id ) {
 
 /* ---- Scheduling email notifications ---- */
 function celb_send_notice( $to, $subject, $heading, $rows, $intro ) {
+	if ( false !== strpos( (string) $to, ',' ) ) { // comma-separated list: send to each
+		$sent = false;
+		foreach ( array_filter( array_map( 'trim', explode( ',', $to ) ) ) as $one ) {
+			$sent = celb_send_notice( $one, $subject, $heading, $rows, $intro ) || $sent;
+		}
+		return $sent;
+	}
 	$to = sanitize_email( $to );
 	if ( ! $to || ! is_email( $to ) ) {
 		return false;
@@ -8419,9 +7915,9 @@ function celb_pdata_store() {
 		update_post_meta( $post_id, '_pd_name', $name );
 	}
 	$to = ( ! empty( celb_get_settings()['contact_recipient'] ) ) ? celb_get_settings()['contact_recipient'] : get_option( 'admin_email' );
-	if ( function_exists( 'celb_send_notice' ) ) {
+	foreach ( array_filter( array_map( 'trim', explode( ',', $to ) ) ) as $recipient ) {
 		celb_send_notice(
-			$to,
+			$recipient,
 			sprintf( '[%1$s] %2$s — %3$s', get_bloginfo( 'name' ), __( 'Personal data submitted', 'celb-mgmt' ), $name ? $name : __( 'New submission', 'celb-mgmt' ) ),
 			__( 'Personal data received', 'celb-mgmt' ),
 			array( __( 'Name', 'celb-mgmt' ) => $name, __( 'Received', 'celb-mgmt' ) => date_i18n( 'Y-m-d H:i' ) ),
@@ -8437,119 +7933,12 @@ add_action( 'admin_menu', function () {
 	add_submenu_page( 'edit.php?post_type=' . CELB_CPT, __( 'Rate Onboarding', 'celb-mgmt' ), __( 'Rate Onboarding', 'celb-mgmt' ), 'manage_options', 'celb-rate-onb', 'celb_rate_onb_admin_page' );
 } );
 
-/* ---- Builder ---- */
-function celb_pdata_builder_page() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-	$schema = celb_pdata_schema();
-	$types  = celb_pdata_field_types();
-	$saved  = isset( $_GET['celb_saved'] ) ? '1' === $_GET['celb_saved'] : false;
-	?>
-	<div class="wrap celb-pdb">
-		<h1><?php esc_html_e( 'Personal Data — Form Builder', 'celb-mgmt' ); ?></h1>
-		<?php if ( $saved ) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Form saved.', 'celb-mgmt' ); ?></p></div><?php endif; ?>
-		<p class="description" style="max-width:760px">
-			<?php esc_html_e( 'Build the secure Personal Data / Emergency Contacts form. Add sections and questions, choose a field type, mark required fields, and drag the handles to reorder. The public page link is shown below.', 'celb-mgmt' ); ?>
-		</p>
-		<p><strong><?php esc_html_e( 'Secure page link:', 'celb-mgmt' ); ?></strong>
-			<code><?php echo esc_url( celb_pdata_url() ); ?></code>
-			<button type="button" class="button button-small celb-copy" data-copy="<?php echo esc_attr( celb_pdata_url() ); ?>"><?php esc_html_e( 'Copy', 'celb-mgmt' ); ?></button>
-			<span class="description"><?php esc_html_e( '(enable it and set a password under Settings → Personal Data)', 'celb-mgmt' ); ?></span>
-		</p>
-
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<input type="hidden" name="action" value="celb_pdata_save" />
-			<?php wp_nonce_field( 'celb_pdata_save', 'celb_pdata_save_nonce' ); ?>
-			<div id="celb-pdb-sections">
-				<?php foreach ( $schema as $si => $sec ) { celb_pdb_section_html( $si, $sec, $types ); } ?>
-			</div>
-			<p><button type="button" class="button button-secondary" id="celb-pdb-add-sec">+ <?php esc_html_e( 'Add section', 'celb-mgmt' ); ?></button></p>
-			<p><button type="submit" class="button button-primary button-large"><?php esc_html_e( 'Save form', 'celb-mgmt' ); ?></button></p>
-		</form>
-
-		<script type="text/template" id="celb-pdb-sec-tpl"><?php celb_pdb_section_html( '__S__', array( 'id' => '', 'title' => '', 'questions' => array() ), $types ); ?></script>
-		<script type="text/template" id="celb-pdb-q-tpl"><?php celb_pdb_question_html( '__S__', '__Q__', array(), $types ); ?></script>
-	</div>
-
-	<style>
-		.celb-pdb-sec{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px;margin:0 0 16px;max-width:900px}
-		.celb-pdb-sec-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-		.celb-pdb-sec-h input.celb-pdb-sec-title{flex:1;font-size:15px;font-weight:600;padding:6px 10px}
-		.celb-pdb-qs{display:flex;flex-direction:column;gap:8px;margin:0 0 10px;padding:0}
-		.celb-pdb-q{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f6f7f7;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px}
-		.celb-pdb-q input.celb-pdb-label{flex:2;min-width:180px;padding:5px 8px}
-		.celb-pdb-q select.celb-pdb-type{flex:0 0 auto}
-		.celb-pdb-q input.celb-pdb-opts{flex:1.4;min-width:160px;padding:5px 8px}
-		.celb-pdb-q input.celb-pdb-opts[hidden]{display:none}
-		.celb-pdb-q label.celb-pdb-req{white-space:nowrap;font-size:12px}
-		.celb-pdb-drag{cursor:grab;color:#888;font-size:16px;user-select:none}
-		.celb-pdb-del-sec,.celb-pdb-del-q{color:#b32d2e;border:0;background:none;cursor:pointer;font-size:16px}
-		.celb-pdb-placeholder{border:1px dashed #b4b9be;border-radius:6px;background:#fbfbfc;height:44px}
-	</style>
-	<script>
-	(function($){
-		var seq=Date.now();
-		function rewrite(html){var s=++seq;return html.replace(/__S__/g,'s'+s);}
-		function bindType(scope){$(scope).find('.celb-pdb-type').each(function(){var $t=$(this),$o=$t.closest('.celb-pdb-q').find('.celb-pdb-opts');function u(){if($t.val()==='select'){$o.prop('hidden',false);}else{$o.prop('hidden',true);}}$t.off('change.pdb').on('change.pdb',u);u();});}
-		function makeSortable(){$('#celb-pdb-sections').sortable({handle:'.celb-pdb-drag-sec',placeholder:'celb-pdb-placeholder',items:'> .celb-pdb-sec',tolerance:'pointer'});$('.celb-pdb-qs').sortable({handle:'.celb-pdb-drag-q',placeholder:'celb-pdb-placeholder',items:'> .celb-pdb-q',tolerance:'pointer'});}
-		$('#celb-pdb-add-sec').on('click',function(){var html=rewrite($('#celb-pdb-sec-tpl').html());var $s=$(html);$('#celb-pdb-sections').append($s);bindType($s);makeSortable();});
-		$(document).on('click','.celb-pdb-add-q',function(){var $sec=$(this).closest('.celb-pdb-sec');var sid=$sec.data('sid');var q=$('#celb-pdb-q-tpl').html().replace(/__S__/g,sid).replace(/__Q__/g,'q'+(++seq));var $q=$(q);$sec.find('.celb-pdb-qs').first().append($q);bindType($q);makeSortable();});
-		$(document).on('click','.celb-pdb-del-q',function(){$(this).closest('.celb-pdb-q').remove();});
-		$(document).on('click','.celb-pdb-del-sec',function(){if(confirm('Remove this section and its questions?'))$(this).closest('.celb-pdb-sec').remove();});
-		bindType(document);makeSortable();
-		document.querySelectorAll('.celb-copy').forEach(function(btn){btn.addEventListener('click',function(){var text=btn.getAttribute('data-copy')||'';var done=function(){var o=btn.textContent;btn.textContent='Copied!';setTimeout(function(){btn.textContent=o;},1400);};if(navigator.clipboard){navigator.clipboard.writeText(text).then(done,done);}else{var t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(t);done();}});});
-	})(jQuery);
-	</script>
-	<?php
-}
+/* ---- Builder + submissions pages: includes/admin-workspace.php ---- */
 add_action( 'admin_enqueue_scripts', function ( $hook ) {
 	if ( false !== strpos( (string) $hook, 'celb-pdata-form' ) ) {
 		wp_enqueue_script( 'jquery-ui-sortable' );
 	}
 } );
-function celb_pdb_section_html( $si, $sec, $types ) {
-	$sid   = 's' . preg_replace( '/[^a-z0-9]/i', '', (string) $si );
-	$title = isset( $sec['title'] ) ? $sec['title'] : '';
-	$secid = isset( $sec['id'] ) ? $sec['id'] : '';
-	echo '<div class="celb-pdb-sec" data-sid="' . esc_attr( $si ) . '">';
-	echo '<input type="hidden" name="sections[' . esc_attr( $si ) . '][id]" value="' . esc_attr( $secid ) . '" />';
-	echo '<div class="celb-pdb-sec-h">';
-	echo '<span class="celb-pdb-drag celb-pdb-drag-sec" title="' . esc_attr__( 'Drag to reorder section', 'celb-mgmt' ) . '">&#9776;</span>';
-	echo '<input type="text" class="celb-pdb-sec-title" name="sections[' . esc_attr( $si ) . '][title]" value="' . esc_attr( $title ) . '" placeholder="' . esc_attr__( 'Section name', 'celb-mgmt' ) . '" />';
-	echo '<button type="button" class="celb-pdb-del-sec" title="' . esc_attr__( 'Remove section', 'celb-mgmt' ) . '">&times; ' . esc_html__( 'Section', 'celb-mgmt' ) . '</button>';
-	echo '</div>';
-	echo '<div class="celb-pdb-qs">';
-	if ( ! empty( $sec['questions'] ) ) {
-		foreach ( $sec['questions'] as $qi => $q ) {
-			celb_pdb_question_html( $si, $qi, $q, $types );
-		}
-	}
-	echo '</div>';
-	echo '<button type="button" class="button button-small celb-pdb-add-q">+ ' . esc_html__( 'Add question', 'celb-mgmt' ) . '</button>';
-	echo '</div>';
-}
-function celb_pdb_question_html( $si, $qi, $q, $types ) {
-	$label = isset( $q['label'] ) ? $q['label'] : '';
-	$type  = isset( $q['type'] ) ? $q['type'] : 'text';
-	$req   = ! empty( $q['required'] );
-	$qid   = isset( $q['id'] ) ? $q['id'] : '';
-	$opts  = ! empty( $q['options'] ) ? implode( ', ', (array) $q['options'] ) : '';
-	$base  = 'sections[' . esc_attr( $si ) . '][q][' . esc_attr( $qi ) . ']';
-	echo '<div class="celb-pdb-q">';
-	echo '<span class="celb-pdb-drag celb-pdb-drag-q" title="' . esc_attr__( 'Drag to reorder', 'celb-mgmt' ) . '">&#8942;</span>';
-	echo '<input type="hidden" name="' . $base . '[id]" value="' . esc_attr( $qid ) . '" />'; // phpcs:ignore
-	echo '<input type="text" class="celb-pdb-label" name="' . $base . '[label]" value="' . esc_attr( $label ) . '" placeholder="' . esc_attr__( 'Question label', 'celb-mgmt' ) . '" />'; // phpcs:ignore
-	echo '<select class="celb-pdb-type" name="' . $base . '[type]">'; // phpcs:ignore
-	foreach ( $types as $tk => $tl ) {
-		echo '<option value="' . esc_attr( $tk ) . '" ' . selected( $type, $tk, false ) . '>' . esc_html( $tl ) . '</option>';
-	}
-	echo '</select>';
-	echo '<input type="text" class="celb-pdb-opts" name="' . $base . '[options]" value="' . esc_attr( $opts ) . '" placeholder="' . esc_attr__( 'Dropdown options, comma-separated', 'celb-mgmt' ) . '"' . ( 'select' === $type ? '' : ' hidden' ) . ' />'; // phpcs:ignore
-	echo '<label class="celb-pdb-req"><input type="checkbox" name="' . $base . '[required]" value="1" ' . checked( $req, true, false ) . '> ' . esc_html__( 'Required', 'celb-mgmt' ) . '</label>'; // phpcs:ignore
-	echo '<button type="button" class="celb-pdb-del-q" title="' . esc_attr__( 'Remove', 'celb-mgmt' ) . '">&times;</button>';
-	echo '</div>';
-}
 /* Save the builder. */
 add_action( 'admin_post_celb_pdata_save', function () {
 	if ( ! current_user_can( 'manage_options' ) || ! isset( $_POST['celb_pdata_save_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['celb_pdata_save_nonce'] ), 'celb_pdata_save' ) ) {
@@ -8598,82 +7987,6 @@ add_action( 'admin_post_celb_pdata_save', function () {
 	wp_safe_redirect( add_query_arg( array( 'post_type' => CELB_CPT, 'page' => 'celb-pdata-form', 'celb_saved' => '1' ), admin_url( 'edit.php' ) ) );
 	exit;
 } );
-
-/* ---- Submissions: card view ---- */
-function celb_pdata_submissions_page() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-	// Handle delete.
-	if ( isset( $_GET['celb_del'], $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'celb_pd_del' ) ) {
-		$del = absint( $_GET['celb_del'] );
-		if ( $del && 'celb_pdata' === get_post_type( $del ) ) {
-			wp_delete_post( $del, true );
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Submission deleted.', 'celb-mgmt' ) . '</p></div>';
-		}
-	}
-	$subs = get_posts( array( 'post_type' => 'celb_pdata', 'post_status' => 'publish', 'numberposts' => 200, 'orderby' => 'date', 'order' => 'DESC' ) );
-	?>
-	<div class="wrap">
-		<h1><?php esc_html_e( 'Personal Data — Submissions', 'celb-mgmt' ); ?></h1>
-		<p class="description"><?php printf( esc_html__( '%d submission(s). Each celebrity’s information is shown as a card below.', 'celb-mgmt' ), count( $subs ) ); ?></p>
-		<?php if ( ! $subs ) : ?>
-			<div class="celb-pdc-empty"><p><?php esc_html_e( 'No submissions yet.', 'celb-mgmt' ); ?></p></div>
-		<?php else : ?>
-			<div class="celb-pdc-grid">
-			<?php foreach ( $subs as $sub ) :
-				$answers = (array) get_post_meta( $sub->ID, '_pd_answers', true );
-				$snap    = get_post_meta( $sub->ID, '_pd_schema', true );
-				$snap    = is_array( $snap ) && $snap ? $snap : celb_pdata_schema();
-				$nm      = get_post_meta( $sub->ID, '_pd_name', true );
-				$delurl  = wp_nonce_url( add_query_arg( array( 'post_type' => CELB_CPT, 'page' => 'celb-pdata', 'celb_del' => $sub->ID ), admin_url( 'edit.php' ) ), 'celb_pd_del' );
-				?>
-				<div class="celb-pdc-card">
-					<div class="celb-pdc-head">
-						<div class="celb-pdc-avatar"><?php echo esc_html( celb_monogram( $nm ? $nm : $sub->post_title ) ); ?></div>
-						<div>
-							<div class="celb-pdc-name"><?php echo esc_html( $nm ? $nm : __( 'Submission', 'celb-mgmt' ) ); ?></div>
-							<div class="celb-pdc-date"><?php echo esc_html( get_the_date( 'M j, Y — H:i', $sub ) ); ?></div>
-						</div>
-						<a class="celb-pdc-del" href="<?php echo esc_url( $delurl ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this submission permanently?', 'celb-mgmt' ) ); ?>');" title="<?php esc_attr_e( 'Delete', 'celb-mgmt' ); ?>">&times;</a>
-					</div>
-					<?php foreach ( $snap as $sec ) :
-						$rows = '';
-						foreach ( (array) $sec['questions'] as $q ) {
-							$v = isset( $answers[ $q['id'] ] ) ? trim( (string) $answers[ $q['id'] ] ) : '';
-							if ( '' === $v ) { continue; }
-							$rows .= '<div class="celb-pdc-row"><span class="celb-pdc-k">' . esc_html( $q['label'] ) . '</span><span class="celb-pdc-v">' . nl2br( esc_html( $v ) ) . '</span></div>';
-						}
-						if ( '' === $rows ) { continue; }
-						?>
-						<div class="celb-pdc-sec">
-							<div class="celb-pdc-sec-t"><?php echo esc_html( $sec['title'] ); ?></div>
-							<?php echo $rows; // phpcs:ignore ?>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			<?php endforeach; ?>
-			</div>
-		<?php endif; ?>
-	</div>
-	<style>
-		.celb-pdc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;margin-top:18px}
-		.celb-pdc-card{background:#fff;border:1px solid #dcdcde;border-radius:12px;padding:0;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-		.celb-pdc-head{display:flex;align-items:center;gap:12px;padding:16px 18px;background:#1d2327;color:#fff;position:relative}
-		.celb-pdc-avatar{width:44px;height:44px;border-radius:50%;background:#2f3b44;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;letter-spacing:.04em}
-		.celb-pdc-name{font-size:15px;font-weight:600;line-height:1.2}
-		.celb-pdc-date{font-size:12px;color:#c9ccd1;margin-top:2px}
-		.celb-pdc-del{position:absolute;top:10px;right:12px;color:#f0b7b7;text-decoration:none;font-size:20px;line-height:1}
-		.celb-pdc-del:hover{color:#ff9a9a}
-		.celb-pdc-sec{padding:12px 18px;border-top:1px solid #f0f0f1}
-		.celb-pdc-sec-t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#787c82;font-weight:600;margin-bottom:8px}
-		.celb-pdc-row{display:flex;gap:10px;padding:4px 0;font-size:13px}
-		.celb-pdc-k{flex:0 0 42%;color:#50575e;font-weight:500}
-		.celb-pdc-v{flex:1;color:#1d2327}
-		.celb-pdc-empty{background:#fff;border:1px solid #dcdcde;border-radius:10px;padding:40px;text-align:center;color:#787c82;margin-top:18px}
-	</style>
-	<?php
-}
 
 /* =========================================================================
  * VIDEOS  — per-celebrity video section (YouTube, Vimeo, Instagram, TikTok…)
@@ -9295,131 +8608,7 @@ add_action( 'admin_post_celb_rate_onb_import', function () {
 	exit;
 } );
 
-/* ---- Admin page: Rate Onboarding ---- */
-function celb_rate_onb_admin_page() {
-	if ( ! current_user_can( 'manage_options' ) ) { return; }
-	$all   = celb_rate_all_cards();
-	$links = celb_rate_onb_links();
-	$celebs = get_posts( array( 'post_type' => CELB_CPT, 'post_status' => 'publish', 'numberposts' => -1, 'orderby' => 'title', 'order' => 'ASC', 'fields' => 'ids' ) );
-	$subs = get_posts( array( 'post_type' => 'celb_rateonb', 'post_status' => 'publish', 'numberposts' => -1, 'orderby' => 'date', 'order' => 'DESC', 'fields' => 'ids' ) );
-	?>
-	<div class="wrap">
-		<h1><?php esc_html_e( 'Rate Card Onboarding', 'celb-mgmt' ); ?></h1>
-		<p class="description" style="max-width:760px;"><?php esc_html_e( 'Generate a private link for a talent to fill in their own rates. Pick a rate card or a template as the basis — the talent only enters a price per service. Submitted rates can be imported into a rate card in one click.', 'celb-mgmt' ); ?></p>
-
-		<?php if ( isset( $_GET['generated'] ) ) : ?>
-			<div class="notice notice-success"><p><?php esc_html_e( 'Link generated below. Copy it and send it to the talent.', 'celb-mgmt' ); ?></p></div>
-		<?php endif; ?>
-
-		<h2><?php esc_html_e( 'Generate a link', 'celb-mgmt' ); ?></h2>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;border:1px solid #c3c4c7;border-radius:6px;padding:16px;max-width:760px;">
-			<input type="hidden" name="action" value="celb_rate_onb_gen" />
-			<?php wp_nonce_field( 'celb_rate_onb_gen' ); ?>
-			<table class="form-table"><tbody>
-				<tr>
-					<th scope="row"><label for="celb-onb-src"><?php esc_html_e( 'Base it on', 'celb-mgmt' ); ?></label></th>
-					<td>
-						<select name="src" id="celb-onb-src" required>
-							<option value=""><?php esc_html_e( '— Select a template or rate card —', 'celb-mgmt' ); ?></option>
-							<?php if ( ! empty( $all['templates'] ) ) : ?>
-								<optgroup label="<?php esc_attr_e( 'Templates', 'celb-mgmt' ); ?>">
-									<?php foreach ( $all['templates'] as $id => $label ) : ?>
-										<option value="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></option>
-									<?php endforeach; ?>
-								</optgroup>
-							<?php endif; ?>
-							<?php if ( ! empty( $all['cards'] ) ) : ?>
-								<optgroup label="<?php esc_attr_e( 'Rate cards', 'celb-mgmt' ); ?>">
-									<?php foreach ( $all['cards'] as $id => $label ) : ?>
-										<option value="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></option>
-									<?php endforeach; ?>
-								</optgroup>
-							<?php endif; ?>
-						</select>
-						<p class="description"><?php esc_html_e( 'The form shows this card’s services & platforms; all prices start empty for the talent to fill.', 'celb-mgmt' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="celb-onb-slug"><?php esc_html_e( 'Link address (optional)', 'celb-mgmt' ); ?></label></th>
-					<td>
-						<code><?php echo esc_html( home_url( '/' . celb_page_slug( 'rateonb_slug' ) . '/' ) ); ?></code><input type="text" name="slug" id="celb-onb-slug" class="regular-text" style="width:220px;" placeholder="<?php esc_attr_e( 'e.g. mai-el-kady', 'celb-mgmt' ); ?>" />
-						<p class="description"><?php esc_html_e( 'Choose a custom ending for the link. Leave blank for a private random one.', 'celb-mgmt' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="celb-onb-celeb"><?php esc_html_e( 'For talent (optional)', 'celb-mgmt' ); ?></label></th>
-					<td>
-						<select name="celeb" id="celb-onb-celeb">
-							<option value="0"><?php esc_html_e( '— Not linked —', 'celb-mgmt' ); ?></option>
-							<?php foreach ( $celebs as $cid ) : ?>
-								<option value="<?php echo esc_attr( $cid ); ?>"><?php echo esc_html( get_the_title( $cid ) ); ?></option>
-							<?php endforeach; ?>
-						</select>
-						<p class="description"><?php esc_html_e( 'Link the submission to a talent so importing can assign their card automatically.', 'celb-mgmt' ); ?></p>
-					</td>
-				</tr>
-			</tbody></table>
-			<?php submit_button( __( 'Generate link', 'celb-mgmt' ) ); ?>
-		</form>
-
-		<?php if ( ! empty( $links ) ) : ?>
-			<h2><?php esc_html_e( 'Active links', 'celb-mgmt' ); ?></h2>
-			<table class="widefat striped" style="max-width:960px;">
-				<thead><tr><th><?php esc_html_e( 'Link', 'celb-mgmt' ); ?></th><th><?php esc_html_e( 'Based on', 'celb-mgmt' ); ?></th><th><?php esc_html_e( 'Talent', 'celb-mgmt' ); ?></th><th></th></tr></thead>
-				<tbody>
-				<?php foreach ( array_reverse( $links, true ) as $token => $meta ) :
-					$url = celb_rate_onb_url( $token );
-					$rev = wp_nonce_url( admin_url( 'admin-post.php?action=celb_rate_onb_revoke&token=' . rawurlencode( $token ) ), 'celb_rate_onb_revoke_' . $token ); ?>
-					<tr>
-						<td><input type="text" readonly value="<?php echo esc_attr( $url ); ?>" class="regular-text" onclick="this.select()" style="width:360px;" /> <button type="button" class="button button-small celb-copy" data-copy="<?php echo esc_attr( $url ); ?>"><?php esc_html_e( 'Copy', 'celb-mgmt' ); ?></button></td>
-						<td><?php echo esc_html( get_the_title( (int) $meta['src'] ) ); ?><?php echo celb_rate_is_template( (int) $meta['src'] ) ? ' <em>(' . esc_html__( 'template', 'celb-mgmt' ) . ')</em>' : ''; ?></td>
-						<td><?php echo $meta['celeb'] ? esc_html( get_the_title( (int) $meta['celeb'] ) ) : '—'; ?></td>
-						<td><a class="button button-small" href="<?php echo esc_url( $rev ); ?>" onclick="return confirm('<?php esc_attr_e( 'Revoke this link?', 'celb-mgmt' ); ?>');"><?php esc_html_e( 'Revoke', 'celb-mgmt' ); ?></a></td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
-
-		<h2><?php esc_html_e( 'Submitted rates', 'celb-mgmt' ); ?></h2>
-		<?php if ( empty( $subs ) ) : ?>
-			<p><?php esc_html_e( 'No submissions yet.', 'celb-mgmt' ); ?></p>
-		<?php else : ?>
-			<table class="widefat striped" style="max-width:960px;">
-				<thead><tr><th><?php esc_html_e( 'Talent name', 'celb-mgmt' ); ?></th><th><?php esc_html_e( 'Based on', 'celb-mgmt' ); ?></th><th><?php esc_html_e( 'Received', 'celb-mgmt' ); ?></th><th><?php esc_html_e( 'Import into', 'celb-mgmt' ); ?></th><th></th></tr></thead>
-				<tbody>
-				<?php foreach ( $subs as $sid ) :
-					$src      = (int) get_post_meta( $sid, '_onb_src', true );
-					$imported = (int) get_post_meta( $sid, '_onb_imported', true );
-					$del      = wp_nonce_url( admin_url( 'admin-post.php?action=celb_rate_onb_del&sub=' . $sid ), 'celb_rate_onb_del_' . $sid ); ?>
-					<tr>
-						<td><strong><?php echo esc_html( get_the_title( $sid ) ); ?></strong></td>
-						<td><?php echo esc_html( get_the_title( $src ) ); ?></td>
-						<td><?php echo esc_html( get_the_date( '', $sid ) ); ?><?php echo $imported ? '<br><span style="color:#3a6b35;">' . esc_html__( 'Imported', 'celb-mgmt' ) . '</span>' : ''; ?></td>
-						<td>
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:flex;gap:6px;align-items:center;">
-								<input type="hidden" name="action" value="celb_rate_onb_import" />
-								<input type="hidden" name="sub" value="<?php echo esc_attr( $sid ); ?>" />
-								<?php wp_nonce_field( 'celb_rate_onb_import_' . $sid ); ?>
-								<select name="target">
-									<option value="new"><?php esc_html_e( '— New rate card (from source) —', 'celb-mgmt' ); ?></option>
-									<?php foreach ( celb_rate_all_cards( 'cards' ) as $id => $label ) : ?>
-										<option value="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></option>
-									<?php endforeach; ?>
-								</select>
-								<button type="submit" class="button button-primary button-small"><?php esc_html_e( 'Import', 'celb-mgmt' ); ?></button>
-							</form>
-						</td>
-						<td><a class="button button-small" href="<?php echo esc_url( $del ); ?>" onclick="return confirm('<?php esc_attr_e( 'Delete this submission?', 'celb-mgmt' ); ?>');"><?php esc_html_e( 'Delete', 'celb-mgmt' ); ?></a></td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
-	</div>
-	<script>(function(){document.querySelectorAll('.celb-copy').forEach(function(b){b.addEventListener('click',function(){var t=b.getAttribute('data-copy')||'';var d=function(){var o=b.textContent;b.textContent='Copied!';setTimeout(function(){b.textContent=o;},1400);};if(navigator.clipboard){navigator.clipboard.writeText(t).then(d,d);}else{var x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(x);d();}});});})();</script>
-	<?php
-}
+/* ---- Admin page: includes/admin-workspace.php ---- */
 
 /* ---- Front: the self-onboarding form (standalone) ---- */
 function celb_rate_onb_front() {
@@ -9476,7 +8665,7 @@ function celb_rate_onb_front() {
 			update_post_meta( $sub, '_onb_created', time() );
 			$st = celb_get_settings();
 			$to = ! empty( $st['contact_recipient'] ) ? $st['contact_recipient'] : get_option( 'admin_email' );
-			if ( function_exists( 'celb_send_notice' ) && is_email( $to ) ) {
+			if ( function_exists( 'celb_send_notice' ) ) {
 				celb_send_notice(
 					$to,
 					sprintf( __( 'New rate card submission: %s', 'celb-mgmt' ), $name ),
@@ -9661,3 +8850,6 @@ function celb_rate_merge_prices( $target, $submitted ) {
 	unset( $sec );
 	return $target;
 }
+
+/* Studio UI for the operations screens (loaded last: it uses CELB_RATE_CPT). */
+require_once CELB_PATH . 'includes/admin-workspace.php';

@@ -695,6 +695,150 @@
 	}
 
 	/* ---------------------------------------------------------------------
+	   Operations screens (schedule, contracts, templates, personal data)
+	   --------------------------------------------------------------------- */
+
+	/* Small reveal helpers used by several editors. */
+	function initReveals() {
+		// "Other" type → show the specify field.
+		$(document).on('change', '[data-cs-other]', function () {
+			var key = this.getAttribute('data-cs-other');
+			$('[data-cs-other-for="' + key + '"]').closest('.cs-field').toggleClass('is-hidden', this.value !== 'Other');
+		});
+		// Switch → reveal its block.
+		$(document).on('change', '[data-cs-toggle]', function () {
+			$('[data-cs-toggled="' + this.getAttribute('data-cs-toggle') + '"]').toggleClass('is-on', this.checked);
+		});
+		// Schedule status → postponed date.
+		$(document).on('change', '[data-cs-status]', function () {
+			$('[data-cs-postponed]').toggleClass('is-on', this.value === 'Postponed' && this.checked);
+		});
+		// Talent picker → photo.
+		$(document).on('change', '[data-cs-celeb-select]', function () {
+			var photo = $(this).find('option:selected').attr('data-photo') || '';
+			$(this).closest('.cs-who').find('[data-cs-who-photo]').css('background-image', photo ? 'url("' + photo + '")' : '').toggleClass('has-photo', !!photo);
+			if ($('[data-cs-doc-title]').length && this.name === 'contract_celeb') {
+				var name = $.trim($(this).find('option:selected').text());
+				$('[data-cs-doc-title]').text(this.value !== '0' ? 'Contract — ' + name : 'New contract');
+			}
+		});
+	}
+
+	/* Cmd/Ctrl+S on editors that have no Studio save bar. */
+	function initSaveShortcut() {
+		if ($('[data-cs-save]').length || !$('#publish').length || CFG.screen === 'request') { return; }
+		$(document).on('keydown', function (e) {
+			if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); $('#publish').trigger('click'); }
+		});
+	}
+
+	/* Contract template: label → key, live placeholder chips, click to insert. */
+	function slugKey(v) {
+		return String(v || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+	}
+	function insertToken(tok) {
+		var ed = window.tinymce && window.tinymce.get('content');
+		if (ed && !ed.isHidden()) { ed.focus(); ed.execCommand('mceInsertContent', false, tok); return; }
+		var ta = document.getElementById('content');
+		if (!ta) { return; }
+		var a = ta.selectionStart || 0, b = ta.selectionEnd || 0;
+		ta.value = ta.value.slice(0, a) + tok + ta.value.slice(b);
+		ta.focus(); ta.selectionStart = ta.selectionEnd = a + tok.length;
+	}
+	function initTemplate() {
+		function refreshTokens() {
+			var $box = $('[data-cs-field-tokens]');
+			if (!$box.length) { return; }
+			$box.empty();
+			$('[data-cs-cf-key]').each(function () {
+				var k = $.trim(this.value);
+				if (k) { $box.append($('<button type="button" class="cs-token cs-token--btn" />').attr('data-cs-insert', '{{' + k + '}}').text('{{' + k + '}}')); }
+			});
+		}
+		function sync($row) {
+			var k = $row.find('[data-cs-cf-key]').val();
+			$row.find('.cs-cf-key .cs-token').attr('data-cs-insert', '{{' + k + '}}').text('{{' + (k || 'key') + '}}');
+			refreshTokens();
+		}
+		$(document).on('input', '[data-cs-cf-label]', function () {
+			var $row = $(this).closest('.cs-row'), $k = $row.find('[data-cs-cf-key]');
+			if (!$k.attr('data-touched')) { $k.val(slugKey(this.value)); sync($row); }
+		});
+		$(document).on('input', '[data-cs-cf-key]', function () {
+			this.setAttribute('data-touched', '1');
+			var pos = this.selectionStart, v = slugKey(this.value);
+			if (v !== this.value) { this.value = v; try { this.setSelectionRange(pos, pos); } catch (e) {} }
+			sync($(this).closest('.cs-row'));
+		});
+		$(document).on('cs:changed', refreshTokens);
+		$(document).on('mousedown', '[data-cs-insert]', function (e) { e.preventDefault(); }); // keep the editor caret
+		$(document).on('click', '[data-cs-insert]', function (e) {
+			e.preventDefault();
+			insertToken(this.getAttribute('data-cs-insert'));
+			var b = this; b.classList.add('is-copied'); setTimeout(function () { b.classList.remove('is-copied'); }, 700);
+		});
+	}
+
+	/* Personal data form builder. */
+	function initBuilder() {
+		var $wrap = $('[data-cs-pdb-sections]');
+		if (!$wrap.length) { return; }
+		var seq = Date.now();
+		var secTpl = ($('#celb-pdb-sec-tpl')[0] || {}).innerHTML || '';
+		var qTpl = ($('#celb-pdb-q-tpl')[0] || {}).innerHTML || '';
+		function sortables() {
+			if (!$.fn.sortable) { return; }
+			$wrap.sortable({ handle: '.cs-pdb-drag-sec', items: '> .cs-pdb-sec', placeholder: 'cs-row-ph', forcePlaceholderSize: true, tolerance: 'pointer' });
+			$wrap.find('.cs-pdb-qs').each(function () {
+				if ($(this).data('uiSortable')) { return; }
+				$(this).sortable({ handle: '.cs-pdb-drag-q', items: '> .cs-row', placeholder: 'cs-row-ph', forcePlaceholderSize: true, tolerance: 'pointer', axis: 'y' });
+			});
+		}
+		function count($sec) { $sec.find('[data-cs-pdb-count]').text($sec.find('.cs-pdb-qs > .cs-row').length); }
+		$(document).on('click', '[data-cs-pdb-addsec]', function () {
+			var $s = $($.parseHTML($.trim(secTpl.replace(/__S__/g, 's' + (++seq)))));
+			$wrap.append($s); sortables(); $s.find('.cs-pdb-sec-title').trigger('focus');
+		});
+		$(document).on('click', '[data-cs-pdb-addq]', function () {
+			var $sec = $(this).closest('.cs-pdb-sec');
+			var $q = $($.parseHTML($.trim(qTpl.replace(/__S__/g, $sec.attr('data-sid')).replace(/__Q__/g, 'q' + (++seq)))));
+			$sec.find('.cs-pdb-qs').first().append($q); count($sec); sortables();
+			$q.find('input[type=text]').first().trigger('focus');
+		});
+		$(document).on('click', '[data-cs-pdb-delq]', function () {
+			var $sec = $(this).closest('.cs-pdb-sec');
+			$(this).closest('.cs-row').remove(); count($sec);
+		});
+		$(document).on('click', '[data-cs-pdb-delsec]', function () {
+			if (window.confirm('Remove this section and its questions?')) { $(this).closest('.cs-pdb-sec').remove(); }
+		});
+		$(document).on('change', '[data-cs-pdb-type]', function () {
+			$(this).closest('.cs-row').toggleClass('has-opts', this.value === 'select');
+		});
+		sortables();
+		var initial = $('[data-cs-pdb]').serialize(), submitting = false;
+		$('[data-cs-pdb]').on('submit', function () { submitting = true; });
+		$(window).on('beforeunload', function () { if (!submitting && $('[data-cs-pdb]').serialize() !== initial) { return 'unsaved'; } });
+	}
+
+	/* Personal data submissions: instant search. */
+	function initSubmissions() {
+		$(document).on('input', '[data-cs-pd-search]', function () {
+			var q = $.trim(this.value).toLowerCase(), any = false;
+			$('[data-cs-pd-card]').each(function () {
+				var hit = !q || $(this).text().toLowerCase().indexOf(q) !== -1;
+				$(this).toggle(hit); any = any || hit;
+			});
+			$('[data-cs-pd-empty]').prop('hidden', any);
+		});
+	}
+
+	/* Toasts fade out on their own. */
+	function initToasts() {
+		$('[data-cs-toast].is-on').each(function () { var t = this; setTimeout(function () { t.classList.remove('is-on'); }, 3600); });
+	}
+
+	/* ---------------------------------------------------------------------
 	   Boot
 	   --------------------------------------------------------------------- */
 	$(function () {
@@ -710,7 +854,13 @@
 			$('body').addClass('cs-ready');
 		}
 		if (CFG.screen === 'list') { initList(); }
-		if (CFG.screen === 'requests') { moveSubs(); }
+		if (document.body.classList.contains('cs-screen-list') && CFG.screen !== 'list') { moveSubs(); }
+		initReveals();
+		initSaveShortcut();
+		initToasts();
+		if (CFG.screen === 'template') { initTemplate(); }
+		if (CFG.screen === 'pdbuilder') { initBuilder(); }
+		if (CFG.screen === 'pdsubs') { initSubmissions(); }
 		if (CFG.screen === 'request') { initRequest(); }
 		if (CFG.screen === 'settings') { initSettings(); }
 	});
