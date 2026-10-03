@@ -1,0 +1,322 @@
+/* =========================================================================
+   Talent Works Archive  —  namespaced under .ilw, inherits theme design
+   ========================================================================= */
+.ilw {
+	--ilw-accent: #999999;
+	--ilw-accent-hover: #808080;
+	--ilw-btn: #999999;
+	--ilw-on-accent: #fff;
+	--ilw-page-bg: #121212;
+	--ilw-card-bg: color-mix(in srgb, var(--ilw-page-bg) 92%, currentColor 8%);
+	--ilw-line: color-mix(in srgb, currentColor 18%, transparent);
+	--ilw-soft: color-mix(in srgb, currentColor 5%, transparent);
+	width: 100%;
+	box-sizing: border-box;
+	font: inherit;
+	color: inherit;
+}
+.ilw *,
+.ilw *::before,
+.ilw *::after { box-sizing: border-box; }
+
+/* ---- Controls ---- */
+.ilw-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	align-items: flex-end;
+	margin: 0 0 clamp(20px, 3vw, 34px);
+}
+.ilw-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ilw-field-search { flex: 1 1 200px; }
+.ilw-label {
+	font-size: .68rem;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	opacity: .6;
+}
+.ilw select,
+.ilw input[type="search"],
+.ilw .ilw-combo-input {
+	font: inherit;
+	color: inherit;
+	background-color: var(--ilw-soft, rgba(128,128,128,.05));
+	border: 1px solid var(--ilw-line, rgba(128,128,128,.28));
+	border-radius: 12px;
+	padding: 11px 15px;
+	width: 100%;
+	min-height: 46px;
+	transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+}
+.ilw select {
+	padding-right: 40px;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 14px center;
+	cursor: pointer;
+}
+.ilw select:focus,
+.ilw input[type="search"]:focus,
+.ilw .ilw-combo-input:focus {
+	outline: none;
+	border-color: var(--ilw-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ilw-accent) 16%, transparent);
+}
+.ilw select option { color: #1a1a1a; }
+
+/* ---- Searchable artist combobox ---- */
+.ilw-combo { flex: 1 1 220px; position: relative; }
+.ilw-combo-wrap { position: relative; }
+.ilw-combo-clear {
+	position: absolute;
+	top: 50%;
+	right: 12px;
+	transform: translateY(-50%);
+	background: none;
+	border: 0;
+	color: inherit;
+	opacity: .55;
+	font-size: 1.1rem;
+	line-height: 1;
+	cursor: pointer;
+	padding: 4px;
+}
+.ilw-combo-clear:hover { opacity: 1; }
+.ilw-combo-list {
+	position: absolute;
+	z-index: 60;
+	top: calc(100% + 6px);
+	left: 0;
+	right: 0;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	max-height: 300px;
+	overflow-y: auto;
+	background-color: #fff;
+	background-color: Canvas;
+	color: #1a1a1a;
+	color: CanvasText;
+	border: 1px solid rgba(128, 128, 128, .3);
+	border-radius: 12px;
+	box-shadow: 0 18px 50px rgba(0, 0, 0, .35);
+}
+.ilw-combo-opt {
+	padding: 9px 12px;
+	border-radius: 8px;
+	cursor: pointer;
+	font-size: .95em;
+}
+.ilw-combo-opt:hover,
+.ilw-combo-opt.is-active { background: var(--ilw-soft, rgba(128,128,128,.12)); }
+.ilw-combo-opt[hidden] { display: none; }
+
+/* ---- Card grid: mobile-first (2), scoped under .ilw for specificity ---- */
+.ilw .ilw-tiles {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+@media (min-width: 700px) {
+	.ilw .ilw-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 1.6vw, 22px); }
+}
+@media (min-width: 1100px) {
+	.ilw .ilw-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(16px, 1.6vw, 26px); }
+}
+
+/* ---- Year groups (collapsible) ---- */
+.ilw-year-group { margin-bottom: clamp(26px, 3.5vw, 48px); }
+.ilw-year-group:last-child { margin-bottom: 0; }
+.ilw-year-head {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	width: 100%;
+	margin: 0 0 clamp(14px, 2vw, 22px);
+	padding: 0 2px 12px;
+	background: none;
+	border: 0;
+	border-bottom: 2px solid var(--ilw-accent, currentColor);
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.ilw-year-num {
+	font-size: clamp(1.4rem, 3.2vw, 2.1rem);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	line-height: 1;
+}
+.ilw-year-count {
+	font-size: .7rem;
+	letter-spacing: .1em;
+	opacity: .8;
+	color: var(--ilw-accent, currentColor);
+	border: 1px solid var(--ilw-line, rgba(128,128,128,.3));
+	border-radius: 999px;
+	padding: 3px 10px;
+}
+.ilw-year-line { flex: 1; }
+.ilw-year-chev {
+	width: 11px;
+	height: 11px;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: rotate(45deg);
+	margin-bottom: 4px;
+	opacity: .55;
+	transition: transform .25s ease;
+}
+.ilw-year-group.is-open .ilw-year-chev { transform: rotate(-135deg); margin-bottom: -2px; }
+.ilw-year-group:not(.is-open) .ilw-year-head { margin-bottom: 0; }
+.ilw-year-group:not(.is-open) .ilw-year-num { opacity: .82; }
+.ilw-year-group:not(.is-open) .ilw-year-body { display: none; }
+.ilw-year-head:hover .ilw-year-chev { opacity: .9; }
+
+/* ---- Card ---- */
+/* ---- Card (poster-forward, #121212 panel + bottom-up gradient) ---- */
+.ilw-card {
+	display: flex;
+	flex-direction: column;
+	background: var(--ilw-card-bg);
+	border: 1px solid var(--ilw-line, rgba(128,128,128,.16));
+	border-radius: 14px;
+	overflow: hidden;
+	transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease;
+}
+.ilw-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 16px 40px rgba(0,0,0,.45);
+	border-color: color-mix(in srgb, var(--ilw-accent) 45%, var(--ilw-line, rgba(128,128,128,.3)));
+}
+.ilw-poster {
+	position: relative;
+	aspect-ratio: 2 / 3;
+	overflow: hidden;
+	background: var(--ilw-card-bg);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.ilw-poster .ilw-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	transition: transform .5s ease;
+}
+.ilw-card:hover .ilw-poster .ilw-img { transform: scale(1.05); }
+.ilw-poster::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	pointer-events: none;
+	background: linear-gradient(to top,
+		var(--ilw-card-bg) 0%,
+		color-mix(in srgb, var(--ilw-card-bg) 72%, transparent) 10%,
+		color-mix(in srgb, var(--ilw-card-bg) 32%, transparent) 24%,
+		transparent 46%);
+}
+.ilw-poster-fallback { position: relative; z-index: 0; font-size: 2rem; letter-spacing: .08em; opacity: .4; }
+.ilw-badge {
+	position: absolute;
+	z-index: 2;
+	top: 12px;
+	left: 12px;
+	font-size: .62rem;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	padding: 5px 10px;
+	border-radius: 999px;
+	background: rgba(0,0,0,.55);
+	color: #fff;
+	-webkit-backdrop-filter: blur(6px);
+	backdrop-filter: blur(6px);
+}
+.ilw-ramadan {
+	position: absolute;
+	z-index: 2;
+	top: 12px;
+	right: 12px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: .58rem;
+	font-weight: 600;
+	letter-spacing: .16em;
+	text-transform: uppercase;
+	padding: 5px 12px 5px 10px;
+	border-radius: 999px;
+	color: #e7cc96;
+	background: rgba(0, 0, 0, .55);
+	border: 1px solid rgba(201, 170, 108, .6);
+	-webkit-backdrop-filter: blur(7px);
+	backdrop-filter: blur(7px);
+	box-shadow: 0 2px 12px rgba(0, 0, 0, .4);
+}
+.ilw-ramadan-moon { font-size: .8rem; line-height: 1; color: #d4b06a; }
+.ilw-body { padding: 2px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+.ilw-title { margin: 0; font-size: 1rem; line-height: 1.2; font-weight: 600; }
+.ilw-cast { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: .82rem; line-height: 1.35; }
+.ilw-cast li { line-height: 1.35; }
+.ilw-artist { font-weight: 600; text-decoration: none; color: inherit; border-bottom: 1px solid transparent; }
+a.ilw-artist { color: var(--ilw-accent); }
+a.ilw-artist:hover { border-bottom-color: var(--ilw-accent-hover); }
+.ilw-char { opacity: .65; }
+.ilw-char::before { content: " — "; opacity: .6; }
+
+/* ---- Status / empty ---- */
+.ilw-status { min-height: 0; font-size: .8rem; opacity: .6; margin-bottom: 10px; }
+.ilw-empty { text-align: center; opacity: .7; padding: 40px 0; }
+.ilw-empty[hidden] { display: none; }
+.ilw.is-loading .ilw-groups { opacity: .5; transition: opacity .2s ease; }
+
+/* ---- Mobile filter toggle (desktop: filters always shown) ---- */
+.ilw-filter-toggle { display: none; }
+
+@media (max-width: 699px) {
+	.ilw-filter-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 9px;
+		font: inherit;
+		font-size: .7rem;
+		letter-spacing: .12em;
+		text-transform: uppercase;
+		color: inherit;
+		background: var(--ilw-soft, rgba(128,128,128,.06));
+		border: 1px solid var(--ilw-line, rgba(128,128,128,.28));
+		border-radius: 999px;
+		padding: 12px 20px;
+		margin: 0 0 18px;
+		cursor: pointer;
+	}
+	.ilw-filter-chev {
+		width: 8px; height: 8px;
+		border-right: 2px solid currentColor;
+		border-bottom: 2px solid currentColor;
+		transform: rotate(45deg);
+		margin-top: -3px;
+		opacity: .6;
+		transition: transform .25s ease;
+	}
+	.ilw.filters-open .ilw-filter-chev { transform: rotate(-135deg); margin-top: 2px; }
+	.ilw-controls { display: none; }
+	.ilw.filters-open .ilw-controls { display: flex; }
+}
+
+@media (max-width: 560px) {
+	.ilw-controls { gap: 10px; }
+	.ilw-field { flex: 1 1 100%; }
+	.ilw-title { font-size: .92rem; }
+	.ilw-body { padding: 2px 11px 12px; }
+	/* Compact badges so type + Ramadan never collide on narrow cards */
+	.ilw-badge { top: 8px; left: 8px; font-size: .5rem; letter-spacing: .06em; padding: 4px 8px; }
+	.ilw-ramadan { top: 8px; right: 8px; font-size: .5rem; letter-spacing: .06em; gap: 4px; padding: 4px 8px 4px 7px; border-width: 1px; }
+	.ilw-ramadan-moon { font-size: .66rem; }
+}

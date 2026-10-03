@@ -1,0 +1,1708 @@
+/* =========================================================================
+   CELB MGMT — Frontend
+   Dark editorial system: Cormorant Garamond + Inter, neutral grey accent.
+   All values are scoped under .celb-scope to avoid theme bleed.
+   ========================================================================= */
+
+.celb-scope {
+	--celb-gold: #999999;
+	--celb-bg: #000;
+	--celb-surface: #0a0a0a;
+	--celb-line: rgba(201, 170, 108, .22);
+	--celb-text: #f4f1ea;
+	--celb-muted: rgba(244, 241, 234, .55);
+	--celb-font-display: inherit;
+	--celb-font-body: inherit;
+	--celb-cn: 6; /* carousel items visible (desktop) */
+	--celb-cgap: clamp(8px, 1vw, 16px); /* carousel gap */
+
+	font-family: var(--celb-font-body);
+	-webkit-font-smoothing: antialiased;
+	box-sizing: border-box;
+}
+
+.celb-scope *,
+.celb-scope *::before,
+.celb-scope *::after {
+	box-sizing: border-box;
+}
+
+.celb-scope img { max-width: 100%; height: auto; display: block; }
+.celb-scope a { text-decoration: none; }
+
+/* -------------------------------------------------------------------------
+   CARD (shared: grid + carousel)
+   ---------------------------------------------------------------------- */
+.celb-card {
+	position: relative;
+	display: block;
+	width: 100%;
+	overflow: hidden;
+	color: #fff;
+	container-type: inline-size;
+}
+
+.celb-card-media {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	background-size: cover;
+	background-position: center top;
+	background-color: var(--celb-surface);
+	transform: scale(1);
+	transition: transform .9s cubic-bezier(.2, .7, .2, 1);
+}
+
+.celb-card-overlay {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(to top,
+			rgba(0, 0, 0, .5) 0%,
+			rgba(0, 0, 0, .1) 32%,
+			rgba(0, 0, 0, 0) 55%);
+	pointer-events: none;
+}
+
+.celb-card-text {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 2;
+	padding: clamp(32px, 14cqw, 58px) clamp(12px, 5cqw, 22px) clamp(13px, 5cqw, 20px);
+	background: linear-gradient(to top,
+			rgba(0, 0, 0, .9) 0%,
+			rgba(0, 0, 0, .62) 32%,
+			rgba(0, 0, 0, .22) 62%,
+			rgba(0, 0, 0, 0) 100%);
+}
+
+/* Narrow cards (mobile grid, desktop carousel) get a stronger scrim because
+   names/roles wrap to two lines and would otherwise sit over the face. */
+@container (max-width: 360px) {
+	.celb-card-text {
+		padding-top: clamp(40px, 18cqw, 90px);
+		background: linear-gradient(to top,
+				rgba(0, 0, 0, .97) 0%,
+				rgba(0, 0, 0, .95) 55%,
+				rgba(0, 0, 0, .8) 78%,
+				rgba(0, 0, 0, .35) 92%,
+				rgba(0, 0, 0, 0) 100%);
+	}
+}
+
+.celb-card-name {
+	display: block;
+	font-family: var(--celb-font-display);
+	font-weight: 500;
+	line-height: 1.04;
+	color: #fff !important;
+	font-size: clamp(1rem, 6.4cqw, 1.5rem);
+	letter-spacing: .01em;
+}
+
+.celb-card-sub {
+	display: block;
+	margin-top: clamp(3px, 1.3cqw, 6px);
+	font-family: var(--celb-font-body);
+	font-weight: 400;
+	font-size: clamp(.56rem, 2.4cqw, .7rem);
+	letter-spacing: .12em;
+	line-height: 1.3;
+	text-transform: uppercase;
+	color: var(--celb-gold) !important;
+}
+
+/* Hover (desktop only) */
+@media (hover: hover) and (pointer: fine) {
+	.celb-card:hover .celb-card-media { transform: scale(1.06); }
+	.celb-card::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border: 1px solid var(--celb-gold);
+		opacity: 0;
+		transition: opacity .4s ease;
+		z-index: 3;
+		pointer-events: none;
+	}
+	.celb-card:hover::after { opacity: .7; }
+}
+
+/* Locked (private) cards: visible but not clickable */
+.celb-card--locked { cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+	.celb-card--locked:hover .celb-card-media { transform: none; }
+	.celb-card--locked:hover::after { opacity: 0; }
+}
+
+/* -------------------------------------------------------------------------
+   GRID  [CLEB_celebrities]
+   ---------------------------------------------------------------------- */
+.celb-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: clamp(8px, 1.2vw, 18px);
+	width: 100%;
+}
+
+@media (max-width: 782px) {
+	.celb-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* -------------------------------------------------------------------------
+   CAROUSEL  [CLEB_celebrities_carousel]
+   ---------------------------------------------------------------------- */
+.celb-carousel {
+	position: relative;
+	width: 100%;
+}
+
+.celb-carousel-track {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--celb-cgap);
+	overflow-x: auto;
+	scroll-behavior: smooth;
+	scroll-snap-type: x mandatory;
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+.celb-carousel-track::-webkit-scrollbar { display: none; }
+
+/* Desktop: configurable number of items visible in a single row */
+.celb-carousel-cell {
+	flex: 0 0 calc((100% - (var(--celb-cgap) * (var(--celb-cn) - 1))) / var(--celb-cn));
+	scroll-snap-align: start;
+}
+
+.celb-carousel-nav {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 5;
+	width: 42px;
+	height: 42px;
+	border: 1px solid var(--celb-gold);
+	background: rgba(0, 0, 0, .55);
+	color: var(--celb-gold);
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background .3s ease, color .3s ease;
+}
+.celb-carousel-nav:hover { background: var(--celb-gold); color: #000; }
+.celb-prev { left: -8px; }
+.celb-next { right: -8px; }
+
+@media (max-width: 782px) {
+	/* Mobile: large swipeable cards with a peek of the next one */
+	.celb-carousel-cell { flex: 0 0 80%; }
+	.celb-carousel-nav { display: none; }
+	/* Taller (portrait) cards give the name + role a dark zone below the
+	   subject so the caption never sits on the face. */
+	.celb-card-media { aspect-ratio: 3 / 4; }
+	.celb-card-name { font-size: clamp(1rem, 6cqw, 1.4rem); }
+	.celb-card-sub { letter-spacing: .1em; font-size: clamp(.55rem, 2.3cqw, .68rem); }
+}
+
+/* "View all" button under the carousel */
+.celb-carousel-cta {
+	text-align: center;
+	margin-top: clamp(22px, 3vw, 38px);
+}
+.celb-viewall {
+	display: inline-block;
+	font-family: var(--celb-font-body);
+	font-size: .76rem;
+	font-weight: 500;
+	letter-spacing: .2em;
+	text-transform: uppercase;
+	color: var(--celb-viewall-color, #15120d) !important;
+	text-decoration: none !important;
+	border: 1px solid var(--celb-gold);
+	padding: 15px 42px;
+	border-radius: 0;
+	cursor: pointer;
+	transition: background .3s ease, color .3s ease;
+}
+.celb-viewall:hover {
+	background: var(--celb-gold);
+	color: #000 !important;
+}
+
+/* Homepage newsroom carousel [CLEB_newsroom_carousel] */
+.celb-news-carousel-wrap { --celb-cgap: clamp(14px, 1.5vw, 22px); width: 100%; }
+/* Inherit the active theme's font instead of the plugin's bundled fonts. */
+.celb-scope.celb-news-carousel-wrap { font-family: inherit; }
+.celb-news-carousel-title,
+.celb-news-carousel .celb-news-card-title,
+.celb-news-carousel .celb-news-card-meta,
+.celb-news-viewmore { font-family: inherit; }
+
+/* Card counts are set directly on the cells with a fixed gap (custom
+   properties can be dropped inside some page builders), and !important to
+   defeat theme overrides on flex children. Desktop: 3.5 per view. */
+.celb-news-carousel .celb-carousel-track { gap: 20px !important; }
+.celb-news-carousel .celb-carousel-cell {
+	flex: 0 0 calc((100% - 50px) / 3.5) !important;
+	width: calc((100% - 50px) / 3.5) !important;
+	max-width: none !important;
+}
+
+.celb-news-carousel-title {
+	font-weight: 500;
+	font-size: clamp(1.8rem, 4vw, 3.1rem);
+	line-height: 1.06;
+	color: #f4f1ea;
+	margin: 0 0 clamp(22px, 3vw, 40px);
+}
+.celb-news-carousel .celb-carousel-nav { border-color: rgba(255, 255, 255, .5); color: #f4f1ea; background: rgba(0, 0, 0, .55); }
+.celb-news-carousel .celb-carousel-nav:hover { background: #f4f1ea; color: #111; }
+
+/* Smaller, clamped card text so long titles never overflow the tile. */
+.celb-news-carousel .celb-news-card-text { gap: 6px; padding: clamp(16px, 1.4vw, 22px); }
+.celb-news-carousel .celb-news-card-title {
+	font-size: clamp(.95rem, 1.05vw, 1.18rem);
+	line-height: 1.28;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.celb-news-carousel .celb-news-card-meta { font-size: clamp(.72rem, .82vw, .84rem); }
+
+/* "View More" — right-aligned text link (not a button). */
+.celb-news-carousel-cta { margin-top: clamp(20px, 2.6vw, 34px); text-align: right; }
+.celb-news-viewmore {
+	display: inline-flex; align-items: center; gap: 9px;
+	font-size: .8rem; font-weight: 500;
+	letter-spacing: .18em; text-transform: uppercase;
+	color: #f4f1ea !important; text-decoration: none !important;
+	border: 0; padding: 0; background: none; border-radius: 0;
+}
+.celb-news-viewmore::after { content: "\2192"; font-size: 1.05em; transition: transform .25s ease; }
+.celb-news-viewmore:hover { color: #fff !important; background: none; }
+.celb-news-viewmore:hover::after { transform: translateX(5px); }
+
+@media (max-width: 782px) {
+	/* Mobile: 1.5 articles per view (peek of the next). */
+	.celb-news-carousel .celb-carousel-track { gap: 14px !important; }
+	.celb-news-carousel .celb-carousel-cell {
+		flex: 0 0 calc((100% - 7px) / 1.5) !important;
+		width: calc((100% - 7px) / 1.5) !important;
+	}
+}
+
+/* -------------------------------------------------------------------------
+   SINGLE PROFILE
+   ---------------------------------------------------------------------- */
+.celb-single {
+	/* Break out of the theme's centered content column to span the full viewport */
+	width: 100vw;
+	max-width: 100vw;
+	margin-left: calc(50% - 50vw);
+	margin-right: calc(50% - 50vw);
+	/* Match a light (white) website background */
+	background: #ffffff;
+}
+.celb-scope.celb-single {
+	--celb-surface: #f1ede6;
+	--celb-text: #15120d;
+	--celb-muted: rgba(21, 18, 13, .56);
+	--celb-line: rgba(21, 18, 13, .14);
+	color: var(--celb-text);
+}
+
+/* Hero */
+.celb-hero {
+	position: relative;
+	width: 100%;
+	min-height: clamp(460px, 84vh, 900px);
+	overflow: hidden;
+	background: var(--celb-surface);
+}
+.celb-hero-bg,
+.celb-hero-bg img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+.celb-hero-bg img { object-fit: cover; object-position: center 25%; }
+
+.celb-hero-gradient {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(to top,
+			rgba(0, 0, 0, .92) 0%,
+			rgba(0, 0, 0, .55) 30%,
+			rgba(0, 0, 0, .1) 62%,
+			rgba(0, 0, 0, 0) 85%);
+	z-index: 2;
+}
+
+.celb-hero-content {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 3;
+	padding: clamp(28px, 6vw, 80px) clamp(20px, 6vw, 90px);
+	max-width: 1280px;
+	margin: 0 auto;
+}
+.celb-hero-name {
+	margin: 0;
+	font-family: var(--celb-font-display);
+	font-weight: 500;
+	line-height: .98;
+	color: #fff !important;
+	font-size: clamp(2.6rem, 7vw, 6rem);
+	letter-spacing: .005em;
+}
+.celb-hero-sub {
+	margin: clamp(10px, 1.4vw, 18px) 0 0;
+	font-family: var(--celb-font-body);
+	font-weight: 400;
+	font-size: clamp(.7rem, 1vw, .82rem);
+	letter-spacing: .28em;
+	text-transform: uppercase;
+	color: var(--celb-gold) !important;
+}
+
+/* Body container */
+.celb-body {
+	max-width: 1080px;
+	margin: 0 auto;
+	padding: clamp(40px, 6vw, 90px) clamp(20px, 6vw, 60px) clamp(60px, 8vw, 120px);
+}
+
+.celb-section { margin-bottom: clamp(48px, 7vw, 96px); }
+.celb-section:last-child { margin-bottom: 0; }
+
+.celb-section-title {
+	font-family: var(--celb-font-display);
+	font-weight: 500;
+	font-size: clamp(1.6rem, 3vw, 2.4rem);
+	color: var(--celb-text) !important;
+	margin: 0 0 clamp(20px, 3vw, 38px);
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--celb-line);
+	letter-spacing: .01em;
+}
+
+/* Biography */
+.celb-bio-text {
+	font-size: clamp(1rem, 1.2vw, 1.12rem);
+	line-height: 1.85;
+	color: var(--celb-text) !important;
+	color: color-mix(in srgb, var(--celb-text) 88%, transparent) !important;
+	font-weight: 400;
+	max-width: none;
+	text-align: justify;
+	text-justify: inter-word;
+	-webkit-hyphens: auto;
+	hyphens: auto;
+}
+.celb-bio-text p { margin: 0 0 1.2em; }
+.celb-bio-text a { color: var(--celb-gold) !important; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Social row */
+.celb-social-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+}
+.celb-social-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border: 1px solid var(--celb-line);
+	color: var(--celb-text) !important;
+	border-radius: 50%;
+	transition: background .3s ease, color .3s ease, border-color .3s ease, transform .3s ease;
+}
+.celb-social-link:hover {
+	background: var(--celb-gold);
+	border-color: var(--celb-gold);
+	color: #000 !important;
+	transform: translateY(-2px);
+}
+.celb-social-link svg { width: 20px; height: 20px; }
+
+/* Career table */
+.celb-table { width: 100%; }
+.celb-table-row {
+	display: grid;
+	grid-template-columns: 1.4fr 1fr auto;
+	gap: 18px;
+	align-items: baseline;
+	padding: 18px 0;
+	border-bottom: 1px solid var(--celb-line);
+}
+.celb-col-project {
+	font-family: var(--celb-font-display);
+	font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+	color: var(--celb-text) !important;
+	font-weight: 500;
+}
+.celb-col-role {
+	font-size: .86rem;
+	letter-spacing: .04em;
+	color: var(--celb-muted) !important;
+}
+.celb-col-meta {
+	display: block;
+	margin-top: 4px;
+	font-size: .68rem;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--celb-gold) !important;
+}
+.celb-col-year {
+	font-family: var(--celb-font-body);
+	font-size: .82rem;
+	letter-spacing: .14em;
+	color: var(--celb-gold) !important;
+	white-space: nowrap;
+}
+
+/* Under-production roles */
+.celb-row-production .celb-col-project { color: var(--celb-gold) !important; }
+.celb-coming-soon {
+	display: inline-block;
+	font-family: var(--celb-font-body);
+	font-size: .6rem;
+	font-weight: 600;
+	letter-spacing: .18em;
+	text-transform: uppercase;
+	color: #000 !important;
+	padding: 6px 12px;
+	border-radius: 2px;
+	white-space: nowrap;
+	background: linear-gradient(110deg, var(--celb-gold) 0%, #cccccc 50%, var(--celb-gold) 100%);
+	background-size: 200% auto;
+	animation: celbShine 3s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+	.celb-coming-soon { animation: none; }
+}
+
+/* Career type filter (desktop only) */
+.celb-career-filter { display: none; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+@media (min-width: 783px) { .celb-career-filter { display: flex; } }
+.celb-filter-pill {
+	background: none;
+	border: 1px solid var(--celb-line);
+	color: var(--celb-text);
+	font-family: var(--celb-font-body);
+	font-size: .68rem;
+	font-weight: 500;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+	padding: 9px 18px;
+	border-radius: 999px;
+	cursor: pointer;
+	transition: background .25s ease, border-color .25s ease, color .25s ease;
+}
+.celb-filter-pill:hover { border-color: var(--celb-gold); color: var(--celb-gold); }
+.celb-filter-pill.is-active { background: var(--celb-gold); border-color: var(--celb-gold); color: #000; }
+.celb-table-row.celb-row-hidden { display: none; }
+
+/* Awards */
+.celb-awards-list { display: flex; flex-direction: column; }
+.celb-award {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: clamp(16px, 3vw, 38px);
+	padding: 22px 0;
+	border-bottom: 1px solid var(--celb-line);
+}
+.celb-award-year {
+	font-family: var(--celb-font-display);
+	font-size: clamp(1.6rem, 3vw, 2.2rem);
+	color: var(--celb-gold) !important;
+	line-height: 1;
+}
+.celb-award-title {
+	display: block;
+	font-family: var(--celb-font-display);
+	font-size: clamp(1.15rem, 1.8vw, 1.45rem);
+	color: var(--celb-text) !important;
+	font-weight: 500;
+}
+.celb-award-meta {
+	display: block;
+	margin-top: 6px;
+	font-size: .82rem;
+	letter-spacing: .04em;
+	color: var(--celb-muted) !important;
+}
+
+/* Gallery */
+.celb-gallery-grid {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: clamp(6px, 1vw, 14px);
+}
+@media (max-width: 782px) {
+	.celb-gallery-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.celb-gallery-thumb {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	background-size: cover;
+	background-position: center;
+	background-color: var(--celb-surface);
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	overflow: hidden;
+	transition: opacity .3s ease;
+}
+.celb-gallery-thumb::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0);
+	transition: background .3s ease;
+}
+.celb-gallery-thumb:hover::after { background: rgba(0, 0, 0, .25); }
+
+/* -------------------------------------------------------------------------
+   COLLAPSIBLE SECTIONS (Career History, Awards)
+   ---------------------------------------------------------------------- */
+.celb-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	width: 100%;
+	background: none;
+	border: 0;
+	border-bottom: 1px solid var(--celb-line);
+	-webkit-appearance: none;
+	appearance: none;
+	cursor: pointer;
+	text-align: left;
+}
+.celb-toggle:focus-visible { outline: 2px solid var(--celb-gold); outline-offset: 4px; }
+.celb-toggle > span:first-child { display: block; }
+
+/* Plus / minus icon in the corner */
+.celb-toggle-icon {
+	position: relative;
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+	align-self: center;
+}
+.celb-toggle-icon::before,
+.celb-toggle-icon::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	background: var(--celb-gold);
+	transition: transform .3s ease, opacity .3s ease;
+}
+.celb-toggle-icon::before { width: 18px; height: 2px; transform: translate(-50%, -50%); }
+.celb-toggle-icon::after  { width: 2px; height: 18px; transform: translate(-50%, -50%); }
+.celb-toggle[aria-expanded="true"] .celb-toggle-icon::after {
+	transform: translate(-50%, -50%) scaleY(0);
+	opacity: 0;
+}
+
+/* Smooth height collapse without a fixed max-height */
+.celb-collapse-body {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows .4s ease;
+}
+.celb-toggle[aria-expanded="true"] + .celb-collapse-body { grid-template-rows: 1fr; }
+.celb-collapsible .celb-toggle { margin-bottom: 0; }
+.celb-collapse-inner { overflow: hidden; min-height: 0; padding-top: clamp(20px, 3vw, 38px); }
+
+@media (prefers-reduced-motion: reduce) {
+	.celb-collapse-body { transition: none; }
+}
+
+/* -------------------------------------------------------------------------
+   CALL TO ACTION (e.g. "Let's Talk")
+   ---------------------------------------------------------------------- */
+.celb-cta { text-align: left; }
+.celb-cta-btn {
+	display: inline-block;
+	font-family: var(--celb-font-body);
+	font-size: .76rem;
+	font-weight: 500;
+	letter-spacing: .22em;
+	text-transform: uppercase;
+	color: var(--celb-text) !important;
+	border: 1px solid var(--celb-gold);
+	padding: 17px 42px;
+	transition: background .35s ease, color .35s ease;
+}
+.celb-cta-btn:hover {
+	background: var(--celb-gold);
+	color: #000 !important;
+}
+
+/* -------------------------------------------------------------------------
+   BORN LINE + BIRTHDAY GREETING
+   ---------------------------------------------------------------------- */
+.celb-born {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	margin-bottom: clamp(38px, 6vw, 70px);
+	font-family: var(--celb-font-body);
+}
+.celb-born-label {
+	font-size: .68rem;
+	letter-spacing: .22em;
+	text-transform: uppercase;
+	color: var(--celb-muted) !important;
+}
+.celb-born-date {
+	font-family: var(--celb-font-display);
+	font-size: clamp(1.2rem, 2vw, 1.6rem);
+	color: var(--celb-text) !important;
+	line-height: 1;
+}
+.celb-bday-greeting { display: none; }
+.celb-born[data-celb-birthday="1"] .celb-bday-greeting {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--celb-font-display);
+	font-weight: 600;
+	font-size: clamp(1.2rem, 2vw, 1.6rem);
+	line-height: 1;
+	background: linear-gradient(90deg, var(--celb-gold), #cccccc, var(--celb-gold), #cccccc);
+	background-size: 200% auto;
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	color: transparent;
+	animation: celbShine 2.6s linear infinite, celbPop .6s cubic-bezier(.2,.8,.2,1) both;
+}
+.celb-born[data-celb-birthday="1"] .celb-bday-greeting::before {
+	content: "\1F389"; /* 🎉 */
+	-webkit-text-fill-color: initial;
+	color: initial;
+	font-size: 1.05em;
+}
+@keyframes celbShine { to { background-position: 200% center; } }
+@keyframes celbPop {
+	from { opacity: 0; transform: translateY(6px) scale(.96); }
+	to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.celb-born[data-celb-birthday="1"] .celb-bday-greeting { animation: celbPop .4s ease both; }
+}
+
+/* -------------------------------------------------------------------------
+   LIGHTBOX
+   ---------------------------------------------------------------------- */
+.celb-lightbox {
+	position: fixed;
+	inset: 0;
+	z-index: 100060;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, .94);
+}
+.celb-lightbox.is-open { display: flex; }
+
+.celb-lb-stage {
+	max-width: 92vw;
+	max-height: 86vh;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.celb-lb-img {
+	max-width: 92vw;
+	max-height: 86vh;
+	width: auto;
+	height: auto;
+	object-fit: contain;
+	transform: scale(1);
+	transform-origin: center center;
+	transition: transform .3s ease;
+	cursor: zoom-in;
+	user-select: none;
+}
+.celb-lb-img.is-zoomed { cursor: grab; transition: none; }
+
+.celb-lb-close,
+.celb-lb-prev,
+.celb-lb-next {
+	position: fixed;
+	background: none;
+	border: 0;
+	color: #fff;
+	cursor: pointer;
+	z-index: 2;
+	line-height: 1;
+	transition: color .25s ease;
+}
+.celb-lb-close:hover,
+.celb-lb-prev:hover,
+.celb-lb-next:hover { color: var(--celb-gold); }
+.celb-lb-close { top: 22px; right: 28px; font-size: 38px; }
+.celb-lb-prev,
+.celb-lb-next { top: 50%; transform: translateY(-50%); font-size: 52px; padding: 0 18px; }
+.celb-lb-prev { left: 8px; }
+.celb-lb-next { right: 8px; }
+.celb-lb-hint {
+	position: fixed;
+	bottom: 24px;
+	left: 50%;
+	transform: translateX(-50%);
+	font-size: .68rem;
+	letter-spacing: .2em;
+	text-transform: uppercase;
+	color: rgba(255, 255, 255, .5);
+}
+@media (max-width: 600px) {
+	.celb-table-row { grid-template-columns: 1fr auto; }
+	.celb-col-role { grid-column: 1 / -1; }
+	.celb-lb-hint { display: none; }
+}
+
+/* =========================================================================
+   SUBMISSION PORTAL  [CLEB_submit]
+   ========================================================================= */
+.celb-scope.celb-portal {
+	--celb-surface: transparent;
+	--celb-text: #f4f1ea;
+	--celb-muted: rgba(244, 241, 234, .62);
+	--celb-line: rgba(244, 241, 234, .2);
+	max-width: 760px;
+	margin: 0 auto;
+	color: var(--celb-text);
+	font-family: var(--celb-font-body);
+}
+.celb-portal-note,
+.celb-portal-lead {
+	font-size: 1.02rem;
+	line-height: 1.7;
+	color: var(--celb-text);
+	margin: 0 0 24px;
+}
+.celb-portal-hint { font-size: .9rem; color: var(--celb-muted); margin: 0 0 16px; }
+.celb-portal-error {
+	background: rgba(179, 38, 30, .08);
+	border: 1px solid rgba(179, 38, 30, .4);
+	color: #b3261e;
+	padding: 12px 16px;
+	margin: 0 0 20px;
+	font-size: .92rem;
+}
+
+/* Fields */
+.celb-field { margin-bottom: 22px; }
+.celb-field-split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.celb-label {
+	display: block;
+	font-size: .68rem;
+	letter-spacing: .16em;
+	text-transform: uppercase;
+	color: var(--celb-muted);
+	margin-bottom: 8px;
+}
+.celb-input {
+	width: 100%;
+	padding: 13px 15px;
+	border: 1px solid var(--celb-line);
+	background: #fff;
+	color: var(--celb-text);
+	font-family: var(--celb-font-body);
+	font-size: 1rem;
+	border-radius: 0;
+	-webkit-appearance: none;
+	appearance: none;
+}
+.celb-input:focus { outline: none; border-color: var(--celb-gold); box-shadow: 0 0 0 1px var(--celb-gold); }
+textarea.celb-input { resize: vertical; min-height: 120px; line-height: 1.6; }
+.celb-input-auto { width: auto; min-width: 200px; }
+.celb-row-inline { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 20px; }
+.celb-checkbox { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--celb-text); cursor: pointer; }
+.celb-checkbox input { width: 16px; height: 16px; }
+
+/* Group titles */
+.celb-portal-group-title {
+	font-family: var(--celb-font-display);
+	font-weight: 500;
+	font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+	color: var(--celb-text);
+	margin: 44px 0 6px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--celb-line);
+}
+.celb-portal-optional,
+.celb-portal-group-title .celb-portal-optional {
+	font-family: var(--celb-font-body);
+	font-size: .72rem;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--celb-muted);
+}
+
+/* Repeater rows */
+.celb-portal-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px dashed var(--celb-line);
+}
+.celb-portal-row input[type="text"],
+.celb-portal-row input[type="number"] {
+	flex: 1 1 150px;
+	min-width: 0;
+	padding: 11px 13px;
+	border: 1px solid var(--celb-line);
+	background: #fff;
+	color: var(--celb-text);
+	font-family: var(--celb-font-body);
+	font-size: .95rem;
+}
+.celb-portal-row input[type="number"] { flex: 0 0 90px; }
+.celb-portal-row input:focus { outline: none; border-color: var(--celb-gold); }
+.celb-portal-remove {
+	flex: 0 0 auto;
+	width: 34px; height: 34px;
+	border: 1px solid var(--celb-line);
+	background: none;
+	color: var(--celb-muted);
+	font-size: 20px; line-height: 1;
+	cursor: pointer;
+	transition: color .25s ease, border-color .25s ease;
+}
+.celb-portal-remove:hover { color: #b3261e; border-color: #b3261e; }
+.celb-portal-add {
+	background: none;
+	border: 1px solid var(--celb-line);
+	color: var(--celb-text);
+	font-family: var(--celb-font-body);
+	font-size: .74rem;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	padding: 11px 22px;
+	cursor: pointer;
+	transition: border-color .25s ease, color .25s ease;
+}
+.celb-portal-add:hover { border-color: var(--celb-gold); color: var(--celb-gold); }
+
+/* Social fields grid */
+.celb-social-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+
+/* Buttons */
+.celb-btn {
+	display: inline-block;
+	background: var(--celb-gold);
+	color: #000 !important;
+	border: 0;
+	padding: 16px 44px;
+	font-family: var(--celb-font-body);
+	font-size: .76rem;
+	font-weight: 600;
+	letter-spacing: .2em;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition: filter .25s ease;
+}
+.celb-btn:hover { filter: brightness(1.06); }
+.celb-gate-form { display: flex; flex-wrap: wrap; gap: 12px; max-width: 420px; }
+.celb-gate-form .celb-input { flex: 1 1 220px; }
+.celb-portal-submit { margin-top: 36px; }
+
+/* Confirmation */
+.celb-portal-confirm { text-align: center; padding: clamp(40px, 8vw, 90px) 20px; }
+.celb-portal-check {
+	width: 66px; height: 66px;
+	border-radius: 50%;
+	border: 2px solid var(--celb-gold);
+	color: var(--celb-gold);
+	display: flex; align-items: center; justify-content: center;
+	font-size: 30px;
+	margin: 0 auto 24px;
+}
+.celb-portal-confirm-text {
+	font-family: var(--celb-font-display);
+	font-size: clamp(1.4rem, 3vw, 2rem);
+	color: var(--celb-text);
+	max-width: 520px;
+	margin: 0 auto;
+	line-height: 1.4;
+}
+
+/* Honeypot (kept out of view and away from screen readers' tab order) */
+.celb-hp { position: absolute !important; left: -9999px !important; top: auto; width: 1px; height: 1px; overflow: hidden; }
+
+@media (max-width: 600px) {
+	.celb-field-split,
+	.celb-social-fields { grid-template-columns: 1fr; }
+}
+
+/* -------------------------------------------------------------------------
+   PORTAL THEME-PROOFING
+   Some themes force their own button/input styling (black pill buttons,
+   underline inputs) over the portal. These higher-specificity rules keep the
+   portal looking as intended regardless of the active theme.
+   ---------------------------------------------------------------------- */
+.celb-scope.celb-portal .celb-btn,
+.celb-scope.celb-portal button.celb-btn {
+	background: var(--celb-gold) !important;
+	background-image: none !important;
+	color: #000 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	padding: 16px 44px !important;
+	width: auto !important;
+	line-height: 1.2 !important;
+	text-shadow: none !important;
+	text-decoration: none !important;
+	opacity: 1 !important;
+}
+.celb-scope.celb-portal .celb-btn:hover {
+	background: var(--celb-gold) !important;
+	color: #000 !important;
+	filter: brightness(1.06);
+}
+.celb-scope.celb-portal .celb-input {
+	background: #fff !important;
+	color: #15120d !important;
+	border: 1px solid rgba(244, 241, 234, .22) !important;
+	border-radius: 0 !important;
+	padding: 13px 15px !important;
+	width: 100% !important;
+	box-shadow: none !important;
+}
+.celb-scope.celb-portal .celb-input::placeholder { color: rgba(21, 18, 13, .5) !important; }
+.celb-scope.celb-portal .celb-input-auto { width: auto !important; min-width: 200px; }
+.celb-scope.celb-portal .celb-input:focus {
+	border-color: #f4f1ea !important;
+	box-shadow: 0 0 0 1px rgba(244, 241, 234, .5) !important;
+}
+.celb-scope.celb-portal .celb-portal-row input {
+	background: #fff !important;
+	color: #15120d !important;
+	border: 1px solid rgba(244, 241, 234, .22) !important;
+	border-radius: 0 !important;
+}
+.celb-scope.celb-portal .celb-portal-row input::placeholder { color: rgba(21, 18, 13, .5) !important; }
+.celb-scope.celb-portal .celb-portal-add,
+.celb-scope.celb-portal .celb-portal-remove {
+	background: none !important;
+	border: 1px solid var(--celb-line) !important;
+	color: var(--celb-text) !important;
+	border-radius: 0 !important;
+	text-shadow: none !important;
+}
+.celb-scope.celb-portal .celb-portal-add:hover {
+	border-color: var(--celb-gold) !important;
+	color: var(--celb-gold) !important;
+	background: none !important;
+}
+.celb-scope.celb-portal .celb-portal-remove:hover {
+	border-color: #b3261e !important;
+	color: #b3261e !important;
+}
+
+/* =========================================================================
+   NEWSROOM
+   ========================================================================= */
+.celb-news-list { display: flex; flex-direction: column; }
+.celb-news-item {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	width: 100%;
+	background: none;
+	border: 0;
+	border-bottom: 1px solid var(--celb-line);
+	padding: 16px 0;
+	cursor: pointer;
+	text-align: left;
+	text-decoration: none;
+	color: inherit;
+}
+.celb-news-item:first-child { border-top: 1px solid var(--celb-line); }
+.celb-news-thumb {
+	flex: 0 0 auto;
+	width: 70px;
+	height: 70px;
+	border-radius: 2px;
+	background: var(--celb-surface) center / cover no-repeat;
+}
+.celb-news-headline { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.celb-news-title {
+	font-family: var(--celb-font-display);
+	font-size: clamp(1.1rem, 1.7vw, 1.45rem);
+	line-height: 1.2;
+	color: var(--celb-text) !important;
+	transition: color .25s ease;
+}
+.celb-news-item:hover .celb-news-title { color: var(--celb-gold) !important; }
+.celb-news-date {
+	font-size: .68rem;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+	color: var(--celb-muted) !important;
+}
+
+/* Popup */
+.celb-news-popup { position: fixed; inset: 0; z-index: 100000; display: none; }
+.celb-news-popup.is-open { display: block; }
+.celb-news-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, .5); }
+.celb-news-modal {
+	position: relative;
+	z-index: 2;
+	width: calc(100% - 40px);
+	max-width: 860px;
+	max-height: 90vh;
+	margin: 5vh auto;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	background: #ffffff;
+	color: #15120d;
+	border-radius: 2px;
+	box-shadow: 0 30px 80px rgba(0, 0, 0, .45);
+}
+.celb-news-close {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	z-index: 5;
+	width: 42px;
+	height: 42px;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, .5);
+	color: #fff;
+	font-size: 26px;
+	line-height: 1;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background .25s ease;
+}
+.celb-news-close:hover { background: #000; }
+
+.celb-news-header {
+	position: relative;
+	width: 100%;
+	min-height: clamp(240px, 42vh, 420px);
+	background: #15120d center / cover no-repeat;
+}
+.celb-news-header-gradient {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(to top, rgba(0, 0, 0, .92) 0%, rgba(0, 0, 0, .5) 38%, rgba(0, 0, 0, .05) 78%, transparent 100%);
+}
+.celb-news-header-text {
+	position: absolute;
+	left: 0; right: 0; bottom: 0;
+	z-index: 2;
+	padding: clamp(22px, 4vw, 44px);
+}
+.celb-news-lang {
+	display: inline-flex;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+.celb-news-lang-btn {
+	font: inherit;
+	font-size: .72rem;
+	letter-spacing: .1em;
+	line-height: 1;
+	color: #fff;
+	background: rgba(0, 0, 0, .35);
+	border: 1px solid rgba(255, 255, 255, .35);
+	border-radius: 999px;
+	padding: 7px 14px;
+	cursor: pointer;
+	position: relative;
+	z-index: 3;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: rgba(255, 255, 255, .25);
+	-webkit-backdrop-filter: blur(6px);
+	backdrop-filter: blur(6px);
+	transition: background .2s ease, border-color .2s ease;
+}
+.celb-news-lang-btn.is-active {
+	background: #fff;
+	color: #111;
+	border-color: #fff;
+}
+.celb-news-body[hidden], .celb-news-h[hidden], .celb-article-title[hidden], .celb-article-body[hidden] { display: none !important; }
+.celb-news-h {
+	margin: 0;
+	font-family: var(--celb-font-display);
+	font-weight: 500;
+	line-height: 1.05;
+	color: #fff !important;
+	font-size: clamp(1.6rem, 3.6vw, 2.6rem);
+}
+.celb-news-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 16px;
+	margin-top: 12px;
+	font-size: .68rem;
+	letter-spacing: .16em;
+	text-transform: uppercase;
+}
+.celb-news-pubdate { color: var(--celb-gold) !important; }
+.celb-news-loc { color: rgba(255, 255, 255, .82) !important; position: relative; padding-left: 16px; }
+.celb-news-loc::before { content: ""; position: absolute; left: 0; top: 50%; width: 4px; height: 4px; border-radius: 50%; background: var(--celb-gold); transform: translateY(-50%); }
+
+.celb-news-content { padding: clamp(24px, 4vw, 46px); }
+.celb-news-body { font-size: 1rem; line-height: 1.85; color: #2b2620; }
+.celb-news-body p { margin: 0 0 1.15em; }
+.celb-news-body a { color: var(--celb-gold); text-decoration: underline; text-underline-offset: 3px; }
+.celb-news-body img { max-width: 100%; height: auto; }
+
+.celb-news-gallery {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 8px;
+	margin-top: 30px;
+}
+.celb-news-gthumb {
+	aspect-ratio: 1 / 1;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	background: #ece8e1 center / cover no-repeat;
+	transition: opacity .25s ease;
+}
+.celb-news-gthumb:hover { opacity: .85; }
+.celb-news-download { margin-top: 16px; }
+.celb-news-dl {
+	display: inline-block;
+	background: var(--celb-gold) !important;
+	color: #000 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	padding: 14px 32px !important;
+	font-family: var(--celb-font-body);
+	font-size: .74rem;
+	font-weight: 600;
+	letter-spacing: .16em;
+	text-transform: uppercase;
+	text-decoration: none !important;
+	cursor: pointer;
+	transition: filter .25s ease;
+}
+.celb-news-dl:hover { filter: brightness(1.06); color: #000 !important; }
+
+.celb-news-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 30px;
+	padding-top: 26px;
+	border-top: 1px solid rgba(0, 0, 0, .1);
+}
+.celb-news-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	padding: 11px 18px;
+	border: 1px solid var(--celb-gold);
+	color: #15120d !important;
+	font-family: var(--celb-font-body);
+	font-size: .72rem;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	text-decoration: none;
+	transition: background .25s ease, color .25s ease;
+}
+.celb-news-link svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.celb-news-link:hover { background: var(--celb-gold); color: #000 !important; }
+
+@media (max-width: 600px) {
+	.celb-news-gallery { grid-template-columns: repeat(3, 1fr); }
+	.celb-news-modal { width: calc(100% - 20px); margin: 2vh auto; max-height: 96vh; }
+}
+
+/* =========================================================================
+   GLOBAL NEWSROOM PAGE  [CLEB_newsroom]
+   ========================================================================= */
+.celb-scope.celb-newsroom-page {
+	--celb-surface: #f1ede6;
+	--celb-text: #15120d;
+	--celb-muted: rgba(21, 18, 13, .56);
+	--celb-line: rgba(21, 18, 13, .18);
+	color: var(--celb-text);
+	font-family: var(--celb-font-body);
+}
+.celb-newsroom-bar {
+	display: flex;
+	justify-content: flex-start;
+	margin-bottom: clamp(26px, 3vw, 44px);
+}
+.celb-newsroom-filter {
+	flex: 0 0 auto;
+	width: 300px;
+	max-width: 100%;
+}
+.celb-newsroom-filter .celb-label {
+	display: block;
+	font-size: .62rem;
+	letter-spacing: .22em;
+	text-transform: uppercase;
+	color: rgba(153, 153, 153, .85);
+	margin-bottom: 10px;
+}
+.celb-news-select {
+	width: 100%;
+	padding: 13px 44px 13px 18px;
+	border: 1px solid rgba(153, 153, 153, .45);
+	background-color: rgba(255, 255, 255, .02);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%23999999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 16px center;
+	color: #f4f1ea;
+	font-family: var(--celb-font-body);
+	font-size: .78rem;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	border-radius: 999px;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	cursor: pointer;
+	transition: border-color .2s, background-color .2s;
+}
+.celb-news-select:hover { border-color: rgba(153, 153, 153, .7); }
+.celb-news-select:focus { outline: none; border-color: #999999; background-color: rgba(153, 153, 153, .08); }
+.celb-news-select option { color: #15120d; background: #f1ede6; text-transform: none; letter-spacing: 0; }
+
+/* Newsroom pagination */
+.celb-news-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 54px; }
+.celb-news-pager[hidden] { display: none; }
+.celb-news-page {
+	min-width: 44px; height: 44px; padding: 0 13px;
+	display: inline-flex; align-items: center; justify-content: center;
+	font-family: var(--celb-font-body); font-size: .8rem; letter-spacing: .05em; line-height: 1;
+	color: #f4f1ea; background: rgba(255, 255, 255, .03);
+	border: 1px solid rgba(153, 153, 153, .35); border-radius: 999px;
+	cursor: pointer; transition: border-color .2s, background-color .2s, color .2s;
+}
+.celb-news-page:hover:not(:disabled) { border-color: rgba(153, 153, 153, .75); }
+.celb-news-page.is-active { background: #999999; border-color: #999999; color: #111; }
+.celb-news-page:disabled { opacity: .35; cursor: default; }
+.celb-news-page--nav { font-size: 1.15rem; padding: 0 15px; }
+.celb-news-ellipsis { color: rgba(244, 241, 234, .5); padding: 0 2px; letter-spacing: .1em; }
+
+/* Photo-card grid — two per row on desktop, one per row on mobile */
+.celb-news-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: clamp(20px, 2.4vw, 32px);
+}
+.celb-news-card {
+	position: relative;
+	display: block;
+	aspect-ratio: 3 / 2;
+	border-radius: 24px;
+	overflow: hidden;
+	background-color: #111;
+	background-position: center;
+	background-size: cover;
+	background-repeat: no-repeat;
+	text-decoration: none;
+	color: #fff;
+	isolation: isolate;
+	transition: transform .35s ease, box-shadow .35s ease;
+}
+.celb-news-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 18px 42px rgba(0, 0, 0, .30);
+}
+.celb-news-card-shade {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 32%, rgba(0, 0, 0, .55) 60%, rgba(0, 0, 0, .92) 100%);
+	pointer-events: none;
+}
+.celb-news-card-text {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 2;
+	padding: clamp(22px, 2.4vw, 34px);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.celb-news-card-title {
+	font-family: var(--celb-font-body);
+	font-weight: 700;
+	font-size: clamp(1.15rem, 1.5vw, 1.5rem);
+	line-height: 1.4;
+	color: #fff;
+	margin: 0;
+}
+.celb-news-card-title[dir="rtl"] { text-align: right; }
+.celb-news-card-title[dir="ltr"] { text-align: left; }
+.celb-news-card-meta {
+	font-family: var(--celb-font-body);
+	font-size: clamp(.85rem, 1vw, .98rem);
+	letter-spacing: .01em;
+	color: rgba(255, 255, 255, .82);
+	direction: ltr;
+	text-align: left;
+}
+.celb-news-celeb {
+	font-size: .72rem;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	color: var(--celb-muted) !important;
+}
+.celb-news-empty,
+.celb-news-empty-static { color: var(--celb-muted); padding: 24px 0; }
+
+@media (max-width: 767px) {
+	.celb-news-grid { grid-template-columns: 1fr; }
+	.celb-newsroom-bar { justify-content: flex-start; }
+	.celb-newsroom-filter { width: 100%; }
+}
+
+/* Public request / booking form [CLEB_request] */
+.celb-request-form form { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.celb-request-form label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; color: inherit; opacity: .85; }
+.celb-request-form input, .celb-request-form select, .celb-request-form textarea {
+	font: inherit; padding: 12px 14px; border: 1px solid rgba(0,0,0,.18); border-radius: 8px; background: #fff; color: #111; width: 100%;
+}
+.celb-request-form textarea { resize: vertical; min-height: 110px; }
+.celb-request-form button { background: #111; color: #fff; border: 0; padding: 14px 22px; border-radius: 8px; font-size: .82rem; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+.celb-request-form button:hover { opacity: .9; }
+.celb-request-err { color: #b32d2e; font-size: .9rem; }
+.celb-request-done { text-align: center; padding: 30px 0; font-size: 1.05rem; }
+
+/* ==========================================================================
+   SINGLE NEWS ARTICLE (single-celeb_news.php) + Newsroom direction (RTL/LTR)
+   Monochrome: black background, white text, #999 accents.
+   Full-width hero image + gradient, title overlaid; readable body column.
+   ========================================================================== */
+.celb-scope.celb-article { background: #000; color: #fff; font-family: inherit; width: 100vw; max-width: 100vw; box-sizing: border-box; overflow-x: hidden; margin: 0 0 0 calc(50% - 50vw); padding: 0 0 90px; }
+.celb-article-inner { width: 100%; max-width: 100%; }
+
+/* Kill the WPBakery/Salient (and generic theme) content-wrapper top padding so
+   the full-bleed hero sits flush under the site header. */
+/* Flush full-bleed: drop the theme content-wrapper top/side padding on the
+   article page. Body-class scoped (works in every browser, unlike :has()).
+   The precise vertical flush to the header is finished by an inline script. */
+body.single-celeb_news .container-wrap,
+body.single-celeb_news #content,
+body.single-celeb_news .content-area,
+body.single-celeb_news .post-area,
+body.single-celeb_news .row,
+body.single-celeb_news .main-content,
+body.single-celeb_news .entry-content,
+body.single-celeb_news .site-content,
+body.single-celeb_news #primary,
+body.single-celeb_news #main,
+body.single-celeb_news .site-main,
+body.single-celeb_news main { padding-top: 0 !important; margin-top: 0 !important; }
+body.single-celeb_news .container,
+body.single-celeb_news .container-wrap,
+body.single-celeb_news #content { padding-left: 0 !important; padding-right: 0 !important; }
+body.single-celeb_news #ajax-content-wrap,
+body.single-celeb_news .container-wrap,
+body.single-celeb_news .container,
+body.single-celeb_news #content,
+body.single-celeb_news .content-area,
+body.single-celeb_news .post-area,
+body.single-celeb_news .nectar-post-area,
+body.single-celeb_news .row,
+body.single-celeb_news .col,
+body.single-celeb_news [class*="span_"],
+body.single-celeb_news .entry-content,
+body.single-celeb_news .main-content,
+body.single-celeb_news .site-content,
+body.single-celeb_news #primary,
+body.single-celeb_news #main,
+body.single-celeb_news .site-main,
+body.single-celeb_news main,
+body.single-celeb_news article { max-width: 100% !important; width: 100% !important; float: none !important; }
+body.single-celeb_news #page-header-wrap,
+body.single-celeb_news .page-header-no-bg,
+body.single-celeb_news .title-container { display: none !important; }
+
+/* Hero — image fills, bottom gradient, title overlaid at the bottom. */
+.celb-article-hero { position: relative; width: 100%; min-height: clamp(400px, 66vh, 640px); display: flex; background: #0a0a0a; overflow: hidden; }
+.celb-article-hero-pic { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.celb-article-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.celb-article-hero-grad { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.55) 28%, rgba(0,0,0,.12) 56%, rgba(0,0,0,0) 82%); }
+.celb-article-hero-text { position: relative; z-index: 2; align-self: flex-end; width: 100%; max-width: 900px; margin: 0 auto; padding: clamp(22px,4vw,46px) clamp(20px,5vw,40px); }
+.celb-scope.celb-article .celb-article-title,
+.celb-scope.celb-article .celb-article-meta,
+.celb-scope.celb-article .celb-article-celeb,
+.celb-scope.celb-article .celb-article-body { font-family: inherit; }
+.celb-article-title { font-weight: 600; font-size: clamp(1.4rem,3vw,2.1rem); line-height: 1.15; margin: 0; color: #fff; }
+.celb-article-title[dir="rtl"] { font-family: "Cairo", "Tajawal", sans-serif; font-weight: 700; line-height: 1.4; }
+.celb-article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: .78rem; letter-spacing: .04em; color: rgba(255,255,255,.78); }
+.celb-article-meta[dir="rtl"] { font-family: "Cairo", "Tajawal", sans-serif; }
+.celb-article-loc { position: relative; padding-left: 18px; }
+.celb-article-loc::before { content: ""; position: absolute; left: 0; top: 50%; width: 4px; height: 4px; border-radius: 50%; background: #999; transform: translateY(-50%); }
+.celb-article-meta[dir="rtl"] .celb-article-loc { padding-left: 0; padding-right: 18px; }
+.celb-article-meta[dir="rtl"] .celb-article-loc::before { left: auto; right: 0; }
+.celb-article-celeb { display: inline-block; font-family: inherit; font-size: .7rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.72); text-decoration: none; transition: color .2s ease; }
+.celb-article-celeb:hover { color: #fff; }
+
+/* Info block + language switch — ONE copy, over the hero gradient at every
+   breakpoint, sitting under the title: article info on the left, language
+   switch pinned to the right. RTL flips the whole row. The old below-hero
+   "subbar" copy is removed (it was doubling on mobile). */
+.celb-article-infomain { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.celb-article-lang { display: inline-flex; gap: 6px; flex: 0 0 auto; position: relative; z-index: 3; }
+.celb-article-heroinfo { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 16px; }
+.celb-article.celb-lang-ar .celb-article-heroinfo { flex-direction: row-reverse; }
+.celb-article-subbar { display: none !important; }
+
+@media (min-width: 768px) {
+	.celb-article-hero { min-height: clamp(660px, 86vh, 1000px); }
+	.celb-article-heroinfo { align-items: center; }
+	.celb-article-infomain { flex-direction: row; align-items: center; gap: 18px; flex-wrap: wrap; }
+	.celb-article.celb-lang-ar .celb-article-heroinfo .celb-article-infomain { flex-direction: row-reverse; }
+}
+
+/* Body — readable centered column */
+.celb-article-content { max-width: 780px; margin: 0 auto; padding: clamp(34px,6vw,60px) clamp(20px,5vw,32px) 0; }
+.celb-article-body { font-family: inherit; font-size: 1.04rem; line-height: 1.9; color: rgba(255,255,255,.86); }
+.celb-article-body[dir="rtl"] { font-family: "Cairo", "Tajawal", sans-serif; line-height: 2.05; direction: rtl; text-align: right; }
+.celb-article-body[dir="ltr"] { direction: ltr; text-align: left; }
+.celb-article-body p { margin: 0 0 1.25em; }
+.celb-article-body a { color: #fff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #999; }
+.celb-article-body img { max-width: 100%; height: auto; border-radius: 8px; }
+.celb-article-body iframe, .celb-article-body .wp-block-embed, .celb-article-body video { max-width: 100%; margin: 1.5em 0; }
+
+/* Gallery — clean borderless grid of 16:9 film stills, open in the lightbox */
+.celb-article-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 44px; }
+.celb-article-gthumb { display: block; width: 100%; aspect-ratio: 16 / 9; background-size: cover; background-position: center; background-repeat: no-repeat; border: 0; border-radius: 3px; padding: 0; cursor: pointer; transition: opacity .2s ease, transform .2s ease; }
+.celb-article-gthumb:hover { opacity: .9; transform: scale(.99); }
+.celb-article-dlwrap { margin-top: 22px; text-align: center; }
+.celb-article-dl { display: inline-block; font-family: inherit; font-size: .72rem; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: #fff; text-decoration: none; border: 1px solid #999; padding: 13px 30px; border-radius: 10px; transition: background .25s ease, color .25s ease; }
+.celb-article-dl:hover { background: #fff; color: #000; }
+
+/* Related links */
+.celb-article-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
+.celb-article-link { display: inline-flex; align-items: center; gap: 10px; font-family: inherit; font-size: .82rem; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,.18); padding: 12px 18px; border-radius: 10px; transition: border-color .25s ease, transform .25s ease; }
+.celb-article-link:hover { border-color: #999; transform: translateY(-2px); }
+.celb-article-link svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+@media (max-width: 600px) {
+	.celb-article-hero { min-height: 66vh; }
+	.celb-article-gallery { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Newsroom popup auto-direction (full profile, desktop + mobile) */
+.celb-news-h[dir="rtl"], .celb-news-meta[dir="rtl"], .celb-news-body[dir="rtl"] { direction: rtl; text-align: right; }
+.celb-news-h[dir="ltr"], .celb-news-meta[dir="ltr"], .celb-news-body[dir="ltr"] { direction: ltr; text-align: left; }
+.celb-news-h[dir="rtl"], .celb-news-body[dir="rtl"] { font-family: "Cairo", "Tajawal", sans-serif; }
+.celb-news-meta[dir="rtl"] { justify-content: flex-end; }
+
+/* =======================================================================
+   CASTING-BOOK ROSTER  ([CLEB_celebrities])
+   ==================================================================== */
+.celb-scope.celb-roster {
+	--rose-bg: #000;
+	--rose-ink: #f4f1ea;
+	--rose-mut: rgba(244, 241, 234, .55);
+	--rose-accent: #999999;
+	--rose-line: rgba(244, 241, 234, .14);
+	background: var(--rose-bg);
+	color: var(--rose-ink);
+	font-family: inherit;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow-x: hidden;
+	padding: clamp(40px, 6vw, 96px) clamp(16px, 3vw, 44px);
+}
+.celb-roster-head { max-width: 1000px; margin-bottom: clamp(14px, 1.8vw, 24px); }
+.celb-roster-eyebrow {
+	font-family: inherit;
+	font-size: .72rem; letter-spacing: .28em; text-transform: uppercase;
+	color: var(--rose-mut);
+}
+.celb-roster-title {
+	font-family: inherit;
+	font-weight: 500;
+	font-size: clamp(3.4rem, 14vw, 12rem);
+	line-height: .9; letter-spacing: -.015em;
+	margin: .05em 0 .2em; color: var(--rose-ink);
+}
+.celb-roster-introwrap { display: flex; gap: 16px; align-items: flex-start; }
+.celb-roster-dot {
+	flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+	border: 1px solid var(--rose-line); position: relative; margin-top: 3px;
+}
+.celb-roster-dot::after {
+	content: ""; position: absolute; inset: 0; margin: auto;
+	width: 5px; height: 5px; border-radius: 50%; background: var(--rose-accent);
+}
+.celb-roster-intro {
+	max-width: 62ch; color: var(--rose-mut);
+	font-size: clamp(.9rem, 1.1vw, 1rem); line-height: 1.7; margin: 0;
+}
+.celb-roster-filters {
+	display: flex; gap: 10px; flex-wrap: wrap;
+	margin: clamp(16px, 1.8vw, 24px) 0 clamp(18px, 2vw, 28px);
+}
+.celb-rfilter {
+	font-family: inherit;
+	font-size: .66rem; letter-spacing: .18em; text-transform: uppercase;
+	color: var(--rose-mut); background: none;
+	border: 1px solid var(--rose-line); border-radius: 999px;
+	padding: 9px 18px; cursor: pointer; transition: color .25s, background .25s, border-color .25s;
+}
+.celb-rfilter:hover { color: var(--rose-ink); border-color: rgba(244, 241, 234, .4); }
+.celb-rfilter.is-active { color: #000; background: var(--rose-ink); border-color: var(--rose-ink); }
+
+.celb-roster-tiles {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+@media (min-width: 700px) {
+	.celb-roster-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 1.6vw, 22px); }
+}
+@media (min-width: 1024px) {
+	.celb-roster-tiles { grid-template-columns: var(--roster-cols, repeat(4, minmax(0, 1fr))); gap: clamp(16px, 1.8vw, 26px); }
+}
+
+/* ---- Roster card: editorial overlay, monochrome (theme-proof) ---- */
+.celb-scope.celb-roster { font-family: inherit; }
+.celb-scope .celb-rcard { display: block !important; position: relative !important; text-decoration: none !important; color: inherit; box-shadow: none !important; }
+.celb-scope .celb-rcard-media {
+	position: relative !important;
+	display: block !important;
+	width: 100% !important; height: auto !important;
+	margin: 0 !important; padding: 0 !important;
+	overflow: hidden !important;
+	background: #0d0d0d;
+	border: 1px solid rgba(244, 241, 234, .08);
+	transition: border-color .4s ease;
+}
+.celb-scope .celb-rcard-media::before { content: "" !important; display: block !important; width: 100% !important; padding-top: 125% !important; } /* bulletproof 4:5 box */
+.celb-scope .celb-rcard-img {
+	position: absolute !important; inset: 0 !important;
+	width: 100% !important; height: 100% !important; max-width: none !important; margin: 0 !important;
+	object-fit: cover !important; object-position: center 30% !important;
+	display: block !important;
+	transition: transform 1.1s cubic-bezier(.2, .7, .2, 1);
+}
+.celb-scope .celb-rcard-mono-wrap {
+	position: absolute !important; inset: 0 !important;
+	display: flex !important; align-items: center; justify-content: center;
+	background:
+		repeating-linear-gradient(145deg, rgba(244,241,234,.03) 0 1px, transparent 1px 14px),
+		linear-gradient(160deg, #171614 0%, #0a0a0a 72%);
+}
+.celb-scope .celb-rcard-mono {
+	font-family: inherit;
+	font-size: clamp(3.2rem, 8vw, 5.6rem); font-weight: 500; letter-spacing: .04em;
+	color: rgba(244, 241, 234, .28);
+}
+.celb-scope .celb-rcard-scrim {
+	position: absolute !important; inset: 0 !important; z-index: 1; pointer-events: none;
+	background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.45) 24%, rgba(0,0,0,0) 55%);
+	transition: opacity .4s ease; opacity: .92;
+}
+.celb-scope .celb-rcard-badge {
+	position: absolute !important; top: 12px !important; left: 12px !important; right: auto !important; bottom: auto !important; z-index: 3;
+	font-family: inherit; font-size: .52rem; letter-spacing: .22em; text-transform: uppercase;
+	color: #f4f1ea; border: 1px solid rgba(244, 241, 234, .55);
+	background: rgba(0, 0, 0, .38); padding: 5px 10px; border-radius: 999px; margin: 0 !important;
+}
+.celb-scope .celb-rcard-go {
+	position: absolute !important; top: 12px !important; right: 12px !important; left: auto !important; bottom: auto !important; z-index: 3;
+	width: 34px; height: 34px; border-radius: 50%;
+	display: flex; align-items: center; justify-content: center;
+	border: 1px solid rgba(244, 241, 234, .35); color: #f4f1ea;
+	font-size: 1rem; line-height: 1;
+	opacity: 0; transform: translateY(-4px) scale(.9);
+	transition: opacity .4s ease, transform .4s ease, background .3s ease;
+}
+.celb-scope .celb-rcard-info {
+	position: absolute !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important; z-index: 2;
+	padding: clamp(13px, 1.4vw, 20px) !important; margin: 0 !important;
+	transition: transform .45s cubic-bezier(.2,.7,.2,1);
+}
+.celb-scope .celb-rcard-name {
+	display: block !important; font-family: inherit; margin: 0 !important;
+	font-size: clamp(1.02rem, 1.5vw, 1.5rem); font-weight: 600; line-height: 1.16;
+	color: #ffffff !important; letter-spacing: -.005em;
+}
+.celb-scope .celb-rcard-role {
+	display: block !important; font-family: inherit; margin: 7px 0 0 !important;
+	font-size: .58rem; letter-spacing: .2em; text-transform: uppercase; color: #c2beb5 !important;
+}
+.celb-rcard:hover .celb-rcard-media { border-color: rgba(244, 241, 234, .28); }
+.celb-rcard:hover .celb-rcard-img { transform: scale(1.06); }
+.celb-rcard:hover .celb-rcard-scrim { opacity: 1; }
+.celb-rcard:hover .celb-rcard-go { opacity: 1; transform: translateY(0) scale(1); background: rgba(244, 241, 234, .12); }
+.celb-rcard:hover .celb-rcard-info { transform: translateY(-4px); }
+.celb-rcard--locked { cursor: default; }
+.celb-scope .celb-rcard.celb-hide { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+	.celb-scope .celb-rcard-img, .celb-scope .celb-rcard-info { transition: none; }
+	.celb-rcard:hover .celb-rcard-img { transform: none; }
+}
+
+/* ---- Profile video section (poster cards + lightbox) ---- */
+.celb-section.celb-videos{margin-top:clamp(28px,4vw,52px)}
+.celb-video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:clamp(16px,2.2vw,26px);align-items:start}
+.celb-vcard{display:block;text-align:left;text-decoration:none;color:inherit;background:none;border:0;padding:0;cursor:pointer;font-family:inherit;width:100%}
+.celb-vcard-poster{position:relative;display:block;width:100%;padding-top:56.25%;background:#0d0d0d center/cover no-repeat;border:1px solid rgba(244,241,234,.12);border-radius:12px;overflow:hidden;transition:border-color .3s ease,transform .3s ease}
+.celb-vcard.is-vertical .celb-vcard-poster{padding-top:150%}
+.celb-vcard-poster::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.55),rgba(0,0,0,0) 55%);opacity:.85;transition:opacity .3s ease}
+.celb-vcard:hover .celb-vcard-poster{border-color:rgba(244,241,234,.4);transform:translateY(-2px)}
+.celb-vplay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1;width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.45);border:1px solid rgba(244,241,234,.7);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;padding-left:4px;backdrop-filter:blur(2px);transition:background .3s ease,transform .3s ease}
+.celb-vcard:hover .celb-vplay{background:rgba(244,241,234,.92);color:#000;transform:translate(-50%,-50%) scale(1.06)}
+.celb-vcard-cap{display:block;padding-top:12px}
+.celb-vplat{display:block;font-family:inherit;font-size:.56rem;letter-spacing:.2em;text-transform:uppercase;color:#8b8b86;margin-bottom:5px}
+.celb-vname{display:block;font-family:inherit;font-size:1.02rem;font-weight:500;color:#f4f1ea;line-height:1.3}
+/* Lightbox */
+.celb-vlb{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.9);backdrop-filter:blur(8px)}
+.celb-vlb.is-open{display:flex}
+.celb-vlb-close{position:absolute;top:18px;right:22px;background:none;border:0;color:#f4f1ea;font-size:2.4rem;line-height:1;cursor:pointer;opacity:.8}
+.celb-vlb-close:hover{opacity:1}
+.celb-vlb-frame{position:relative;width:min(900px,92vw);aspect-ratio:16/9;background:#000}
+.celb-vlb-frame.is-vertical{width:auto;height:min(88vh,760px);aspect-ratio:9/16}
+.celb-vlb-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:10px;background:#000}
+.celb-video-frame{position:relative;width:100%;padding-top:56.25%}
+.celb-video-frame.is-vertical{padding-top:150%;max-width:360px;margin:0 auto}
+.celb-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.celb-video-card{display:flex;align-items:center;gap:16px;text-decoration:none;background:#0d0d0d;border:1px solid rgba(244,241,234,.12);border-radius:12px;padding:20px 22px;min-height:120px;transition:border-color .3s ease,transform .3s ease}
+.celb-video-card:hover{border-color:rgba(244,241,234,.4);transform:translateY(-2px)}
+.celb-video-card-play{flex:0 0 auto;width:52px;height:52px;border-radius:50%;border:1px solid rgba(244,241,234,.35);display:flex;align-items:center;justify-content:center;color:#f4f1ea;font-size:1rem;padding-left:3px}
+.celb-video-card-meta{display:flex;flex-direction:column;gap:6px}
+.celb-video-card-plat{font-family:inherit;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:#8b8b86}
+.celb-video-card-go{color:#f4f1ea;font-size:1.05rem;font-weight:500}
