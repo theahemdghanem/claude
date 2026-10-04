@@ -505,15 +505,27 @@ add_action( 'edit_form_after_title', function ( $post ) {
 	echo '<p class="cs-ar-hint" data-cs-ar-hint hidden>' . celb_studio_icon( 'check', 14 ) . '<span>' . esc_html__( 'Status set to Replied — click Update to save.', 'celb-mgmt' ) . '</span></p>'; // phpcs:ignore WordPress.Security.EscapeOutput
 	echo '</div></section>';
 
-	echo '<div class="cs-columns cs-columns--ar"><div class="cs-col">';
+	echo '</div>';
+} );
 
-	/* Message */
-	celb_studio_card_open( __( 'Request / campaign details', 'celb-mgmt' ), '', 'text', 'cs-ar-message' );
+/* The request sections are regular meta boxes, so they can be dragged,
+   collapsed and rearranged (WordPress remembers the order per user). */
+add_action( 'add_meta_boxes_' . CELB_AR_CPT, function ( $post ) {
+	$n = count( celb_ar_artist_ids( $post->ID ) );
+	add_meta_box( 'celb_ar_message', __( 'Request / campaign details', 'celb-mgmt' ), 'celb_ar_box_message', CELB_AR_CPT, 'normal', 'high' );
+	add_meta_box( 'celb_ar_artists', $n ? sprintf( _n( 'Requested artist', 'Requested artists (%d)', $n, 'celb-mgmt' ), $n ) : __( 'Requested artists', 'celb-mgmt' ), 'celb_ar_box_artists', CELB_AR_CPT, 'normal', 'high' );
+	add_meta_box( 'celb_ar_activity', __( 'Activity & notes', 'celb-mgmt' ), 'celb_ar_box_activity', CELB_AR_CPT, 'normal', 'default' );
+	add_meta_box( 'celb_ar_contact', __( 'Contact', 'celb-mgmt' ), 'celb_ar_box_contact', CELB_AR_CPT, 'side', 'default' );
+}, 21 );
+
+function celb_ar_box_message( $post ) {
+	$details = (string) get_post_meta( $post->ID, '_ar_details', true );
 	echo $details ? '<div class="cs-ar-body">' . nl2br( esc_html( $details ) ) . '</div>' : '<p class="cs-muted">' . esc_html__( 'No details were provided.', 'celb-mgmt' ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput
-	celb_studio_card_close();
 
-	/* Artists */
-	celb_studio_card_open( $artists ? sprintf( _n( 'Requested artist', 'Requested artists (%d)', count( $artists ), 'celb-mgmt' ), count( $artists ) ) : __( 'Requested artists', 'celb-mgmt' ), '', 'star' );
+}
+
+function celb_ar_box_artists( $post ) {
+	$artists = celb_ar_artist_ids( $post->ID );
 	if ( ! $artists ) {
 		echo '<div class="cs-note">' . celb_studio_icon( 'users', 16 ) . '<span>' . esc_html__( 'All artists — the sender is open to anyone on the roster.', 'celb-mgmt' ) . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput
 	} else {
@@ -530,12 +542,17 @@ add_action( 'edit_form_after_title', function ( $post ) {
 		}
 		echo '</div>';
 	}
-	celb_studio_card_close();
 
-	echo '</div><div class="cs-col">';
+}
 
-	/* Contact details */
-	celb_studio_card_open( __( 'Contact', 'celb-mgmt' ), '', 'user' );
+function celb_ar_box_contact( $post ) {
+	$id     = $post->ID;
+	$name   = celb_ar_name( $id );
+	$email  = (string) get_post_meta( $id, '_ar_email', true );
+	$phone  = (string) get_post_meta( $id, '_ar_phone', true );
+	$wa_raw = (string) get_post_meta( $id, '_ar_wa', true );
+	$wa     = celb_ar_wa_number( $wa_raw );
+	$brand  = (string) get_post_meta( $id, '_ar_brand', true );
 	echo '<dl class="cs-ar-dl">';
 	$rows = array(
 		__( 'Name', 'celb-mgmt' )     => esc_html( $name ),
@@ -552,10 +569,13 @@ add_action( 'edit_form_after_title', function ( $post ) {
 	if ( $ip ) {
 		echo '<p class="cs-help">' . esc_html( sprintf( __( 'Sent from IP %s', 'celb-mgmt' ), $ip ) ) . '</p>';
 	}
-	celb_studio_card_close();
 
-	/* Activity + notes */
-	celb_studio_card_open( __( 'Activity & notes', 'celb-mgmt' ), __( 'Internal only — the sender never sees this.', 'celb-mgmt' ), 'pen' );
+}
+
+function celb_ar_box_activity( $post ) {
+	$id   = $post->ID;
+	$name = celb_ar_name( $id );
+	echo '<p class="cs-help cs-help--top">' . esc_html__( 'Internal only — the sender never sees this.', 'celb-mgmt' ) . '</p>';
 	echo '<div class="cs-ar-compose"><textarea class="cs-input" name="ar_note" rows="3" placeholder="' . esc_attr__( 'Add a note for the team…', 'celb-mgmt' ) . '"></textarea>';
 	echo '<button type="button" class="cs-btn cs-btn--sm cs-btn--primary" data-cs-ar-submit>' . celb_studio_icon( 'plus', 14 ) . '<span>' . esc_html__( 'Add note', 'celb-mgmt' ) . '</span></button></div>'; // phpcs:ignore WordPress.Security.EscapeOutput
 	$log   = get_post_meta( $id, '_ar_log', true );
@@ -578,10 +598,8 @@ add_action( 'edit_form_after_title', function ( $post ) {
 	}
 	echo '<li class="cs-ar-log-item cs-ar-log--received"><span class="cs-ar-log-dot"></span><div><p class="cs-ar-log-head"><b>' . esc_html( $name ) . '</b> ' . esc_html__( 'sent the request via the artist contact form', 'celb-mgmt' ) . '</p><time>' . esc_html( get_the_date( 'j M Y, H:i', $id ) ) . '</time></div></li>';
 	echo '</ol>';
-	celb_studio_card_close();
 
-	echo '</div></div></div>';
-} );
+}
 
 /* Save status + note. */
 add_action( 'save_post_' . CELB_AR_CPT, function ( $post_id ) {

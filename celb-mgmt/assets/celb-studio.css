@@ -26,8 +26,8 @@
 	--cs-r: 14px;
 	--cs-r-sm: 10px;
 	--cs-shadow: 0 1px 2px rgba(10, 10, 10, .04), 0 4px 18px rgba(10, 10, 10, .04);
-	--cs-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	--cs-display: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+	--cs-font: "Alan Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	--cs-display: "Alan Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	--cs-bar-top: 32px;
 }
 @media (max-width: 782px) { .celb-studio { --cs-bar-top: 46px; } }
@@ -1074,3 +1074,45 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-segpick--2 .cs-segpick-item { min-width: 0; }
 .cs-screen-booking #titlediv, .cs-screen-booking .wrap > h1.wp-heading-inline, .cs-screen-booking .wrap > .page-title-action { display: none; }
 @media (max-width: 782px) { .cs-screen-list td.column-ws_when::before, .cs-screen-list td.column-ws_thumb::before, .cs-screen-list td.column-ws_avatar::before { display: none; } }
+
+/* Alan Sans for headings: tighter tracking, lighter than the old serif sizes. */
+.celb-studio .cs-hero-title, .celb-studio .cs-section-head h2, .celb-studio .cs-settings-title,
+.celb-studio .cs-doc-title, .celb-studio .cs-ar-name, .celb-studio .cs-snap-name,
+.cs-screen-celebrity #titlediv #title, .cs-screen-news #titlediv #title, .cs-screen-editor #titlediv #title { letter-spacing: -.02em; }
+.celb-studio .cs-hero-title { font-weight: 700; font-size: 38px; }
+.celb-studio .cs-tile-num { font-weight: 700; font-size: 24px; letter-spacing: -.02em; }
+.celb-studio .cs-section-head h2 { font-size: 26px; font-weight: 700; }
+.celb-studio .cs-tcard-name, .celb-studio .cs-sub-name, .celb-studio .cs-pdc-name, .celb-studio .cs-ar-artist-txt b, .celb-studio .cs-snap-name { font-weight: 650; letter-spacing: -.01em; }
+.celb-studio .cs-tcard-name { font-size: 19px; }
+.cs-screen-celebrity .wrap > h1.wp-heading-inline, .cs-screen-news .wrap > h1.wp-heading-inline, .cs-screen-editor .wrap > h1.wp-heading-inline { font-weight: 700; font-size: 26px; letter-spacing: -.02em; }
+.cs-screen-celebrity #titlediv #title, .cs-screen-news #titlediv #title, .cs-screen-editor #titlediv #title { font-weight: 700; }
+.cs-screen-celebrity #titlediv #title { font-size: 32px; }
+.cs-screen-news #titlediv #title, .cs-screen-editor #titlediv #title { font-size: 26px; }
+.cs-screen-celebrity #titlediv #title-prompt-text, .cs-screen-news #titlediv #title-prompt-text, .cs-screen-editor #titlediv #title-prompt-text { font-weight: 500; font-size: 26px; }
+.celb-studio .cs-ar-name, #poststuff .cs-ar-name, .celb-studio .cs-doc-title, #poststuff .cs-doc-title { font-weight: 700; font-size: 30px; }
+
+/* Title row: "Add new" sits on the same line as the heading, vertically centred. */
+.celb-studio .wrap > h1.wp-heading-inline { display: inline-block; vertical-align: middle; margin: 6px 12px 14px 0 !important; }
+.celb-studio .wrap > h1.wp-heading-inline + .page-title-action { position: relative; top: auto !important; vertical-align: middle; margin: 6px 0 14px !important; display: inline-flex; align-items: center; height: 32px; padding: 0 14px !important; border-radius: 999px; border: 1px solid var(--cs-line-2); background: #fff; color: var(--cs-ink); font: 500 13px/1 var(--cs-font); text-decoration: none; }
+.celb-studio .wrap > h1.wp-heading-inline + .page-title-action:hover { border-color: var(--cs-ink-3); background: var(--cs-sunken); color: var(--cs-ink); }
+
+/* "Add Media" (and other editor media buttons) in the Studio style. */
+.celb-studio .wp-media-buttons .button, .celb-studio .wp-media-buttons .button.insert-media {
+	display: inline-flex; align-items: center; gap: 6px; height: 32px; min-height: 32px; margin: 0 6px 8px 0; padding: 0 13px 0 10px;
+	border: 1px solid var(--cs-line-2); border-radius: 999px; background: #fff; color: var(--cs-ink); box-shadow: none;
+	font: 500 12.5px/1 var(--cs-font); vertical-align: middle;
+}
+.celb-studio .wp-media-buttons .button:hover { border-color: var(--cs-ink-3); background: var(--cs-sunken); color: var(--cs-ink); }
+.celb-studio .wp-media-buttons .button:focus { box-shadow: var(--cs-focus); outline: 0; }
+.celb-studio .wp-media-buttons .add_media span.wp-media-buttons-icon { margin: 0; width: 16px; height: 16px; }
+.celb-studio .wp-media-buttons .add_media span.wp-media-buttons-icon::before { color: var(--cs-gold); font-size: 16px; }
+.celb-studio .wp-editor-tools { padding-top: 4px; }
+.celb-studio .wp-switch-editor { height: 26px; margin: 5px 0 0 4px; padding: 3px 10px 4px; border-radius: 8px 8px 0 0; font: 500 12.5px/1.4 var(--cs-font); }
+/* Artist request sections are draggable meta boxes. */
+.cs-screen-request #postbox-container-2 .postbox { border: 1px solid var(--cs-line); border-radius: var(--cs-r); box-shadow: var(--cs-shadow); overflow: hidden; margin-bottom: 18px; }
+.cs-screen-request .postbox .inside { padding: 6px 20px 20px; margin: 0; }
+.cs-screen-request .postbox-header { cursor: grab; }
+.cs-screen-request .postbox-header .hndle { justify-content: flex-start; }
+.cs-screen-request .postbox-header .hndle::before { content: ""; display: inline-block; width: 10px; height: 14px; margin-right: 10px; vertical-align: -2px; opacity: .45; background: radial-gradient(circle, currentColor 1.2px, transparent 1.4px) 0 0 / 5px 5px; }
+.cs-screen-request .sortable-placeholder { border: 2px dashed var(--cs-gold-2); border-radius: var(--cs-r); background: var(--cs-gold-soft); }
+.cs-screen-request #normal-sortables:empty, .cs-screen-request .empty-container { min-height: 60px; border: 1.5px dashed var(--cs-line-2); border-radius: var(--cs-r); }

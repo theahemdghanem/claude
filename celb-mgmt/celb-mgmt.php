@@ -3,7 +3,7 @@
  * Plugin Name:       CELB MGMT
  * Plugin URI:        https://ilike.agency
  * Description:       Celebrity management directory for iLike Agency: profiles, grid, carousel, individual pages, awards, galleries, social links, and a password-protected front-end self-submission portal.
- * Version:           2.9.0
+ * Version:           3.0.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            iLike Agency
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CELB_VERSION', '2.9.0' );
+define( 'CELB_VERSION', '3.0.0' );
 define( 'CELB_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CELB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CELB_CPT', 'celebrity' );
@@ -78,7 +78,7 @@ register_activation_hook( __FILE__, 'celb_activate' );
 /* Pretty URL /our-stars for the standalone "Our Stars" page. */
 function celb_page_slug( $key ) {
 	$s   = function_exists( 'celb_get_settings' ) ? celb_get_settings() : array();
-	$def = array( 'stars_slug' => 'our-stars', 'onb_slug' => 'talent-onboarding', 'pdata_slug' => 'personal-data', 'rateonb_slug' => 'rate-form' );
+	$def = array( 'stars_slug' => 'our-stars', 'onb_slug' => 'talent-onboarding', 'pdata_slug' => 'personal-data', 'rateonb_slug' => 'rate-form', 'app_slug' => 'celb-studio' );
 	$v   = isset( $s[ $key ] ) ? sanitize_title( $s[ $key ] ) : '';
 	return '' !== $v ? $v : ( isset( $def[ $key ] ) ? $def[ $key ] : $key );
 }
@@ -1032,6 +1032,8 @@ function celb_default_settings() {
 		'onb_slug'       => 'talent-onboarding',
 		'pdata_slug'     => 'personal-data',
 		'rateonb_slug'   => 'rate-form',
+		'app_slug'       => 'celb-studio',
+		'app_name'       => 'CELB Studio',
 		'portal_enabled' => 0,       // enable the front-end self-submission portal
 		'portal_passwords' => array(), // list of array( 'label' => , 'pass' => )
 		'pdata_enabled'  => 0,       // enable the Personal Data / Emergency Contacts portal
@@ -1155,7 +1157,8 @@ function celb_sanitize_settings( $input ) {
 	$out['text_color']   = isset( $input['text_color'] ) ? (string) sanitize_hex_color( $input['text_color'] ) : '';
 	$out['bg_color']     = isset( $input['bg_color'] ) ? (string) sanitize_hex_color( $input['bg_color'] ) : '';
 	// Page addresses (custom URL slugs).
-	foreach ( array( 'stars_slug', 'onb_slug', 'pdata_slug', 'rateonb_slug' ) as $sk ) {
+	$out['app_name'] = isset( $input['app_name'] ) && '' !== trim( (string) $input['app_name'] ) ? sanitize_text_field( $input['app_name'] ) : $d['app_name'];
+	foreach ( array( 'stars_slug', 'onb_slug', 'pdata_slug', 'rateonb_slug', 'app_slug' ) as $sk ) {
 		$sv         = isset( $input[ $sk ] ) ? sanitize_title( $input[ $sk ] ) : '';
 		$out[ $sk ] = '' !== $sv ? $sv : $d[ $sk ];
 	}
@@ -8853,3 +8856,6 @@ function celb_rate_merge_prices( $target, $submitted ) {
 
 /* Studio UI for the operations screens (loaded last: it uses CELB_RATE_CPT). */
 require_once CELB_PATH . 'includes/admin-workspace.php';
+
+/* CELB Studio app: PWA + JSON API + push (uses the Studio helpers above). */
+require_once CELB_PATH . 'includes/app.php';

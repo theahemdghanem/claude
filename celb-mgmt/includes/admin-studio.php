@@ -310,7 +310,7 @@ function celb_studio_enqueue( $hook ) {
 	if ( ! $which ) {
 		return;
 	}
-	wp_enqueue_style( 'celb-studio-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600&display=swap', array(), null );
+	wp_enqueue_style( 'celb-studio-fonts', 'https://fonts.googleapis.com/css2?family=Alan+Sans:wght@300..900&display=swap', array(), null );
 	wp_enqueue_style( 'celb-studio', CELB_URL . 'assets/celb-studio.css', array(), CELB_VERSION );
 
 	$deps = array( 'jquery' );
@@ -474,9 +474,6 @@ add_action( 'add_meta_boxes_' . CELB_CPT, function () {
 	add_meta_box( 'postimagediv', __( 'Featured image (fallback)', 'celb-mgmt' ), 'post_thumbnail_meta_box', CELB_CPT, 'side', 'low' );
 }, 20 );
 
-/* Keep Publish above everything else in the sidebar regardless of saved order. */
-add_filter( 'get_user_option_meta-box-order_' . CELB_CPT, '__return_false' );
-add_filter( 'get_user_option_meta-box-order_celeb_news', '__return_false' );
 
 add_action( 'edit_form_after_title', function ( $post ) {
 	if ( CELB_CPT === $post->post_type ) {
@@ -1265,6 +1262,21 @@ add_action( 'manage_' . CELB_CPT . '_posts_custom_column', function ( $col, $pos
 	}
 }, 10, 2 );
 
+/* Drop views other plugins add to our lists (e.g. Yoast "Cornerstone content"). */
+add_action( 'current_screen', function ( $screen ) {
+	if ( 'edit' !== $screen->base || ! celb_studio_screen() ) {
+		return;
+	}
+	add_filter( 'views_' . $screen->id, function ( $views ) {
+		foreach ( array_keys( $views ) as $k ) {
+			if ( false !== stripos( $k, 'cornerstone' ) || false !== stripos( (string) $views[ $k ], 'cornerstone' ) ) {
+				unset( $views[ $k ] );
+			}
+		}
+		return $views;
+	}, 999 );
+} );
+
 /* Status badges replace the " — Draft" post states on the roster list. */
 add_filter( 'display_post_states', function ( $states, $post ) {
 	return ( CELB_CPT === $post->post_type && 'list' === celb_studio_screen() ) ? array() : $states;
@@ -1432,6 +1444,7 @@ function celb_studio_settings_nav() {
 		),
 		__( 'Apps & sync', 'celb-mgmt' ) => array(
 			'app'      => array( __( 'Manage app', 'celb-mgmt' ), 'phone', 'pwa app icon home screen manage' ),
+			'studioapp' => array( __( 'Studio app', 'celb-mgmt' ), 'sparkle', 'studio app pwa push notifications install phone super app' ),
 			'calendar' => array( __( 'Agency calendar', 'celb-mgmt' ), 'calendar', 'calendar ics feed webcal google apple' ),
 		),
 		__( 'Reference', 'celb-mgmt' ) => array(
@@ -1617,6 +1630,7 @@ function celb_render_settings_page() {
 						'onb_slug'     => __( 'Talent onboarding', 'celb-mgmt' ),
 						'pdata_slug'   => __( 'Personal data', 'celb-mgmt' ),
 						'rateonb_slug' => __( 'Rate-card forms (base)', 'celb-mgmt' ),
+						'app_slug'     => __( 'Studio app', 'celb-mgmt' ),
 					) as $sk => $sl ) {
 						celb_studio_s_text( $sk, $s, $sl, '', array( 'prefix' => $home ) );
 					}
@@ -1713,6 +1727,15 @@ function celb_render_settings_page() {
 					echo '</div><div>';
 					celb_studio_s_text( 'pwa_name', $s, __( 'App name', 'celb-mgmt' ), __( 'Shown under the home-screen icon.', 'celb-mgmt' ), array( 'placeholder' => 'iLike Manage' ) );
 					echo '</div></div>';
+					celb_studio_card_close();
+					celb_studio_section_close();
+
+					/* ---------------- Studio app ---------------- */
+					celb_studio_section_open( 'studioapp', __( 'Studio app', 'celb-mgmt' ), __( 'One app for the whole agency: inbox, calendar, roster, projects, newsroom, contracts, rate cards, onboarding and personal data — with push notifications. Managers sign in with their WordPress account.', 'celb-mgmt' ) );
+					celb_studio_card_open( __( 'Open & install', 'celb-mgmt' ), __( 'iPhone: open the link in Safari → Share → Add to Home Screen, then open it from the Home Screen and turn on notifications in More → App settings. Android / desktop Chrome: open the link and choose Install.', 'celb-mgmt' ), 'phone' );
+					celb_studio_copy_field( celb_app_url(), true, __( 'App link', 'celb-mgmt' ) );
+					celb_studio_s_text( 'app_name', $s, __( 'App name', 'celb-mgmt' ), __( 'Shown under the home-screen icon. The icon is the one set under Manage app.', 'celb-mgmt' ), array( 'placeholder' => 'CELB Studio', 'class' => 'cs-field--narrow' ) );
+					echo '<div class="cs-note">' . celb_studio_icon( CELB_Push::supported() ? 'check' : 'alert', 16 ) . '<span>' . esc_html( CELB_Push::supported() ? __( 'This server can send push notifications.', 'celb-mgmt' ) : __( 'This server’s PHP/OpenSSL cannot send push notifications; the in-app activity feed still works.', 'celb-mgmt' ) ) . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput
 					celb_studio_card_close();
 					celb_studio_section_close();
 

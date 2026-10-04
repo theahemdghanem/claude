@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 2.9.0
+Stable tag: 3.0.0
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,31 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 3.0.0 =
+* New: CELB Studio app — one installable web app (PWA) for managers at
+  /celb-studio/ (address and name under Settings → Studio app). Home dashboard,
+  Inbox (artist + booking requests: status, notes, email / WhatsApp / call),
+  Calendar (schedule + shooting days, status changes with postponed dates),
+  Roster (profile strength, lead / private switches, smart link sharing, rate
+  card, agenda, contracts), Projects, Newsroom (publish / unpublish), Contracts
+  (signing links, signed PDFs), Rate cards (on / off, share), Rate onboarding
+  (create / revoke links, import submissions) and Personal data. Works offline
+  for the shell and opens wp-admin for long forms.
+* New: Web Push notifications (VAPID, no third-party service) for new artist
+  and booking requests, signed contracts, rate-card submissions and personal
+  data, with per-event switches and an Activity feed. "Studio app" link added
+  to the admin bar.
+* Studio UI now uses the Alan Sans typeface.
+* Celebrities list: removed the "Cornerstone content" view other SEO plugins add.
+* Newsroom editor: the readiness checklist no longer reports the English story
+  as missing while the visual editor is still loading.
+* Editors: rearranged boxes (e.g. moving Publish) now keep their position after
+  saving.
+* Artist Requests: message, artists, activity and contact are now boxes that
+  can be dragged and reordered (order is remembered per user).
+* "Add Media" buttons and the "Add New" button next to editor titles restyled to
+  match the Studio UI.
 
 = 2.9.0 =
 * Studio redesign for the operations screens (new includes/admin-workspace.php).

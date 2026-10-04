@@ -362,10 +362,25 @@
 	/* ---------------------------------------------------------------------
 	   Celebrity editor: social, live snapshot, profile strength
 	   --------------------------------------------------------------------- */
+	/* Text of a classic editor. TinyMCE reports nothing until it has finished
+	   loading, so fall back to the underlying textarea (which WordPress fills
+	   with the saved content) whenever the editor is not ready or empty. */
 	function editorText(id) {
 		var ed = window.tinymce && window.tinymce.get(id);
-		var html = (ed && !ed.isHidden()) ? ed.getContent() : ($('#' + id).val() || '');
+		var html = '';
+		if (ed && ed.initialized && !ed.isHidden()) {
+			html = ed.getContent();
+			if (!ed._csBound) { ed._csBound = true; ed.on('change keyup input SetContent', function () { $(document).trigger('cs:changed'); }); }
+		}
+		if (!$.trim($('<div>').html(html).text())) { html = $('#' + id).val() || ''; }
 		return $('<div>').html(html).text().trim();
+	}
+	/* Re-check once editors have loaded (they can finish before or after us). */
+	function recheckLater(fn) {
+		$(window).on('load', fn);
+		setTimeout(fn, 800);
+		setTimeout(fn, 2500);
+		if (window.tinymce && window.tinymce.on) { window.tinymce.on('AddEditor', function (e) { e.editor.on('init', fn); }); }
 	}
 	function mark(key, done) {
 		$('[data-cs-check="' + key + '"]').toggleClass('is-done', !!done);
@@ -435,8 +450,9 @@
 
 		var run = function () { celebrityChecks(); };
 		$(document).on('input change cs:changed', run);
-		$(document).on('tinymce-editor-init', function (e, ed) { if (ed && ed.id === 'celb_bio_editor') { ed.on('change keyup input', run); } });
+		$(document).on('tinymce-editor-init', function (e, ed) { if (ed && ed.id === 'celb_bio_editor') { ed.on('change keyup input', run); run(); } });
 		run();
+		recheckLater(run);
 	}
 
 	/* ---------------------------------------------------------------------
@@ -461,8 +477,9 @@
 
 		var run = function () { newsChecks(); };
 		$(document).on('input change cs:changed', run);
-		$(document).on('tinymce-editor-init', function (e, ed) { if (ed && (ed.id === 'content' || ed.id === 'news_body_ar')) { ed.on('change keyup input', run); } });
+		$(document).on('tinymce-editor-init', function (e, ed) { if (ed && (ed.id === 'content' || ed.id === 'news_body_ar')) { ed.on('change keyup input', run); run(); } });
 		run();
+		recheckLater(run);
 	}
 
 	/* ---------------------------------------------------------------------
