@@ -3,7 +3,7 @@
  * Plugin Name:       CELB MGMT
  * Plugin URI:        https://ilike.agency
  * Description:       Celebrity management directory for iLike Agency: profiles, grid, carousel, individual pages, awards, galleries, social links, and a password-protected front-end self-submission portal.
- * Version:           3.0.0
+ * Version:           3.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            iLike Agency
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CELB_VERSION', '3.0.0' );
+define( 'CELB_VERSION', '3.1.0' );
 define( 'CELB_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CELB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CELB_CPT', 'celebrity' );
@@ -78,7 +78,7 @@ register_activation_hook( __FILE__, 'celb_activate' );
 /* Pretty URL /our-stars for the standalone "Our Stars" page. */
 function celb_page_slug( $key ) {
 	$s   = function_exists( 'celb_get_settings' ) ? celb_get_settings() : array();
-	$def = array( 'stars_slug' => 'our-stars', 'onb_slug' => 'talent-onboarding', 'pdata_slug' => 'personal-data', 'rateonb_slug' => 'rate-form', 'app_slug' => 'celb-studio' );
+	$def = array( 'stars_slug' => 'our-stars', 'onb_slug' => 'talent-onboarding', 'pdata_slug' => 'personal-data', 'rateonb_slug' => 'rate-form', 'app_slug' => 'celb-studio', 'talent_slug' => 'celb-talent' );
 	$v   = isset( $s[ $key ] ) ? sanitize_title( $s[ $key ] ) : '';
 	return '' !== $v ? $v : ( isset( $def[ $key ] ) ? $def[ $key ] : $key );
 }
@@ -1002,8 +1002,7 @@ function celb_default_settings() {
 	return array(
 		'accent'         => '#999999',
 		'theme'          => 'light', // light | dark — profile page background
-		'pwa_name'       => 'iLike Manage',
-		'pwa_icon'       => '',      // URL of a square (≥512px) icon for home-screen install
+		'pwa_icon'       => '',      // URL of a square (≥512px) icon for both apps' home-screen install
 		'grid_cols'      => 3,       // desktop grid columns (mobile stays 2)
 		'carousel_items' => 6,       // desktop carousel items visible
 
@@ -1034,6 +1033,8 @@ function celb_default_settings() {
 		'rateonb_slug'   => 'rate-form',
 		'app_slug'       => 'celb-studio',
 		'app_name'       => 'CELB Studio',
+		'talent_slug'    => 'celb-talent',
+		'talent_name'    => 'CELB Talent',
 		'portal_enabled' => 0,       // enable the front-end self-submission portal
 		'portal_passwords' => array(), // list of array( 'label' => , 'pass' => )
 		'pdata_enabled'  => 0,       // enable the Personal Data / Emergency Contacts portal
@@ -1120,7 +1121,6 @@ function celb_sanitize_settings( $input ) {
 	$out['theme'] = ( isset( $input['theme'] ) && in_array( $input['theme'], array( 'light', 'dark' ), true ) )
 		? $input['theme'] : $d['theme'];
 
-	$out['pwa_name'] = isset( $input['pwa_name'] ) ? sanitize_text_field( $input['pwa_name'] ) : $d['pwa_name'];
 	$out['pwa_icon'] = isset( $input['pwa_icon'] ) ? esc_url_raw( trim( (string) $input['pwa_icon'] ) ) : $d['pwa_icon'];
 
 	$out['grid_cols']      = isset( $input['grid_cols'] ) ? min( 6, max( 1, absint( $input['grid_cols'] ) ) ) : $d['grid_cols'];
@@ -1158,7 +1158,8 @@ function celb_sanitize_settings( $input ) {
 	$out['bg_color']     = isset( $input['bg_color'] ) ? (string) sanitize_hex_color( $input['bg_color'] ) : '';
 	// Page addresses (custom URL slugs).
 	$out['app_name'] = isset( $input['app_name'] ) && '' !== trim( (string) $input['app_name'] ) ? sanitize_text_field( $input['app_name'] ) : $d['app_name'];
-	foreach ( array( 'stars_slug', 'onb_slug', 'pdata_slug', 'rateonb_slug', 'app_slug' ) as $sk ) {
+	$out['talent_name'] = isset( $input['talent_name'] ) && '' !== trim( (string) $input['talent_name'] ) ? sanitize_text_field( $input['talent_name'] ) : $d['talent_name'];
+	foreach ( array( 'stars_slug', 'onb_slug', 'pdata_slug', 'rateonb_slug', 'app_slug', 'talent_slug' ) as $sk ) {
 		$sv         = isset( $input[ $sk ] ) ? sanitize_title( $input[ $sk ] ) : '';
 		$out[ $sk ] = '' !== $sv ? $sv : $d[ $sk ];
 	}
@@ -2569,430 +2570,36 @@ add_action( 'save_post_' . CELB_CPT, function ( $post_id ) {
 } );
 
 /* -------------------------------------------------------------------------
- * 14. MOBILE MANAGE APP  ([CLEB_manage] + REST API)
- *     Secure: reuses WordPress login (site credentials) + capability checks
- *     + REST cookie nonce. No separate password system.
+ * 14. LEGACY [CLEB_manage] PAGE
+ *     The shortcode app was replaced by two installable apps: CELB Studio
+ *     (managers) and CELB Talent (talent accounts). Pages that still hold the
+ *     shortcode forward signed-in people to their app.
  * ---------------------------------------------------------------------- */
 
-function celb_rest_can_edit() {
-	return current_user_can( 'edit_posts' );
-}
-function celb_rest_can_admin() {
-	return current_user_can( 'manage_options' );
-}
-
-/* Serialize a profile for the editor. */
-function celb_rest_profile_data( $id ) {
-	$id      = (int) $id;
-	$socials = array();
-	foreach ( celb_social_platforms() as $key => $label ) {
-		$socials[ $key ] = (string) get_post_meta( $id, '_celb_social_' . $key, true );
-	}
-	$profile_id = (int) get_post_meta( $id, '_celb_profile', true );
-	$photo      = $profile_id ? wp_get_attachment_image_url( $profile_id, 'medium' ) : get_the_post_thumbnail_url( $id, 'medium' );
-	$status     = get_post_status( $id );
-	return array(
-		'id'          => $id,
-		'name'        => get_the_title( $id ),
-		'role'        => (string) get_post_meta( $id, '_celb_role', true ),
-		'nationality' => (string) get_post_meta( $id, '_celb_nationality', true ),
-		'bio'         => (string) get_post_meta( $id, '_celb_bio', true ),
-		'birthdate'   => (string) get_post_meta( $id, '_celb_birthdate', true ),
-		'show_year'   => '1' === get_post_meta( $id, '_celb_show_year', true ),
-		'locked'      => (bool) get_post_meta( $id, '_celb_locked', true ),
-		'status'      => $status,
-		'photo'       => $photo ? $photo : '',
-		'smartlink'   => 'publish' === $status ? celb_smartlink_url( $id ) : '',
-		'view_url'    => get_permalink( $id ),
-		'socials'     => $socials,
-		'rate'        => celb_rest_rate_data( $id ),
-		'cal'         => ( 'publish' === $status ) ? celb_cal_feed_url( $id, 'webcal' ) : '',
-	);
-}
-
-/* Rate card link + password for the manage app (managers only). */
-function celb_rest_rate_data( $celeb_id ) {
-	$card = celb_rate_card_for_celeb( $celeb_id );
-	if ( ! $card ) {
-		return array( 'has' => false );
-	}
-	$enabled = get_post_meta( $card, '_rate_enabled', true ) === '1';
-	$pw      = (string) get_post_meta( $card, '_rate_pw', true );
-	return array(
-		'has'     => (bool) ( $enabled && '' !== $pw ),
-		'url'     => celb_rate_card_url( $card ),
-		'pw'      => current_user_can( 'edit_posts' ) ? $pw : '',
-		'edit'    => current_user_can( 'edit_post', $card ) ? get_edit_post_link( $card, 'raw' ) : '',
-	);
-}
-
-/* Apply editable fields from a REST request to a profile. */
-function celb_rest_apply_profile( $id, $req ) {
-	$p = $req->get_json_params();
-	if ( ! is_array( $p ) ) {
-		$p = $req->get_params();
-	}
-	$postarr = array( 'ID' => $id );
-	if ( isset( $p['name'] ) && '' !== trim( $p['name'] ) ) {
-		$postarr['post_title'] = sanitize_text_field( $p['name'] );
-	}
-	if ( current_user_can( 'edit_posts' ) && isset( $p['status'] ) && in_array( $p['status'], array( 'publish', 'draft' ), true ) ) {
-		$postarr['post_status'] = $p['status'];
-	}
-	if ( count( $postarr ) > 1 ) {
-		wp_update_post( $postarr );
-	}
-	if ( array_key_exists( 'role', $p ) ) {
-		update_post_meta( $id, '_celb_role', sanitize_text_field( $p['role'] ) );
-	}
-	if ( array_key_exists( 'nationality', $p ) ) {
-		update_post_meta( $id, '_celb_nationality', sanitize_text_field( $p['nationality'] ) );
-	}
-	if ( array_key_exists( 'bio', $p ) ) {
-		update_post_meta( $id, '_celb_bio', wp_kses_post( $p['bio'] ) );
-	}
-	if ( array_key_exists( 'birthdate', $p ) ) {
-		$bd = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $p['birthdate'] ) ? $p['birthdate'] : '';
-		update_post_meta( $id, '_celb_birthdate', $bd );
-	}
-	if ( array_key_exists( 'show_year', $p ) ) {
-		update_post_meta( $id, '_celb_show_year', ! empty( $p['show_year'] ) ? '1' : '' );
-	}
-	if ( array_key_exists( 'locked', $p ) ) {
-		update_post_meta( $id, '_celb_locked', ! empty( $p['locked'] ) ? '1' : '' );
-	}
-	if ( isset( $p['socials'] ) && is_array( $p['socials'] ) ) {
-		foreach ( celb_social_platforms() as $key => $label ) {
-			if ( array_key_exists( $key, $p['socials'] ) ) {
-				update_post_meta( $id, '_celb_social_' . $key, esc_url_raw( trim( (string) $p['socials'][ $key ] ) ) );
-			}
-		}
-	}
-}
-
-function celb_rest_routes() {
-	$access = array( 'permission_callback' => 'celb_rest_can_access' );
-	$edit   = array( 'permission_callback' => 'celb_rest_can_edit' );
-	$admin  = array( 'permission_callback' => 'celb_rest_can_admin' );
-
-	register_rest_route( 'celb/v1', '/bootstrap', array( array(
-		'methods'  => 'GET',
-		'callback' => 'celb_rest_bootstrap',
-	) + $access ) );
-
-	register_rest_route( 'celb/v1', '/profiles', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_list' ) + $access,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_create' ) + $edit,
-	) );
-
-	register_rest_route( 'celb/v1', '/profiles/(?P<id>\d+)', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_get' ) + $access,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_update' ) + $access,
-	) );
-
-	register_rest_route( 'celb/v1', '/profiles/(?P<id>\d+)/photo', array( array(
-		'methods'  => 'POST',
-		'callback' => 'celb_rest_photo',
-	) + $access ) );
-
-	register_rest_route( 'celb/v1', '/settings', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_get_settings' ) + $admin,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_save_settings' ) + $admin,
-	) );
-}
-add_action( 'rest_api_init', 'celb_rest_routes' );
-
-function celb_rest_bootstrap() {
-	$user      = wp_get_current_user();
-	$is_mgr    = current_user_can( 'edit_posts' );
-	$celeb_id  = celb_user_celeb_id();
-	$platforms = array();
-	foreach ( celb_social_platforms() as $key => $label ) {
-		$platforms[] = array( 'key' => $key, 'label' => $label );
-	}
-	$user_data = array(
-		'name'       => $user->display_name,
-		'can_admin'  => current_user_can( 'manage_options' ),
-		'mode'       => $is_mgr ? 'manager' : 'celebrity',
-		'celeb'      => $celeb_id,
-		'celeb_name' => $celeb_id ? get_the_title( $celeb_id ) : '',
-	);
-	if ( ! $is_mgr ) {
-		return rest_ensure_response( array( 'user' => $user_data, 'platforms' => $platforms, 'counts' => array() ) );
-	}
-	$count   = wp_count_posts( CELB_CPT );
-	$private = get_posts( array(
-		'post_type' => CELB_CPT, 'post_status' => 'publish', 'numberposts' => -1,
-		'fields' => 'ids', 'meta_key' => '_celb_locked', 'meta_value' => '1', 'suppress_filters' => true,
-	) );
-	$news = wp_count_posts( 'celeb_news' );
-	$celebs = array();
-	foreach ( get_posts( array( 'post_type' => CELB_CPT, 'post_status' => array( 'publish', 'draft', 'pending' ), 'numberposts' => -1, 'orderby' => 'title', 'order' => 'ASC', 'suppress_filters' => true ) ) as $c ) {
-		$celebs[] = array( 'id' => $c->ID, 'name' => get_the_title( $c->ID ) );
-	}
-	return rest_ensure_response( array(
-		'user'      => $user_data,
-		'counts'    => array(
-			'total'     => (int) $count->publish + (int) $count->draft + (int) $count->pending,
-			'published' => (int) $count->publish,
-			'drafts'    => (int) $count->draft + (int) $count->pending,
-			'private'   => count( $private ),
-			'news'      => (int) $news->publish,
-		),
-		'celebs'    => $celebs,
-		'requests'  => celb_request_counts(),
-		'glance'    => celb_wc_glance(),
-		'platforms' => $platforms,
-	) );
-}
-
-function celb_rest_list( $req ) {
-	$args = array(
-		'post_type'      => CELB_CPT,
-		'post_status'    => array( 'publish', 'draft', 'pending' ),
-		'posts_per_page' => 200,
-		'orderby'        => 'title',
-		'order'          => 'ASC',
-		'suppress_filters' => true,
-	);
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		$mine = celb_user_celeb_id();
-		$args['post__in'] = $mine ? array( $mine ) : array( 0 );
-		$args['post_status'] = array( 'publish', 'draft', 'pending' );
-	}
-	$search = sanitize_text_field( (string) $req->get_param( 'search' ) );
-	if ( '' !== $search ) {
-		$args['s'] = $search;
-	}
-	$status = (string) $req->get_param( 'status' );
-	if ( in_array( $status, array( 'publish', 'draft' ), true ) ) {
-		$args['post_status'] = $status;
-	}
-	$q   = new WP_Query( $args );
-	$out = array();
-	foreach ( $q->posts as $post ) {
-		$id         = $post->ID;
-		$profile_id = (int) get_post_meta( $id, '_celb_profile', true );
-		$thumb      = $profile_id ? wp_get_attachment_image_url( $profile_id, 'thumbnail' ) : get_the_post_thumbnail_url( $id, 'thumbnail' );
-		$out[] = array(
-			'id'        => $id,
-			'name'      => get_the_title( $id ),
-			'role'      => (string) get_post_meta( $id, '_celb_role', true ),
-			'status'    => $post->post_status,
-			'locked'    => (bool) get_post_meta( $id, '_celb_locked', true ),
-			'thumb'     => $thumb ? $thumb : '',
-			'smartlink' => 'publish' === $post->post_status ? celb_smartlink_url( $id ) : '',
-		);
-	}
-	return rest_ensure_response( $out );
-}
-
-function celb_rest_get( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== CELB_CPT ) {
-		return new WP_Error( 'celb_404', 'Profile not found.', array( 'status' => 404 ) );
-	}
-	if ( ! celb_guard_celeb( $id ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	return rest_ensure_response( celb_rest_profile_data( $id ) );
-}
-
-function celb_rest_create( $req ) {
-	$p    = $req->get_json_params();
-	$name = is_array( $p ) && isset( $p['name'] ) ? sanitize_text_field( $p['name'] ) : '';
-	if ( '' === trim( $name ) ) {
-		return new WP_Error( 'celb_no_name', 'A name is required.', array( 'status' => 400 ) );
-	}
-	$status = ( is_array( $p ) && isset( $p['status'] ) && 'publish' === $p['status'] ) ? 'publish' : 'draft';
-	$id     = wp_insert_post( array(
-		'post_type'   => CELB_CPT,
-		'post_title'  => $name,
-		'post_status' => $status,
-	), true );
-	if ( is_wp_error( $id ) ) {
-		return $id;
-	}
-	celb_rest_apply_profile( $id, $req );
-	return rest_ensure_response( celb_rest_profile_data( $id ) );
-}
-
-function celb_rest_update( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== CELB_CPT ) {
-		return new WP_Error( 'celb_404', 'Profile not found.', array( 'status' => 404 ) );
-	}
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	celb_rest_apply_profile( $id, $req );
-	return rest_ensure_response( celb_rest_profile_data( $id ) );
-}
-
-function celb_rest_photo( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== CELB_CPT ) {
-		return new WP_Error( 'celb_404', 'Profile not found.', array( 'status' => 404 ) );
-	}
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed to upload.', array( 'status' => 403 ) );
-	}
-	if ( empty( $_FILES['file'] ) ) {
-		return new WP_Error( 'celb_nofile', 'No file received.', array( 'status' => 400 ) );
-	}
-	require_once ABSPATH . 'wp-admin/includes/image.php';
-	require_once ABSPATH . 'wp-admin/includes/file.php';
-	require_once ABSPATH . 'wp-admin/includes/media.php';
-	$att = media_handle_upload( 'file', $id );
-	if ( is_wp_error( $att ) ) {
-		return $att;
-	}
-	update_post_meta( $id, '_celb_profile', $att );
-	return rest_ensure_response( array(
-		'id'    => $att,
-		'photo' => wp_get_attachment_image_url( $att, 'medium' ),
-	) );
-}
-
-function celb_rest_get_settings() {
-	return rest_ensure_response( celb_get_settings() );
-}
-
-function celb_rest_save_settings( $req ) {
-	$input   = $req->get_json_params();
-	$current = celb_get_settings();
-	$merged  = array_merge( $current, is_array( $input ) ? $input : array() );
-	$clean   = celb_sanitize_settings( $merged );
-	update_option( 'celb_settings', $clean );
-	return rest_ensure_response( $clean );
-}
-
-/* The mobile app shell (login-gated). */
-function celb_manage_assets() {
-	wp_register_style( 'celb-manage', CELB_URL . 'assets/celb-manage.css', array(), CELB_VERSION );
-	wp_register_script( 'celb-manage', CELB_URL . 'assets/celb-manage.js', array(), CELB_VERSION, true );
-}
-add_action( 'init', 'celb_manage_assets' );
-
 function celb_manage_shortcode() {
-	$current = home_url( add_query_arg( array() ) );
-
-	if ( ! is_user_logged_in() ) {
-		$login = wp_login_url( $current );
-		return '<div class="celb-manage-gate"><div class="celb-gate-card">'
-			. '<h2>' . esc_html__( 'Manage', 'celb-mgmt' ) . '</h2>'
-			. '<p>' . esc_html__( 'Sign in with your website account to manage profiles.', 'celb-mgmt' ) . '</p>'
-			. '<a class="celb-gate-btn" href="' . esc_url( $login ) . '">' . esc_html__( 'Log in', 'celb-mgmt' ) . '</a>'
-			. '</div></div>';
+	$links = '<a class="celb-gate-btn" href="' . esc_url( celb_talent_url() ) . '">' . esc_html__( 'Open the Talent app', 'celb-mgmt' ) . '</a>';
+	if ( current_user_can( 'edit_others_posts' ) || ! is_user_logged_in() ) {
+		$links .= ' <a class="celb-gate-btn" href="' . esc_url( celb_app_url() ) . '">' . esc_html__( 'Open CELB Studio (managers)', 'celb-mgmt' ) . '</a>';
 	}
-	if ( ! current_user_can( 'edit_posts' ) && ! celb_user_celeb_id() ) {
-		return '<div class="celb-manage-gate"><div class="celb-gate-card">'
-			. '<h2>' . esc_html__( 'No access', 'celb-mgmt' ) . '</h2>'
-			. '<p>' . esc_html__( 'Your account does not have permission to manage profiles.', 'celb-mgmt' ) . '</p>'
-			. '</div></div>';
-	}
-
-	wp_enqueue_style( 'celb-manage' );
-	wp_enqueue_script( 'celb-manage' );
-	wp_localize_script( 'celb-manage', 'CELB_MANAGE', array(
-		'root'     => esc_url_raw( rest_url( 'celb/v1/' ) ),
-		'nonce'    => wp_create_nonce( 'wp_rest' ),
-		'logout'   => wp_logout_url( $current ),
-		'logo'     => celb_logo_url(),
-		'site'     => home_url( '/' ),
-	) );
-
-	$s      = celb_get_settings();
-	$accent = $s['accent'] ? $s['accent'] : '#999999';
-	$style  = '<style>.celb-manage,.celb-manage-gate{--m-gold:' . esc_attr( $accent ) . ';}</style>';
-
-	// Remember which page hosts the app, so the home-screen tags fire even when the
-	// page is built with a page builder (shortcode not in raw post_content).
-	$pid = get_the_ID();
-	if ( $pid && (int) get_option( 'celb_manage_page_id' ) !== (int) $pid ) {
-		update_option( 'celb_manage_page_id', (int) $pid, false );
-	}
-
-	return $style . '<div id="celb-manage-app" class="celb-manage"><div class="celb-loading">' . esc_html__( 'Loading…', 'celb-mgmt' ) . '</div></div>';
+	$css = '<style>.celb-manage-gate{display:grid;place-items:center;padding:48px 16px}.celb-gate-card{max-width:420px;text-align:center}.celb-gate-btn{display:inline-block;margin:6px;padding:12px 20px;border-radius:999px;background:#0a0a0a;color:#fff!important;text-decoration:none;font-weight:600}</style>';
+	return $css . '<div class="celb-manage-gate"><div class="celb-gate-card"><p>' . esc_html__( 'This app has moved.', 'celb-mgmt' ) . '</p>' . $links . '</div></div>';
 }
 add_shortcode( 'CLEB_manage', 'celb_manage_shortcode' );
 
-/** Home-screen (PWA) tags — only on the [CLEB_manage] page. */
-function celb_manage_pwa_head() {
-	if ( ! is_singular() ) {
+add_action( 'template_redirect', function () {
+	if ( ! is_singular() || ! is_user_logged_in() ) {
 		return;
 	}
 	$post = get_post();
-	$is_manage = $post && has_shortcode( (string) $post->post_content, 'CLEB_manage' );
-	if ( ! $is_manage ) {
-		// Fallback for page builders: match the remembered manage page id.
-		$saved = (int) get_option( 'celb_manage_page_id' );
-		$is_manage = ( $saved && $saved === (int) get_queried_object_id() );
-	}
-	if ( ! $is_manage ) {
+	if ( ! $post || ! has_shortcode( (string) $post->post_content, 'CLEB_manage' ) ) {
 		return;
 	}
-	$s    = celb_get_settings();
-	$name = $s['pwa_name'] ? $s['pwa_name'] : 'iLike Manage';
-	$icon = celb_manage_pwa_icon();
-	echo '<link rel="manifest" href="' . esc_url( add_query_arg( 'celb_manifest', '1', home_url( '/' ) ) ) . '" />' . "\n";
-	if ( $icon ) {
-		echo '<link rel="apple-touch-icon" sizes="180x180" href="' . esc_url( $icon ) . '" />' . "\n";
-		echo '<link rel="apple-touch-icon-precomposed" href="' . esc_url( $icon ) . '" />' . "\n";
-		echo '<link rel="icon" type="image/png" href="' . esc_url( $icon ) . '" />' . "\n";
+	$to = celb_user_app_url();
+	if ( $to ) {
+		wp_safe_redirect( $to );
+		exit;
 	}
-	echo '<meta name="apple-mobile-web-app-capable" content="yes" />' . "\n";
-	echo '<meta name="mobile-web-app-capable" content="yes" />' . "\n";
-	echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />' . "\n";
-	echo '<meta name="apple-mobile-web-app-title" content="' . esc_attr( $name ) . '" />' . "\n";
-	echo '<meta name="theme-color" content="#121212" />' . "\n";
-}
-add_action( 'wp_head', 'celb_manage_pwa_head' );
-
-/** Resolve the PWA icon: explicit setting, else brand logo, else bundled logo. */
-function celb_manage_pwa_icon() {
-	$s = celb_get_settings();
-	if ( ! empty( $s['pwa_icon'] ) ) {
-		return $s['pwa_icon'];
-	}
-	if ( ! empty( $s['brand_logo_url'] ) ) {
-		return $s['brand_logo_url'];
-	}
-	return celb_logo_url();
-}
-
-/** Serve the web-app manifest at /?celb_manifest=1 */
-function celb_manage_manifest() {
-	if ( ! isset( $_GET['celb_manifest'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
-		return;
-	}
-	$s     = celb_get_settings();
-	$name  = $s['pwa_name'] ? $s['pwa_name'] : 'iLike Manage';
-	$icon  = celb_manage_pwa_icon();
-	$start = function_exists( 'celb_manage_page_url' ) ? celb_manage_page_url() : '';
-	if ( ! $start ) {
-		$start = home_url( '/' );
-	}
-	$manifest = array(
-		'name'             => $name,
-		'short_name'       => $name,
-		'start_url'        => $start,
-		'scope'            => $start,
-		'display'          => 'standalone',
-		'orientation'      => 'portrait',
-		'background_color' => '#000000',
-		'theme_color'      => '#121212',
-		'icons'            => array(
-			array( 'src' => $icon, 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any' ),
-			array( 'src' => $icon, 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any maskable' ),
-		),
-	);
-	nocache_headers();
-	header( 'Content-Type: application/manifest+json; charset=utf-8' );
-	echo wp_json_encode( $manifest );
-	exit;
-}
-add_action( 'template_redirect', 'celb_manage_manifest' );
+} );
 
 /* -------------------------------------------------------------------------
  * 15. WORK CENTER  (Projects + Schedule per celebrity; REST + app + admin)
@@ -3202,368 +2809,6 @@ function celb_proj_add_update( $id, $text, $user_name = '' ) {
 	update_post_meta( $id, '_proj_updates', $updates );
 }
 
-/* ---- REST ---- */
-function celb_wc_routes() {
-	$edit = array( 'permission_callback' => 'celb_rest_can_access' );
-
-	register_rest_route( 'celb/v1', '/workcenter/(?P<celeb>\d+)', array( array( 'methods' => 'GET', 'callback' => 'celb_rest_workcenter' ) + $edit ) );
-
-	register_rest_route( 'celb/v1', '/projects', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_proj_list' ) + $edit,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_proj_create' ) + $edit,
-	) );
-	register_rest_route( 'celb/v1', '/projects/(?P<id>\d+)', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_proj_get' ) + $edit,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_proj_update' ) + $edit,
-		array( 'methods' => 'DELETE', 'callback' => 'celb_rest_proj_delete' ) + $edit,
-	) );
-	register_rest_route( 'celb/v1', '/projects/(?P<id>\d+)/attach', array( array( 'methods' => 'POST', 'callback' => 'celb_rest_proj_attach' ) + $edit ) );
-	register_rest_route( 'celb/v1', '/projects/(?P<id>\d+)/detach', array( array( 'methods' => 'POST', 'callback' => 'celb_rest_proj_detach' ) + $edit ) );
-
-	register_rest_route( 'celb/v1', '/sched', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_sched_list' ) + $edit,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_sched_create' ) + $edit,
-	) );
-	register_rest_route( 'celb/v1', '/sched/(?P<id>\d+)', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_sched_get' ) + $edit,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_sched_update' ) + $edit,
-		array( 'methods' => 'DELETE', 'callback' => 'celb_rest_sched_delete' ) + $edit,
-	) );
-	register_rest_route( 'celb/v1', '/sched/(?P<id>\d+)/attach', array( array( 'methods' => 'POST', 'callback' => 'celb_rest_sched_attach' ) + $edit ) );
-	register_rest_route( 'celb/v1', '/sched/(?P<id>\d+)/detach', array( array( 'methods' => 'POST', 'callback' => 'celb_rest_sched_detach' ) + $edit ) );
-}
-add_action( 'rest_api_init', 'celb_wc_routes' );
-
-function celb_rest_workcenter( $req ) {
-	$celeb = absint( $req['celeb'] );
-	if ( get_post_type( $celeb ) !== CELB_CPT ) {
-		return new WP_Error( 'celb_404', 'Celebrity not found.', array( 'status' => 404 ) );
-	}
-	if ( ! celb_guard_celeb( $celeb ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	$today = current_time( 'Y-m-d' );
-
-	$projects = get_posts( array(
-		'post_type' => 'celb_project', 'post_status' => 'publish', 'numberposts' => -1,
-		'meta_query' => array( array( 'key' => '_proj_celeb', 'value' => $celeb ) ),
-		'meta_key' => '_proj_start', 'orderby' => 'meta_value', 'order' => 'DESC', 'suppress_filters' => true,
-	) );
-	$up_proj = array(); $past_proj = array();
-	foreach ( $projects as $p ) {
-		$d = celb_project_data( $p->ID );
-		$summary = array( 'id' => $d['id'], 'name' => $d['name'], 'type' => $d['type'], 'status' => $d['status'], 'company' => $d['company'], 'start' => $d['start'], 'end' => $d['end'], 'counts' => $d['counts'] );
-		$is_past = in_array( $d['status'], array( 'Completed', 'Cancelled' ), true ) || ( $d['end'] && $d['end'] < $today );
-		if ( $is_past ) { $past_proj[] = $summary; } else { $up_proj[] = $summary; }
-	}
-
-	$sched = get_posts( array(
-		'post_type' => 'celb_sched', 'post_status' => 'publish', 'numberposts' => -1,
-		'meta_query' => array( array( 'key' => '_sched_celeb', 'value' => $celeb ) ),
-		'meta_key' => '_sched_date', 'orderby' => 'meta_value', 'order' => 'ASC', 'suppress_filters' => true,
-	) );
-	$up_sched = array(); $past_sched = array(); $today_sched = array();
-	foreach ( $sched as $s ) {
-		$d = celb_sched_data( $s->ID );
-		$row = array( 'id' => $d['id'], 'title' => $d['title'], 'type' => $d['type'], 'date' => $d['date'], 'time' => $d['time'], 'location' => $d['location'] );
-		if ( $d['date'] === $today ) { $today_sched[] = $row; $up_sched[] = $row; }
-		elseif ( $d['date'] > $today ) { $up_sched[] = $row; }
-		else { $past_sched[] = $row; }
-	}
-	$past_sched = array_reverse( $past_sched );
-
-	return rest_ensure_response( array(
-		'celeb'         => array( 'id' => $celeb, 'name' => get_the_title( $celeb ) ),
-		'today'         => $today,
-		'today_agenda'  => $today_sched,
-		'projects_up'   => $up_proj,
-		'projects_past' => $past_proj,
-		'sched_up'      => array_slice( $up_sched, 0, 50 ),
-		'sched_past'    => array_slice( $past_sched, 0, 50 ),
-		'statuses'      => celb_project_statuses(),
-		'project_types' => celb_project_categories(),
-		'sched_types'   => celb_sched_types(),
-	) );
-}
-
-/* Projects */
-function celb_rest_proj_list( $req ) {
-	$celeb = absint( $req->get_param( 'celeb' ) );
-	if ( ! current_user_can( 'edit_posts' ) ) { $celeb = celb_user_celeb_id(); }
-	if ( $celeb && ! celb_guard_celeb( $celeb ) ) { return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) ); }
-	$args  = array( 'post_type' => 'celb_project', 'post_status' => 'publish', 'numberposts' => -1, 'meta_key' => '_proj_start', 'orderby' => 'meta_value', 'order' => 'DESC', 'suppress_filters' => true );
-	if ( $celeb ) {
-		$args['meta_query'] = array( array( 'key' => '_proj_celeb', 'value' => $celeb ) );
-	}
-	$out = array();
-	foreach ( get_posts( $args ) as $p ) {
-		$out[] = celb_project_data( $p->ID );
-	}
-	return rest_ensure_response( $out );
-}
-function celb_rest_proj_get( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_project' || ! celb_guard_celeb( celb_proj_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	return rest_ensure_response( celb_project_data( $id ) );
-}
-function celb_rest_apply_project( $id, $req, $is_new = false ) {
-	$p = $req->get_json_params();
-	if ( ! is_array( $p ) ) {
-		$p = $req->get_params();
-	}
-	if ( isset( $p['name'] ) && '' !== trim( $p['name'] ) ) {
-		wp_update_post( array( 'ID' => $id, 'post_title' => sanitize_text_field( $p['name'] ) ) );
-	}
-	$map = array(
-		'_proj_company' => 'company', '_proj_type' => 'type', '_proj_status' => 'status',
-		'_proj_start' => 'start', '_proj_end' => 'end', '_proj_notes' => 'notes',
-	);
-	foreach ( $map as $meta => $key ) {
-		if ( array_key_exists( $key, $p ) ) {
-			$val = in_array( $key, array( 'start', 'end' ), true )
-				? ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $p[ $key ] ) ? $p[ $key ] : '' )
-				: ( 'notes' === $key ? sanitize_textarea_field( $p[ $key ] ) : sanitize_text_field( $p[ $key ] ) );
-			update_post_meta( $id, $meta, $val );
-		}
-	}
-	if ( isset( $p['locations'] ) && is_array( $p['locations'] ) ) {
-		$locs = array();
-		foreach ( $p['locations'] as $l ) {
-			$c = celb_clean_location( $l );
-			if ( $c ) {
-				$locs[] = $c;
-			}
-		}
-		update_post_meta( $id, '_proj_locations', $locs );
-	}
-	if ( isset( $p['days'] ) && is_array( $p['days'] ) ) {
-		$days = array();
-		foreach ( $p['days'] as $d ) {
-			$date = isset( $d['date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $d['date'] ) ? $d['date'] : '';
-			if ( '' === $date ) {
-				continue;
-			}
-			$days[] = array(
-				'date'     => $date,
-				'call'     => isset( $d['call'] ) ? sanitize_text_field( $d['call'] ) : '',
-				'location' => isset( $d['location'] ) ? sanitize_text_field( $d['location'] ) : '',
-				'status'   => ( isset( $d['status'] ) && 'completed' === $d['status'] ) ? 'completed' : 'scheduled',
-				'notes'    => isset( $d['notes'] ) ? sanitize_text_field( $d['notes'] ) : '',
-			);
-		}
-		usort( $days, function ( $a, $b ) { return strcmp( $a['date'], $b['date'] ); } );
-		update_post_meta( $id, '_proj_days', $days );
-	}
-	$note = isset( $p['update_note'] ) ? trim( $p['update_note'] ) : '';
-	if ( $is_new ) {
-		celb_proj_add_update( $id, __( 'Project created', 'celb-mgmt' ) );
-	} elseif ( '' !== $note ) {
-		celb_proj_add_update( $id, $note );
-	} else {
-		celb_proj_add_update( $id, __( 'Details updated', 'celb-mgmt' ) );
-	}
-}
-function celb_rest_proj_create( $req ) {
-	$p     = $req->get_json_params();
-	$name  = is_array( $p ) && isset( $p['name'] ) ? sanitize_text_field( $p['name'] ) : '';
-	$celeb = is_array( $p ) && isset( $p['celeb'] ) ? absint( $p['celeb'] ) : 0;
-	if ( '' === $name || ! $celeb ) {
-		return new WP_Error( 'celb_bad', 'Project name and celebrity are required.', array( 'status' => 400 ) );
-	}
-	if ( ! celb_guard_celeb( $celeb ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	$id = wp_insert_post( array( 'post_type' => 'celb_project', 'post_title' => $name, 'post_status' => 'publish' ), true );
-	if ( is_wp_error( $id ) ) {
-		return $id;
-	}
-	update_post_meta( $id, '_proj_celeb', $celeb );
-	celb_rest_apply_project( $id, $req, true );
-	return rest_ensure_response( celb_project_data( $id ) );
-}
-function celb_rest_proj_update( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_project' || ! celb_guard_celeb( celb_proj_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	celb_rest_apply_project( $id, $req, false );
-	return rest_ensure_response( celb_project_data( $id ) );
-}
-function celb_rest_proj_delete( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_project' || ! celb_guard_celeb( celb_proj_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	wp_trash_post( $id );
-	return rest_ensure_response( array( 'deleted' => true ) );
-}
-
-/* Schedule */
-function celb_rest_sched_list( $req ) {
-	$celeb = absint( $req->get_param( 'celeb' ) );
-	if ( ! current_user_can( 'edit_posts' ) ) { $celeb = celb_user_celeb_id(); }
-	if ( $celeb && ! celb_guard_celeb( $celeb ) ) { return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) ); }
-	$args  = array( 'post_type' => 'celb_sched', 'post_status' => 'publish', 'numberposts' => -1, 'meta_key' => '_sched_date', 'orderby' => 'meta_value', 'order' => 'ASC', 'suppress_filters' => true );
-	if ( $celeb ) {
-		$args['meta_query'] = array( array( 'key' => '_sched_celeb', 'value' => $celeb ) );
-	}
-	$out = array();
-	foreach ( get_posts( $args ) as $s ) {
-		$out[] = celb_sched_data( $s->ID );
-	}
-	return rest_ensure_response( $out );
-}
-function celb_rest_sched_get( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_sched' || ! celb_guard_celeb( celb_sched_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	return rest_ensure_response( celb_sched_data( $id ) );
-}
-function celb_rest_apply_sched( $id, $req ) {
-	$p = $req->get_json_params();
-	if ( ! is_array( $p ) ) {
-		$p = $req->get_params();
-	}
-	if ( isset( $p['title'] ) && '' !== trim( $p['title'] ) ) {
-		wp_update_post( array( 'ID' => $id, 'post_title' => sanitize_text_field( $p['title'] ) ) );
-	}
-	if ( array_key_exists( 'type', $p ) ) {
-		update_post_meta( $id, '_sched_type', sanitize_text_field( $p['type'] ) );
-	}
-	if ( array_key_exists( 'date', $p ) ) {
-		update_post_meta( $id, '_sched_date', preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $p['date'] ) ? $p['date'] : '' );
-	}
-	if ( array_key_exists( 'time', $p ) ) {
-		update_post_meta( $id, '_sched_time', preg_match( '/^\d{2}:\d{2}$/', (string) $p['time'] ) ? $p['time'] : '' );
-	}
-	if ( array_key_exists( 'duration', $p ) ) {
-		update_post_meta( $id, '_sched_duration', absint( $p['duration'] ) );
-	}
-	if ( array_key_exists( 'description', $p ) ) {
-		update_post_meta( $id, '_sched_desc', sanitize_textarea_field( $p['description'] ) );
-	}
-	if ( array_key_exists( 'prep', $p ) ) {
-		update_post_meta( $id, '_sched_prep', sanitize_textarea_field( $p['prep'] ) );
-	}
-	if ( array_key_exists( 'reminder', $p ) ) {
-		update_post_meta( $id, '_sched_reminder', absint( $p['reminder'] ) );
-	}
-	if ( array_key_exists( 'location', $p ) ) {
-		$c = celb_clean_location( $p['location'] );
-		update_post_meta( $id, '_sched_location', $c ? $c : array() );
-	}
-}
-function celb_rest_sched_create( $req ) {
-	$p     = $req->get_json_params();
-	$title = is_array( $p ) && isset( $p['title'] ) ? sanitize_text_field( $p['title'] ) : '';
-	$celeb = is_array( $p ) && isset( $p['celeb'] ) ? absint( $p['celeb'] ) : 0;
-	if ( '' === $title || ! $celeb ) {
-		return new WP_Error( 'celb_bad', 'Title and celebrity are required.', array( 'status' => 400 ) );
-	}
-	if ( ! celb_guard_celeb( $celeb ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	$id = wp_insert_post( array( 'post_type' => 'celb_sched', 'post_title' => $title, 'post_status' => 'publish' ), true );
-	if ( is_wp_error( $id ) ) {
-		return $id;
-	}
-	update_post_meta( $id, '_sched_celeb', $celeb );
-	celb_rest_apply_sched( $id, $req );
-	return rest_ensure_response( celb_sched_data( $id ) );
-}
-function celb_rest_sched_update( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_sched' || ! celb_guard_celeb( celb_sched_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	celb_rest_apply_sched( $id, $req );
-	return rest_ensure_response( celb_sched_data( $id ) );
-}
-function celb_rest_sched_delete( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_sched' || ! celb_guard_celeb( celb_sched_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	wp_trash_post( $id );
-	return rest_ensure_response( array( 'deleted' => true ) );
-}
-
-/* Attachments (shared) */
-function celb_rest_do_attach( $id, $meta_key ) {
-	if ( ! current_user_can( 'upload_files' ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed to upload.', array( 'status' => 403 ) );
-	}
-	if ( empty( $_FILES['file'] ) ) {
-		return new WP_Error( 'celb_nofile', 'No file received.', array( 'status' => 400 ) );
-	}
-	require_once ABSPATH . 'wp-admin/includes/image.php';
-	require_once ABSPATH . 'wp-admin/includes/file.php';
-	require_once ABSPATH . 'wp-admin/includes/media.php';
-	$att = media_handle_upload( 'file', $id );
-	if ( is_wp_error( $att ) ) {
-		return $att;
-	}
-	$ids = get_post_meta( $id, $meta_key, true );
-	if ( ! is_array( $ids ) ) {
-		$ids = array();
-	}
-	$ids[] = $att;
-	update_post_meta( $id, $meta_key, $ids );
-	return $ids;
-}
-function celb_rest_proj_attach( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_project' || ! celb_guard_celeb( celb_proj_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	$ids = celb_rest_do_attach( $id, '_proj_attachments' );
-	if ( is_wp_error( $ids ) ) {
-		return $ids;
-	}
-	celb_proj_add_update( $id, __( 'Attachment added', 'celb-mgmt' ) );
-	return rest_ensure_response( array( 'attachments' => celb_attachment_data( $ids ) ) );
-}
-function celb_rest_sched_attach( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_sched' || ! celb_guard_celeb( celb_sched_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	$ids = celb_rest_do_attach( $id, '_sched_attachments' );
-	if ( is_wp_error( $ids ) ) {
-		return $ids;
-	}
-	return rest_ensure_response( array( 'attachments' => celb_attachment_data( $ids ) ) );
-}
-function celb_rest_do_detach( $id, $meta_key, $att_id ) {
-	$ids = get_post_meta( $id, $meta_key, true );
-	$ids = is_array( $ids ) ? array_values( array_filter( $ids, function ( $x ) use ( $att_id ) { return (int) $x !== (int) $att_id; } ) ) : array();
-	update_post_meta( $id, $meta_key, $ids );
-	return $ids;
-}
-function celb_rest_proj_detach( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_project' || ! celb_guard_celeb( celb_proj_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	$p  = $req->get_json_params();
-	$att = is_array( $p ) && isset( $p['att_id'] ) ? absint( $p['att_id'] ) : 0;
-	$ids = celb_rest_do_detach( $id, '_proj_attachments', $att );
-	return rest_ensure_response( array( 'attachments' => celb_attachment_data( $ids ) ) );
-}
-function celb_rest_sched_detach( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_sched' || ! celb_guard_celeb( celb_sched_celeb( $id ) ) ) {
-		return new WP_Error( 'celb_forbidden', 'Not allowed.', array( 'status' => 403 ) );
-	}
-	$p  = $req->get_json_params();
-	$att = is_array( $p ) && isset( $p['att_id'] ) ? absint( $p['att_id'] ) : 0;
-	$ids = celb_rest_do_detach( $id, '_sched_attachments', $att );
-	return rest_ensure_response( array( 'attachments' => celb_attachment_data( $ids ) ) );
-}
-
 /* ---- Add-to-calendar (.ics) ---- */
 function celb_ics_download() {
 	$id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
@@ -3627,25 +2872,7 @@ function celb_user_celeb_id( $uid = 0 ) {
 	$cid = (int) get_user_meta( $uid, '_celb_celebrity', true );
 	return ( $cid && get_post_type( $cid ) === CELB_CPT ) ? $cid : 0;
 }
-function celb_rest_can_access() {
-	return current_user_can( 'edit_posts' ) || celb_user_celeb_id() > 0;
-}
-function celb_guard_celeb( $celeb_id ) {
-	if ( current_user_can( 'edit_posts' ) ) { return true; }
-	$mine = celb_user_celeb_id();
-	return $mine && (int) $celeb_id === $mine;
-}
-function celb_proj_celeb( $id ) { return (int) get_post_meta( $id, '_proj_celeb', true ); }
-function celb_sched_celeb( $id ) { return (int) get_post_meta( $id, '_sched_celeb', true ); }
 
-function celb_manage_page_url() {
-	$pages = get_posts( array( 'post_type' => 'page', 'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids', 'suppress_filters' => true ) );
-	foreach ( $pages as $pid ) {
-		$c = get_post_field( 'post_content', $pid );
-		if ( $c && has_shortcode( $c, 'CLEB_manage' ) ) { return get_permalink( $pid ); }
-	}
-	return home_url( '/' );
-}
 
 /* Keep celebrity-role users out of wp-admin; send them to the app. */
 function celb_is_app_only_user() {
@@ -3654,11 +2881,11 @@ function celb_is_app_only_user() {
 add_filter( 'show_admin_bar', function ( $show ) { return celb_is_app_only_user() ? false : $show; } );
 add_action( 'admin_init', function () {
 	if ( wp_doing_ajax() ) { return; }
-	if ( celb_is_app_only_user() ) { wp_safe_redirect( celb_manage_page_url() ); exit; }
+	if ( celb_is_app_only_user() ) { wp_safe_redirect( celb_talent_url() ); exit; }
 } );
 add_filter( 'login_redirect', function ( $redirect, $requested, $user ) {
 	if ( is_a( $user, 'WP_User' ) && celb_user_celeb_id( $user->ID ) && ! user_can( $user, 'edit_posts' ) ) {
-		return celb_manage_page_url();
+		return celb_talent_url();
 	}
 	return $redirect;
 }, 10, 3 );
@@ -4258,41 +3485,6 @@ add_action( 'save_post', function ( $post_id ) {
 		update_post_meta( $post_id, '_req_status', sanitize_key( $_POST['req_status'] ) );
 	}
 } );
-
-/* ---- REST (manager only) ---- */
-function celb_req_routes() {
-	$edit = array( 'permission_callback' => 'celb_rest_can_edit' );
-	register_rest_route( 'celb/v1', '/requests', array( array( 'methods' => 'GET', 'callback' => 'celb_rest_req_list' ) + $edit ) );
-	register_rest_route( 'celb/v1', '/requests/(?P<id>\d+)', array(
-		array( 'methods' => 'GET', 'callback' => 'celb_rest_req_get' ) + $edit,
-		array( 'methods' => 'POST', 'callback' => 'celb_rest_req_update' ) + $edit,
-	) );
-}
-add_action( 'rest_api_init', 'celb_req_routes' );
-
-function celb_rest_req_list( $req ) {
-	$celeb = absint( $req->get_param( 'celeb' ) );
-	$order = strtoupper( (string) $req->get_param( 'order' ) ) === 'ASC' ? 'ASC' : 'DESC';
-	$args  = array( 'post_type' => 'celb_request', 'post_status' => 'publish', 'numberposts' => 300, 'orderby' => 'date', 'order' => $order, 'suppress_filters' => true );
-	if ( $celeb ) { $args['meta_query'] = array( array( 'key' => '_req_celeb', 'value' => $celeb ) ); }
-	$out = array();
-	foreach ( get_posts( $args ) as $p ) { $out[] = celb_request_data( $p->ID ); }
-	return rest_ensure_response( $out );
-}
-function celb_rest_req_get( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_request' ) { return new WP_Error( 'celb_404', 'Not found.', array( 'status' => 404 ) ); }
-	return rest_ensure_response( celb_request_data( $id ) );
-}
-function celb_rest_req_update( $req ) {
-	$id = absint( $req['id'] );
-	if ( get_post_type( $id ) !== 'celb_request' ) { return new WP_Error( 'celb_404', 'Not found.', array( 'status' => 404 ) ); }
-	$p = $req->get_json_params();
-	if ( is_array( $p ) && isset( $p['status'] ) && in_array( $p['status'], celb_request_statuses(), true ) ) {
-		update_post_meta( $id, '_req_status', $p['status'] );
-	}
-	return rest_ensure_response( celb_request_data( $id ) );
-}
 
 function celb_request_counts() {
 	$total = (int) wp_count_posts( 'celb_request' )->publish;
@@ -5181,55 +4373,6 @@ function celb_contract_app_data( $id, $is_mgr ) {
 	);
 }
 
-function celb_rest_contract_list( $req ) {
-	$is_mgr = current_user_can( 'edit_posts' );
-	$args   = array(
-		'post_type'        => 'celb_contract',
-		'post_status'      => array( 'publish', 'draft' ),
-		'numberposts'      => 300,
-		'orderby'          => 'date',
-		'order'            => 'DESC',
-		'suppress_filters' => true,
-	);
-
-	if ( ! $is_mgr ) {
-		$mine = celb_user_celeb_id();
-		if ( ! $mine ) {
-			return rest_ensure_response( array() );
-		}
-		$args['meta_query'] = array( array( 'key' => '_contract_celeb', 'value' => $mine ) );
-	} else {
-		$celeb  = absint( $req->get_param( 'celeb' ) );
-		$status = sanitize_key( (string) $req->get_param( 'status' ) );
-		$mq     = array();
-		if ( $celeb ) {
-			$mq[] = array( 'key' => '_contract_celeb', 'value' => $celeb );
-		}
-		if ( 'pending' === $status || 'signed' === $status ) {
-			$mq[] = array( 'key' => '_contract_status', 'value' => $status );
-		}
-		if ( $mq ) {
-			if ( count( $mq ) > 1 ) {
-				$mq['relation'] = 'AND';
-			}
-			$args['meta_query'] = $mq;
-		}
-	}
-
-	$out = array();
-	foreach ( get_posts( $args ) as $p ) {
-		$out[] = celb_contract_app_data( $p->ID, $is_mgr );
-	}
-	return rest_ensure_response( $out );
-}
-
-add_action( 'rest_api_init', function () {
-	register_rest_route( 'celb/v1', '/contracts', array( array(
-		'methods'             => 'GET',
-		'callback'            => 'celb_rest_contract_list',
-		'permission_callback' => 'celb_rest_can_access',
-	) ) );
-} );
 
 /* =========================================================================
  * 20. RATE CARD  (private, password-gated quotation builder)
@@ -6931,6 +6074,7 @@ function celb_send_notice( $to, $subject, $heading, $rows, $intro ) {
 
 /* Notify on a project- or schedule-level status change. */
 function celb_notify_status_change( $kind, $post_id, $old, $new ) {
+	do_action( 'celb_status_changed', $kind, $post_id, $old, $new );
 	$title = get_the_title( $post_id );
 	if ( 'project' === $kind ) {
 		$email = get_post_meta( $post_id, '_proj_celeb_email', true );

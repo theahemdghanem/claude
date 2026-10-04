@@ -72,9 +72,16 @@ class CELB_Push {
 		return (bool) preg_match( '/(^|\.)(push\.apple\.com|fcm\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.api\.chrome\.google\.com)$/i', $p['host'] );
 	}
 
-	public static function subs( $uid ) {
+	/* A user's subscriptions, optionally only those made from one app. */
+	public static function subs( $uid, $app = '' ) {
 		$s = get_user_meta( $uid, self::META, true );
-		return is_array( $s ) ? $s : array();
+		$s = is_array( $s ) ? $s : array();
+		if ( '' !== $app ) {
+			$s = array_filter( $s, function ( $sub ) use ( $app ) {
+				return ( isset( $sub['app'] ) ? $sub['app'] : 'studio' ) === $app;
+			} );
+		}
+		return $s;
 	}
 	private static function drop_sub( $uid, $endpoint ) {
 		$s = self::subs( $uid );
@@ -86,6 +93,7 @@ class CELB_Push {
 	public static function rest( $request ) {
 		$uid = get_current_user_id();
 		$op  = (string) $request['op'];
+		$app = 0 === strpos( (string) $request->get_route(), '/celb-talent/' ) ? 'talent' : 'studio';
 		if ( 'key' === $op ) {
 			$k = self::keys();
 			return array( 'supported' => (bool) $k, 'key' => $k ? $k['pub'] : '' );
@@ -93,7 +101,7 @@ class CELB_Push {
 		$sub      = $request->get_param( 'subscription' );
 		$endpoint = is_array( $sub ) && ! empty( $sub['endpoint'] ) ? (string) $sub['endpoint'] : (string) $request->get_param( 'endpoint' );
 		if ( 'status' === $op ) {
-			$s = self::subs( $uid );
+			$s = self::subs( $uid, $app );
 			return array( 'subscribed' => '' !== $endpoint && isset( $s[ md5( $endpoint ) ] ), 'devices' => count( $s ) );
 		}
 		if ( 'subscribe' === $op ) {
@@ -110,6 +118,7 @@ class CELB_Push {
 				'endpoint' => esc_url_raw( $endpoint ),
 				'p256dh'   => $p256,
 				'auth'     => $auth,
+				'app'      => $app,
 				'ua'       => substr( sanitize_text_field( (string) $request->get_header( 'user_agent' ) ), 0, 180 ),
 				'created'  => time(),
 			);
@@ -123,14 +132,15 @@ class CELB_Push {
 			return array( 'subscribed' => false );
 		}
 		if ( 'test' === $op ) {
-			$s = self::subs( $uid );
+			$s = self::subs( $uid, $app );
 			if ( '' === $endpoint || ! isset( $s[ md5( $endpoint ) ] ) ) {
 				return new WP_Error( 'celb_push_none', __( 'This device is not subscribed yet.', 'celb-mgmt' ), array( 'status' => 400 ) );
 			}
 			$code = self::send( $s[ md5( $endpoint ) ], array(
 				'title' => __( 'Notifications are on', 'celb-mgmt' ),
-				'body'  => __( 'You’ll be notified here about new requests, submissions and signed contracts.', 'celb-mgmt' ),
-				'url'   => celb_app_url() . '#/settings',
+				'body'  => 'talent' === $app ? __( 'You’ll be notified here about new bookings, schedule changes and contracts to sign.', 'celb-mgmt' ) : __( 'You’ll be notified here about new requests, submissions and signed contracts.', 'celb-mgmt' ),
+				'url'   => celb_app_url( $app ) . '#/settings',
+				'icon'  => celb_app_icon(),
 				'tag'   => 'celb-test',
 			) );
 			if ( in_array( $code, array( 404, 410 ), true ) ) {
@@ -145,15 +155,23 @@ class CELB_Push {
 		return new WP_Error( 'celb_bad_op', __( 'Unknown action.', 'celb-mgmt' ), array( 'status' => 400 ) );
 	}
 
-	/* Queue a notification for every subscribed manager who wants this event. */
-	public static function queue( $event, $payload ) {
+	/**
+	 * Queue a notification. Studio events go to every subscribed manager who
+	 * wants them; talent events go to the given talent users only.
+	 *
+	 * @param string         $event   Event key (see celb_app_events()).
+	 * @param array|callable $payload Message, or a callback that builds it.
+	 * @param string         $app     'studio' or 'talent'.
+	 * @param int[]|null     $uids    Talent recipients (talent app only).
+	 */
+	public static function queue( $event, $payload, $app = 'studio', $uids = null ) {
 		if ( ! self::supported() ) {
 			return;
 		}
 		if ( empty( self::$queue ) ) {
 			register_shutdown_function( array( __CLASS__, 'flush_queue' ) );
 		}
-		self::$queue[] = array( $event, $payload );
+		self::$queue[] = array( $event, $payload, $app, $uids );
 	}
 
 	/* Shutdown: release the visitor's connection first, then deliver. */
@@ -168,22 +186,23 @@ class CELB_Push {
 		}
 		$jobs        = self::$queue;
 		self::$queue = array();
-		$uids        = get_users( array( 'meta_key' => self::META, 'fields' => 'ID' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		$all         = get_users( array( 'meta_key' => self::META, 'fields' => 'ID' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 		foreach ( $jobs as $job ) {
-			list( $event, $payload ) = $job;
+			list( $event, $payload, $app, $uids ) = $job;
 			$payload = is_callable( $payload ) ? call_user_func( $payload ) : $payload;
 			if ( ! $payload ) {
 				continue;
 			}
-			foreach ( (array) $uids as $uid ) {
-				if ( ! celb_app_user_can( $uid ) ) {
+			foreach ( (array) ( 'talent' === $app ? $uids : $all ) as $uid ) {
+				$allowed = 'talent' === $app ? celb_talent_user_can( $uid ) : celb_app_user_can( $uid );
+				if ( ! $allowed ) {
 					continue;
 				}
-				$prefs = celb_app_prefs( $uid );
+				$prefs = celb_app_prefs( $uid, $app );
 				if ( empty( $prefs[ $event ] ) ) {
 					continue;
 				}
-				foreach ( self::subs( $uid ) as $sub ) {
+				foreach ( self::subs( $uid, $app ) as $sub ) {
 					$code = self::send( $sub, $payload );
 					if ( in_array( $code, array( 404, 410 ), true ) ) {
 						self::drop_sub( $uid, $sub['endpoint'] );

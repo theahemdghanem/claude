@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 3.0.0
+Stable tag: 3.1.0
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,25 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 3.1.0 =
+* New: CELB Talent app — the talent's own installable app at /celb-talent/
+  (address and name under Settings → Talent app). Home (today, this week,
+  contracts to sign, active projects), My calendar (agency bookings and
+  shooting days, plus "Block time" for personal / unavailable time they can
+  edit or remove), booking details with directions and add-to-calendar,
+  My projects, My contracts (review & sign, download the signed PDF) and Me
+  (smart link, profile and rate card links to share, calendar subscription,
+  socials). Talent sign in with the login from the profile's App login box.
+* New: talent push notifications for new bookings, schedule changes
+  (postponed / cancelled …), new projects and contracts to sign; managers get
+  a "Talent blocked time" notification and Activity entry.
+* Removed: the old [CLEB_manage] shortcode app, its scripts and its celb/v1
+  REST endpoints (the contract-signing endpoint stays). Pages that still hold
+  the shortcode forward signed-in people to the right app; talent are sent to
+  the Talent app instead of wp-admin after login.
+* Settings: the "Manage app" section is gone. The app icon now lives under
+  Studio app and is used by both apps.
 
 = 3.0.0 =
 * New: CELB Studio app — one installable web app (PWA) for managers at

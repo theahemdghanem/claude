@@ -601,7 +601,6 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-field--color .wp-color-result-text { border-radius: 0 9px 9px 0; line-height: 34px; }
 .celb-studio .cs-field--color .wp-picker-input-wrap input { min-height: 34px; border-radius: 8px; }
 
-.celb-studio .cs-app-preview { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 24px; align-items: start; }
 .celb-studio .cs-codes { display: grid; gap: 10px; }
 .celb-studio .cs-code { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px 14px; background: var(--cs-surface); border: 1px solid var(--cs-line); border-radius: 12px; }
 .celb-studio .cs-code p { margin: 0; color: var(--cs-ink-2); font-size: 13px; line-height: 1.5; }
@@ -652,7 +651,7 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 	.cs-screen-news #post-body.columns-2 #postbox-container-1 { width: 100%; margin-right: 0; }
 }
 @media (max-width: 782px) {
-	.celb-studio .cs-row-fields, .celb-studio .cs-hero-pair, .celb-studio .cs-canvas-layout, .celb-studio .cs-app-preview, .celb-studio .cs-code { grid-template-columns: 1fr; }
+	.celb-studio .cs-row-fields, .celb-studio .cs-hero-pair, .celb-studio .cs-canvas-layout, .celb-studio .cs-code { grid-template-columns: 1fr; }
 	.celb-studio .cs-hero-slot--tall { max-width: 180px; }
 	.celb-studio .cs-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	.celb-studio .cs-hero { margin: 14px 10px 4px 0; }

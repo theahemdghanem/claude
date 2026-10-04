@@ -12,6 +12,9 @@
  *   /{app_slug}/manifest.webmanifest   web app manifest
  *   /wp-json/celb-app/v1/…             JSON API used by the app
  *
+ * The Talent app (includes/app-talent.php) is served the same way from
+ * /{talent_slug}/ with its own API under /wp-json/celb-talent/v1/.
+ *
  * The app reads and writes the same data as wp-admin; for long forms it links
  * straight to the matching admin editor.
  */
@@ -21,13 +24,38 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once CELB_PATH . 'includes/app-push.php';
+require_once CELB_PATH . 'includes/app-talent.php';
 
 /* =========================================================================
  * 0. BASICS
  * ====================================================================== */
 
-function celb_app_url() {
-	return home_url( '/' . celb_page_slug( 'app_slug' ) . '/' );
+function celb_app_url( $which = 'studio' ) {
+	return home_url( '/' . celb_page_slug( 'talent' === $which ? 'talent_slug' : 'app_slug' ) . '/' );
+}
+function celb_talent_url() {
+	return celb_app_url( 'talent' );
+}
+/* Talent accounts: users linked to a celebrity profile. */
+function celb_talent_user_can( $uid = 0 ) {
+	return celb_user_celeb_id( $uid ? (int) $uid : get_current_user_id() ) > 0;
+}
+function celb_talent_can() {
+	return celb_talent_user_can();
+}
+/* The app a signed-in user belongs in ('' when none). */
+function celb_user_app_url( $uid = 0 ) {
+	if ( celb_app_user_can( $uid ) ) {
+		return celb_app_url();
+	}
+	return celb_talent_user_can( $uid ) ? celb_talent_url() : '';
+}
+function celb_app_name( $which = 'studio' ) {
+	$s = celb_get_settings();
+	if ( 'talent' === $which ) {
+		return ! empty( $s['talent_name'] ) ? $s['talent_name'] : __( 'CELB Talent', 'celb-mgmt' );
+	}
+	return ! empty( $s['app_name'] ) ? $s['app_name'] : __( 'CELB Studio', 'celb-mgmt' );
 }
 function celb_app_user_can( $uid = 0 ) {
 	$uid = $uid ? (int) $uid : get_current_user_id();
@@ -40,22 +68,30 @@ function celb_app_can_admin() {
 	return current_user_can( 'manage_options' );
 }
 
-/* Notification events a manager can switch on/off. */
-function celb_app_events() {
+/* Notification events a user can switch on/off, per app. */
+function celb_app_events( $which = 'studio' ) {
+	if ( 'talent' === $which ) {
+		return array(
+			'sched'    => __( 'New and changed bookings', 'celb-mgmt' ),
+			'project'  => __( 'New projects', 'celb-mgmt' ),
+			'contract' => __( 'Contracts to sign', 'celb-mgmt' ),
+		);
+	}
 	return array(
 		'artreq'   => __( 'New artist requests', 'celb-mgmt' ),
 		'booking'  => __( 'New booking requests', 'celb-mgmt' ),
 		'contract' => __( 'Contracts signed', 'celb-mgmt' ),
 		'rateonb'  => __( 'Rate card submissions', 'celb-mgmt' ),
 		'pdata'    => __( 'Personal data received', 'celb-mgmt' ),
+		'block'    => __( 'Talent blocked time', 'celb-mgmt' ),
 	);
 }
-function celb_app_prefs( $uid = 0 ) {
+function celb_app_prefs( $uid = 0, $which = 'studio' ) {
 	$uid = $uid ? (int) $uid : get_current_user_id();
-	$p   = get_user_meta( $uid, '_celb_app_prefs', true );
+	$p   = get_user_meta( $uid, 'talent' === $which ? '_celb_talent_prefs' : '_celb_app_prefs', true );
 	$p   = is_array( $p ) ? $p : array();
 	$out = array();
-	foreach ( array_keys( celb_app_events() ) as $k ) {
+	foreach ( array_keys( celb_app_events( $which ) ) as $k ) {
 		$out[ $k ] = isset( $p[ $k ] ) ? (bool) $p[ $k ] : true;
 	}
 	return $out;
@@ -66,10 +102,13 @@ function celb_app_prefs( $uid = 0 ) {
  * ====================================================================== */
 
 add_action( 'init', function () {
-	$slug = preg_quote( celb_page_slug( 'app_slug' ), '/' );
-	add_rewrite_rule( '^' . $slug . '/sw\.js$', 'index.php?celb_app=sw', 'top' );
-	add_rewrite_rule( '^' . $slug . '/manifest\.webmanifest$', 'index.php?celb_app=manifest', 'top' );
-	add_rewrite_rule( '^' . $slug . '/?$', 'index.php?celb_app=shell', 'top' );
+	foreach ( array( 'studio' => 'app_slug', 'talent' => 'talent_slug' ) as $which => $key ) {
+		$slug = preg_quote( celb_page_slug( $key ), '/' );
+		$app  = 'talent' === $which ? 't-' : '';
+		add_rewrite_rule( '^' . $slug . '/sw\\.js$', 'index.php?celb_app=' . $app . 'sw', 'top' );
+		add_rewrite_rule( '^' . $slug . '/manifest\\.webmanifest$', 'index.php?celb_app=' . $app . 'manifest', 'top' );
+		add_rewrite_rule( '^' . $slug . '/?$', 'index.php?celb_app=' . $app . 'shell', 'top' );
+	}
 }, 5 );
 add_filter( 'query_vars', function ( $v ) {
 	$v[] = 'celb_app';
@@ -80,43 +119,54 @@ add_filter( 'redirect_canonical', function ( $redirect ) {
 }, 5 );
 
 add_action( 'template_redirect', function () {
-	$what = get_query_var( 'celb_app' );
-	if ( ! $what ) {
+	$what = (string) get_query_var( 'celb_app' );
+	if ( '' === $what ) {
 		return;
 	}
+	$which = 0 === strpos( $what, 't-' ) ? 'talent' : 'studio';
+	$what  = preg_replace( '/^t-/', '', $what );
 	if ( 'sw' === $what ) {
-		celb_app_serve_sw();
+		celb_app_serve_sw( $which );
 	} elseif ( 'manifest' === $what ) {
-		celb_app_serve_manifest();
+		celb_app_serve_manifest( $which );
 	} else {
-		celb_app_serve_shell();
+		celb_app_serve_shell( $which );
 	}
 	exit;
 }, 0 );
 
+/* Home-screen icon for both apps: Settings → Studio app, else the brand logo. */
 function celb_app_icon() {
-	return function_exists( 'celb_manage_pwa_icon' ) ? celb_manage_pwa_icon() : celb_logo_url();
+	$s = celb_get_settings();
+	if ( ! empty( $s['pwa_icon'] ) ) {
+		return $s['pwa_icon'];
+	}
+	if ( ! empty( $s['brand_logo_url'] ) ) {
+		return $s['brand_logo_url'];
+	}
+	return celb_logo_url();
 }
 
-function celb_app_serve_sw() {
+function celb_app_serve_sw( $which = 'studio' ) {
 	nocache_headers();
+	$scope = wp_parse_url( celb_app_url( $which ), PHP_URL_PATH );
 	header( 'Content-Type: application/javascript; charset=utf-8' );
-	header( 'Service-Worker-Allowed: ' . wp_parse_url( celb_app_url(), PHP_URL_PATH ) );
+	header( 'Service-Worker-Allowed: ' . $scope );
 	$js = (string) file_get_contents( CELB_PATH . 'assets/app/sw.js' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-	echo str_replace( array( '__CELB_VERSION__', '__CELB_SCOPE__' ), array( CELB_VERSION, esc_js( wp_parse_url( celb_app_url(), PHP_URL_PATH ) ) ), $js ); // phpcs:ignore WordPress.Security.EscapeOutput
+	echo str_replace( array( '__CELB_VERSION__', '__CELB_SCOPE__', '__CELB_APP__' ), array( CELB_VERSION, esc_js( $scope ), $which ), $js ); // phpcs:ignore WordPress.Security.EscapeOutput
 }
 
-function celb_app_serve_manifest() {
-	$s    = celb_get_settings();
-	$name = ! empty( $s['app_name'] ) ? $s['app_name'] : __( 'CELB Studio', 'celb-mgmt' );
+function celb_app_serve_manifest( $which = 'studio' ) {
+	$name = celb_app_name( $which );
 	$icon = celb_app_icon();
 	header( 'Content-Type: application/manifest+json; charset=utf-8' );
 	echo wp_json_encode( array(
 		'name'             => $name,
 		'short_name'       => $name,
-		'description'      => __( 'Manage the roster, inbox, calendar, contracts and more.', 'celb-mgmt' ),
-		'start_url'        => celb_app_url(),
-		'scope'            => celb_app_url(),
+		'description'      => 'talent' === $which ? __( 'Your schedule, projects and contracts.', 'celb-mgmt' ) : __( 'Manage the roster, inbox, calendar, contracts and more.', 'celb-mgmt' ),
+		'id'               => wp_parse_url( celb_app_url( $which ), PHP_URL_PATH ),
+		'start_url'        => celb_app_url( $which ),
+		'scope'            => celb_app_url( $which ),
 		'display'          => 'standalone',
 		'orientation'      => 'portrait',
 		'background_color' => '#f4f2ee',
@@ -128,36 +178,49 @@ function celb_app_serve_manifest() {
 	) );
 }
 
-function celb_app_serve_shell() {
+function celb_app_serve_shell( $which = 'studio' ) {
 	nocache_headers();
+	$url = celb_app_url( $which );
 	if ( ! is_user_logged_in() ) {
-		wp_safe_redirect( wp_login_url( celb_app_url() ) );
+		wp_safe_redirect( wp_login_url( $url ) );
 		exit;
 	}
-	if ( ! celb_app_can() ) {
-		wp_die( esc_html__( 'The CELB Studio app is for agency managers. Talent can use their own app link.', 'celb-mgmt' ), '', array( 'response' => 403 ) );
+	$ok = 'talent' === $which ? celb_talent_can() : celb_app_can();
+	if ( ! $ok ) {
+		$other = celb_user_app_url();
+		if ( $other && $other !== $url ) {
+			wp_safe_redirect( $other );
+			exit;
+		}
+		wp_die( esc_html( 'talent' === $which ? __( 'This app is for talent with a login from the agency.', 'celb-mgmt' ) : __( 'The CELB Studio app is for agency managers.', 'celb-mgmt' ) ), '', array( 'response' => 403 ) );
 	}
-	$s    = celb_get_settings();
-	$name = ! empty( $s['app_name'] ) ? $s['app_name'] : __( 'CELB Studio', 'celb-mgmt' );
+	$name = celb_app_name( $which );
 	$u    = wp_get_current_user();
 	$cfg  = array(
-		'rest'     => esc_url_raw( rest_url( 'celb-app/v1/' ) ),
+		'app_id'   => $which,
+		'rest'     => esc_url_raw( rest_url( 'talent' === $which ? 'celb-talent/v1/' : 'celb-app/v1/' ) ),
 		'nonce'    => wp_create_nonce( 'wp_rest' ),
 		'ajax'     => admin_url( 'admin-ajax.php' ),
-		'app'      => celb_app_url(),
-		'sw'       => celb_app_url() . 'sw.js',
+		'app'      => $url,
+		'sw'       => $url . 'sw.js',
 		'admin'    => admin_url(),
-		'logout'   => wp_logout_url( celb_app_url() ),
+		'logout'   => wp_logout_url( $url ),
 		'site'     => get_bloginfo( 'name' ),
 		'name'     => $name,
 		'logo'     => celb_logo_url(),
-		'user'     => array( 'name' => $u->display_name, 'first' => $u->first_name ? $u->first_name : $u->display_name, 'avatar' => get_avatar_url( $u->ID, array( 'size' => 96 ) ), 'admin' => celb_app_can_admin() ),
+		'user'     => array( 'name' => $u->display_name, 'first' => $u->first_name ? $u->first_name : $u->display_name, 'avatar' => get_avatar_url( $u->ID, array( 'size' => 96 ) ), 'admin' => 'studio' === $which && celb_app_can_admin() ),
 		'push'     => CELB_Push::supported(),
 		'version'  => CELB_VERSION,
-		'events'   => celb_app_events(),
+		'events'   => celb_app_events( $which ),
 		'accent'   => '#536878',
 	);
-	$v = CELB_VERSION;
+	if ( 'talent' === $which ) {
+		$cid               = celb_user_celeb_id();
+		$cfg['celeb']      = celb_app_celeb_brief( $cid );
+		$cfg['user']['first'] = $cfg['celeb'] ? strtok( $cfg['celeb']['name'], ' ' ) : $cfg['user']['first'];
+	}
+	$v       = CELB_VERSION;
+	$scripts = array( 'core.js', 'talent' === $which ? 'talent.js' : 'app.js' );
 	?><!doctype html>
 <html lang="<?php echo esc_attr( get_bloginfo( 'language' ) ); ?>">
 <head>
@@ -170,7 +233,7 @@ function celb_app_serve_shell() {
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="<?php echo esc_attr( $name ); ?>" />
 <meta name="robots" content="noindex, nofollow" />
-<link rel="manifest" href="<?php echo esc_url( celb_app_url() . 'manifest.webmanifest' ); ?>" />
+<link rel="manifest" href="<?php echo esc_url( $url . 'manifest.webmanifest' ); ?>" />
 <link rel="apple-touch-icon" href="<?php echo esc_url( celb_app_icon() ); ?>" />
 <link rel="icon" href="<?php echo esc_url( celb_app_icon() ); ?>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -178,12 +241,14 @@ function celb_app_serve_shell() {
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alan+Sans:wght@300..900&display=swap" />
 <link rel="stylesheet" href="<?php echo esc_url( CELB_URL . 'assets/app/app.css?ver=' . $v ); ?>" />
 </head>
-<body>
+<body class="app-<?php echo esc_attr( $which ); ?>">
 <div id="app" class="app" aria-live="polite">
 	<div class="boot"><div class="boot-logo"><?php if ( celb_logo_url() ) : ?><img src="<?php echo esc_url( celb_logo_url() ); ?>" alt="" /><?php endif; ?></div><div class="boot-spin"></div></div>
 </div>
 <script>window.CELB_APP = <?php echo wp_json_encode( $cfg ); ?>;</script>
-<script src="<?php echo esc_url( CELB_URL . 'assets/app/app.js?ver=' . $v ); ?>"></script>
+<?php foreach ( $scripts as $js ) : ?>
+<script src="<?php echo esc_url( CELB_URL . 'assets/app/' . $js . '?ver=' . $v ); ?>"></script>
+<?php endforeach; ?>
 </body>
 </html>
 	<?php
@@ -191,7 +256,7 @@ function celb_app_serve_shell() {
 
 /* Fresh REST nonce for an app that has been open for a long time. */
 add_action( 'wp_ajax_celb_app_nonce', function () {
-	if ( ! celb_app_can() ) {
+	if ( ! celb_app_can() && ! celb_talent_can() ) {
 		wp_send_json_error( null, 403 );
 	}
 	wp_send_json_success( array( 'nonce' => wp_create_nonce( 'wp_rest' ) ) );
@@ -266,10 +331,15 @@ function celb_app_dispatch( $event, $id ) {
 		return;
 	}
 	$p['tag'] = 'celb-' . $event . '-' . $id;
-	$feed     = celb_app_feed();
-	array_unshift( $feed, array( 'id' => $p['tag'], 't' => time(), 'event' => $event, 'ref' => $id ) + $p );
-	update_option( 'celb_app_feed', array_slice( $feed, 0, 80 ), false );
+	celb_app_feed_add( $event, $id, $p );
 	CELB_Push::queue( $event, $p + array( 'icon' => celb_app_icon() ) );
+}
+
+/* Add an entry to the managers' activity feed (newest first, last 80). */
+function celb_app_feed_add( $event, $id, $p ) {
+	$feed = celb_app_feed();
+	array_unshift( $feed, array( 'id' => $p['tag'], 't' => time(), 'event' => $event, 'ref' => (int) $id ) + $p );
+	update_option( 'celb_app_feed', array_slice( $feed, 0, 80 ), false );
 }
 
 add_action( 'wp_insert_post', function ( $post_id, $post, $update ) {
@@ -942,17 +1012,22 @@ function celb_app_rest_feed_read() {
 	update_user_meta( get_current_user_id(), '_celb_app_feed_read', time() );
 	return array( 'unread' => 0 );
 }
-function celb_app_rest_prefs() {
-	return array( 'prefs' => celb_app_prefs(), 'events' => celb_app_events(), 'devices' => count( CELB_Push::subs( get_current_user_id() ) ) );
+function celb_app_rest_which( $req ) {
+	return 0 === strpos( (string) $req->get_route(), '/celb-talent/' ) ? 'talent' : 'studio';
+}
+function celb_app_rest_prefs( $req ) {
+	$which = celb_app_rest_which( $req );
+	return array( 'prefs' => celb_app_prefs( 0, $which ), 'events' => celb_app_events( $which ), 'devices' => count( CELB_Push::subs( get_current_user_id(), $which ) ) );
 }
 function celb_app_rest_prefs_save( $req ) {
-	$in  = (array) $req->get_param( 'prefs' );
-	$out = array();
-	foreach ( array_keys( celb_app_events() ) as $k ) {
+	$which = celb_app_rest_which( $req );
+	$in    = (array) $req->get_param( 'prefs' );
+	$out   = array();
+	foreach ( array_keys( celb_app_events( $which ) ) as $k ) {
 		$out[ $k ] = ! empty( $in[ $k ] );
 	}
-	update_user_meta( get_current_user_id(), '_celb_app_prefs', $out );
-	return celb_app_rest_prefs();
+	update_user_meta( get_current_user_id(), 'talent' === $which ? '_celb_talent_prefs' : '_celb_app_prefs', $out );
+	return celb_app_rest_prefs( $req );
 }
 
 /* =========================================================================

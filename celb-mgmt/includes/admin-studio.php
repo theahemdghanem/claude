@@ -807,14 +807,14 @@ function celb_studio_announce_card( $post ) {
 }
 
 function celb_studio_login_card( $post ) {
-	celb_studio_card_open( __( 'App login', 'celb-mgmt' ), __( 'A private login so this talent manages only their own Work Center. No email needed — you send the details yourself.', 'celb-mgmt' ), 'key' );
+	celb_studio_card_open( __( 'App login', 'celb-mgmt' ), __( 'A private login for the Talent app, where this talent sees only their own schedule, projects and contracts. No email needed — you send the details yourself.', 'celb-mgmt' ), 'key' );
 	wp_nonce_field( 'celb_login_save', 'celb_login_nonce' );
 	$uid = (int) get_post_meta( $post->ID, '_celb_user', true );
 	$u   = $uid ? get_userdata( $uid ) : false;
 	if ( $u ) {
 		$pw = get_post_meta( $post->ID, '_celb_login_pw', true );
 		echo '<div class="cs-status cs-status--ok">' . celb_studio_icon( 'check', 15 ) . '<span>' . esc_html__( 'Access is active', 'celb-mgmt' ) . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput
-		celb_studio_copy_field( celb_manage_page_url(), false, __( 'Login link', 'celb-mgmt' ) );
+		celb_studio_copy_field( celb_talent_url(), false, __( 'Talent app link', 'celb-mgmt' ) );
 		celb_studio_copy_field( $u->user_login, false, __( 'Username', 'celb-mgmt' ) );
 		if ( $pw ) {
 			celb_studio_copy_field( $pw, false, __( 'Password', 'celb-mgmt' ) );
@@ -1443,8 +1443,8 @@ function celb_studio_settings_nav() {
 			'rate'      => array( __( 'Rate cards', 'celb-mgmt' ), 'tag', 'rate card usd egp currency markup contact button' ),
 		),
 		__( 'Apps & sync', 'celb-mgmt' ) => array(
-			'app'      => array( __( 'Manage app', 'celb-mgmt' ), 'phone', 'pwa app icon home screen manage' ),
-			'studioapp' => array( __( 'Studio app', 'celb-mgmt' ), 'sparkle', 'studio app pwa push notifications install phone super app' ),
+			'studioapp' => array( __( 'Studio app', 'celb-mgmt' ), 'sparkle', 'studio app pwa icon home screen push notifications install phone super app managers' ),
+			'talentapp' => array( __( 'Talent app', 'celb-mgmt' ), 'phone', 'talent app pwa celebrity login push notifications schedule contracts install phone' ),
 			'calendar' => array( __( 'Agency calendar', 'celb-mgmt' ), 'calendar', 'calendar ics feed webcal google apple' ),
 		),
 		__( 'Reference', 'celb-mgmt' ) => array(
@@ -1631,6 +1631,7 @@ function celb_render_settings_page() {
 						'pdata_slug'   => __( 'Personal data', 'celb-mgmt' ),
 						'rateonb_slug' => __( 'Rate-card forms (base)', 'celb-mgmt' ),
 						'app_slug'     => __( 'Studio app', 'celb-mgmt' ),
+						'talent_slug'  => __( 'Talent app', 'celb-mgmt' ),
 					) as $sk => $sl ) {
 						celb_studio_s_text( $sk, $s, $sl, '', array( 'prefix' => $home ) );
 					}
@@ -1716,26 +1717,27 @@ function celb_render_settings_page() {
 					celb_studio_card_close();
 					celb_studio_section_close();
 
-					/* ---------------- Manage app ---------------- */
-					celb_studio_section_open( 'app', __( 'Manage app', 'celb-mgmt' ), __( 'How the [CLEB_manage] app looks when added to a phone home screen.', 'celb-mgmt' ) );
-					celb_studio_card_open( '', '' );
-					echo '<div class="cs-app-preview">';
-					echo '<div>';
-					celb_studio_field_open( __( 'App icon', 'celb-mgmt' ), '', __( 'Square PNG, at least 512×512. Falls back to the brand logo.', 'celb-mgmt' ) );
+					/* ---------------- Studio app ---------------- */
+					celb_studio_section_open( 'studioapp', __( 'Studio app', 'celb-mgmt' ), __( 'One app for the whole agency: inbox, calendar, roster, projects, newsroom, contracts, rate cards, onboarding and personal data — with push notifications. Managers sign in with their WordPress account.', 'celb-mgmt' ) );
+					celb_studio_card_open( __( 'App icon', 'celb-mgmt' ), __( 'Shown on the phone home screen, in the app switcher and on notifications — for the Studio app and the Talent app.', 'celb-mgmt' ), 'image' );
+					echo '<div class="cs-field--narrow">';
+					celb_studio_field_open( __( 'Icon', 'celb-mgmt' ), '', __( 'Square PNG, at least 512×512. Falls back to the brand logo.', 'celb-mgmt' ) );
 					celb_studio_media( 'celb_settings[pwa_icon]', $s['pwa_icon'], array( 'store' => 'url', 'shape' => 'icon', 'label' => __( 'Choose icon', 'celb-mgmt' ), 'placeholder' => 'https://…/app-icon.png' ) );
 					celb_studio_field_close();
-					echo '</div><div>';
-					celb_studio_s_text( 'pwa_name', $s, __( 'App name', 'celb-mgmt' ), __( 'Shown under the home-screen icon.', 'celb-mgmt' ), array( 'placeholder' => 'iLike Manage' ) );
-					echo '</div></div>';
+					echo '</div>';
+					celb_studio_card_close();
+					celb_studio_card_open( __( 'Open & install', 'celb-mgmt' ), __( 'iPhone: open the link in Safari → Share → Add to Home Screen, then open it from the Home Screen and turn on notifications in More → App settings. Android / desktop Chrome: open the link and choose Install.', 'celb-mgmt' ), 'phone' );
+					celb_studio_copy_field( celb_app_url(), true, __( 'App link', 'celb-mgmt' ) );
+					celb_studio_s_text( 'app_name', $s, __( 'App name', 'celb-mgmt' ), __( 'Shown under the home-screen icon.', 'celb-mgmt' ), array( 'placeholder' => 'CELB Studio', 'class' => 'cs-field--narrow' ) );
+					echo '<div class="cs-note">' . celb_studio_icon( CELB_Push::supported() ? 'check' : 'alert', 16 ) . '<span>' . esc_html( CELB_Push::supported() ? __( 'This server can send push notifications.', 'celb-mgmt' ) : __( 'This server’s PHP/OpenSSL cannot send push notifications; the in-app activity feed still works.', 'celb-mgmt' ) ) . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput
 					celb_studio_card_close();
 					celb_studio_section_close();
 
-					/* ---------------- Studio app ---------------- */
-					celb_studio_section_open( 'studioapp', __( 'Studio app', 'celb-mgmt' ), __( 'One app for the whole agency: inbox, calendar, roster, projects, newsroom, contracts, rate cards, onboarding and personal data — with push notifications. Managers sign in with their WordPress account.', 'celb-mgmt' ) );
-					celb_studio_card_open( __( 'Open & install', 'celb-mgmt' ), __( 'iPhone: open the link in Safari → Share → Add to Home Screen, then open it from the Home Screen and turn on notifications in More → App settings. Android / desktop Chrome: open the link and choose Install.', 'celb-mgmt' ), 'phone' );
-					celb_studio_copy_field( celb_app_url(), true, __( 'App link', 'celb-mgmt' ) );
-					celb_studio_s_text( 'app_name', $s, __( 'App name', 'celb-mgmt' ), __( 'Shown under the home-screen icon. The icon is the one set under Manage app.', 'celb-mgmt' ), array( 'placeholder' => 'CELB Studio', 'class' => 'cs-field--narrow' ) );
-					echo '<div class="cs-note">' . celb_studio_icon( CELB_Push::supported() ? 'check' : 'alert', 16 ) . '<span>' . esc_html( CELB_Push::supported() ? __( 'This server can send push notifications.', 'celb-mgmt' ) : __( 'This server’s PHP/OpenSSL cannot send push notifications; the in-app activity feed still works.', 'celb-mgmt' ) ) . '</span></div>'; // phpcs:ignore WordPress.Security.EscapeOutput
+					/* ---------------- Talent app ---------------- */
+					celb_studio_section_open( 'talentapp', __( 'Talent app', 'celb-mgmt' ), __( 'The talent’s own app: their schedule and shooting days, projects, contracts to review and sign, profile links and notifications. Each talent signs in with the login created on their profile (App login box).', 'celb-mgmt' ) );
+					celb_studio_card_open( __( 'Open & install', 'celb-mgmt' ), __( 'Send this link with the talent’s login. They add it to the Home Screen the same way as the Studio app. It uses the app icon set under Studio app.', 'celb-mgmt' ), 'phone' );
+					celb_studio_copy_field( celb_talent_url(), true, __( 'App link', 'celb-mgmt' ) );
+					celb_studio_s_text( 'talent_name', $s, __( 'App name', 'celb-mgmt' ), __( 'Shown under the home-screen icon.', 'celb-mgmt' ), array( 'placeholder' => 'CELB Talent', 'class' => 'cs-field--narrow' ) );
 					celb_studio_card_close();
 					celb_studio_section_close();
 
@@ -1761,7 +1763,6 @@ function celb_render_settings_page() {
 						'[CLEB_submit]'               => __( 'Password-protected self-submission form; creates Draft profiles.', 'celb-mgmt' ),
 						'[artist_contact_form]'       => __( 'Roster-connected artist request form.', 'celb-mgmt' ),
 						'[CLEB_request]'              => __( 'Booking / contact request form. Add celeb="ID" to lock it to one celebrity.', 'celb-mgmt' ),
-						'[CLEB_manage]'               => __( 'Mobile manage app — place on a private page.', 'celb-mgmt' ),
 						'[CLEB_sign]'                 => __( 'Contract signing page.', 'celb-mgmt' ),
 					) as $code => $desc ) {
 						echo '<div class="cs-code"><button type="button" class="cs-code-tag" data-cs-copy="' . esc_attr( $code ) . '" title="' . esc_attr__( 'Copy', 'celb-mgmt' ) . '"><code>' . esc_html( $code ) . '</code>' . celb_studio_icon( 'copy', 14 ) . '</button><p>' . esc_html( $desc ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput

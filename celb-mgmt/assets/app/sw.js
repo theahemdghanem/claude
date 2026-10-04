@@ -1,12 +1,13 @@
-/* CELB Studio — service worker (served from the app's own URL so its scope
-   is the app). Offline shell + Web Push. Version: __CELB_VERSION__ */
-var VERSION = 'celb-studio-__CELB_VERSION__';
+/* CELB apps — service worker (served from each app's own URL so its scope is
+   that app). Offline shell + Web Push. App: __CELB_APP__, version: __CELB_VERSION__ */
+var PREFIX = 'celb-__CELB_APP__-';
+var VERSION = PREFIX + '__CELB_VERSION__';
 var SCOPE = '__CELB_SCOPE__';
 
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
 	e.waitUntil(caches.keys().then(function (keys) {
-		return Promise.all(keys.filter(function (k) { return k.indexOf('celb-studio-') === 0 && k !== VERSION; }).map(function (k) { return caches.delete(k); }));
+		return Promise.all(keys.filter(function (k) { return k.indexOf(PREFIX) === 0 && k !== VERSION; }).map(function (k) { return caches.delete(k); }));
 	}).then(function () { return self.clients.claim(); }));
 });
 
@@ -37,8 +38,8 @@ self.addEventListener('fetch', function (e) {
 
 self.addEventListener('push', function (e) {
 	var d = {};
-	try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'CELB Studio', body: e.data ? e.data.text() : '' }; }
-	e.waitUntil(self.registration.showNotification(d.title || 'CELB Studio', {
+	try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'CELB', body: e.data ? e.data.text() : '' }; }
+	e.waitUntil(self.registration.showNotification(d.title || 'CELB', {
 		body: d.body || '',
 		icon: d.icon || undefined,
 		badge: d.icon || undefined,
