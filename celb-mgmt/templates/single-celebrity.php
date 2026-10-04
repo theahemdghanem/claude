@@ -348,7 +348,7 @@ while ( have_posts() ) :
 						</div>
 						<div class="celb-news-list celb-p-news-list">
 							<?php foreach ( array_slice( $news, 0, 9 ) as $n ) {
-								echo celb_news_item_html( $n, false ); // phpcs:ignore WordPress.Security.EscapeOutput
+								echo celb_news_item_html( $n, false, 'large' ); // phpcs:ignore WordPress.Security.EscapeOutput
 							} ?>
 						</div>
 					</div>

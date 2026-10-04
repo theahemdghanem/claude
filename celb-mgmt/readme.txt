@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 3.2.0
+Stable tag: 3.2.1
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,17 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 3.2.1 =
+* Profile: the sticky section bar is now solid and also fills the strip under
+  see-through theme headers, so content no longer shows through it while
+  scrolling (desktop and mobile). The background detection skips
+  semi-transparent theme layers.
+* Profile: ambient motion on the hero (slow drift of the photo plus a soft
+  moving light) on desktop and mobile; paused when off-screen and turned off
+  for visitors who prefer reduced motion.
+* Profile: "In the news" cards load the large image size instead of the small
+  thumbnail, so they stay sharp.
 
 = 3.2.0 =
 * Redesigned celebrity profile pages for desktop and mobile:

@@ -3,7 +3,7 @@
  * Plugin Name:       CELB MGMT
  * Plugin URI:        https://ilike.agency
  * Description:       Celebrity management directory for iLike Agency: profiles, grid, carousel, individual pages, awards, galleries, social links, and a password-protected front-end self-submission portal.
- * Version:           3.2.0
+ * Version:           3.2.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            iLike Agency
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CELB_VERSION', '3.2.0' );
+define( 'CELB_VERSION', '3.2.1' );
 define( 'CELB_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CELB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CELB_CPT', 'celebrity' );
@@ -1862,8 +1862,8 @@ function celb_news_thumb_img( $news_id, $size = 'medium' ) {
 }
 
 /* ---- Reusable list item (used by profile + global newsroom) ---- */
-function celb_news_item_html( $n, $show_celeb = false ) {
-	$thumb = celb_news_thumb_img( $n->ID, 'medium' );
+function celb_news_item_html( $n, $show_celeb = false, $size = 'medium' ) {
+	$thumb = celb_news_thumb_img( $n->ID, $size );
 	$cid   = (int) get_post_meta( $n->ID, '_news_celebrity', true );
 	ob_start();
 	?>

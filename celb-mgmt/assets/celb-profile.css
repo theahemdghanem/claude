@@ -115,8 +115,41 @@ body.single-celebrity { overflow-x: clip; }
 	max-width: none;
 	z-index: -2;
 }
-.celb-profile .celb-p-hero-media img { object-fit: cover; object-position: center 22%; animation: celb-p-zoom 1.6s cubic-bezier(.2, .7, .2, 1) both; }
-@keyframes celb-p-zoom { from { transform: scale(1.06); opacity: .4; } to { transform: none; opacity: 1; } }
+/* Intro fade on the frame; slow ambient drift on the photo itself. */
+.celb-profile .celb-p-hero-media { overflow: hidden; animation: celb-p-in 1.6s cubic-bezier(.2, .7, .2, 1) both; }
+.celb-profile .celb-p-hero-media img {
+	object-fit: cover;
+	object-position: center 22%;
+	transform-origin: 50% 32%;
+	will-change: transform;
+	animation: celb-p-drift 30s ease-in-out infinite alternate;
+}
+@keyframes celb-p-in { from { opacity: .35; transform: scale(1.04); } to { opacity: 1; transform: none; } }
+@keyframes celb-p-drift {
+	0% { transform: scale(1.06) translate3d(0, 0, 0); }
+	35% { transform: scale(1.11) translate3d(-1.4%, -1%, 0); }
+	70% { transform: scale(1.09) translate3d(1.2%, -.4%, 0); }
+	100% { transform: scale(1.13) translate3d(.4%, .8%, 0); }
+}
+/* Soft moving light over the photo. */
+.celb-profile .celb-p-hero-shade::after {
+	content: "";
+	position: absolute;
+	inset: -20%;
+	background:
+		radial-gradient(42% 38% at 30% 28%, rgba(255, 255, 255, .13), rgba(255, 255, 255, 0) 70%),
+		radial-gradient(36% 32% at 78% 64%, rgba(255, 236, 214, .08), rgba(255, 236, 214, 0) 70%);
+	mix-blend-mode: screen;
+	pointer-events: none;
+	animation: celb-p-light 22s ease-in-out infinite alternate;
+}
+@keyframes celb-p-light {
+	0% { transform: translate3d(-6%, -3%, 0) rotate(0deg); opacity: .65; }
+	50% { transform: translate3d(5%, 3%, 0) rotate(4deg); opacity: 1; }
+	100% { transform: translate3d(-2%, 5%, 0) rotate(-3deg); opacity: .75; }
+}
+.celb-profile .celb-p-hero.is-paused .celb-p-hero-media img,
+.celb-profile .celb-p-hero.is-paused .celb-p-hero-shade::after { animation-play-state: paused; }
 .celb-profile .celb-p-hero-shade {
 	position: absolute;
 	inset: 0;
@@ -173,12 +206,22 @@ body.single-celebrity { overflow-x: clip; }
 .celb-profile .celb-p-nav {
 	position: sticky;
 	top: var(--p-top);
-	z-index: 30;
-	background: color-mix(in srgb, var(--p-bg) 88%, transparent);
-	-webkit-backdrop-filter: saturate(1.4) blur(16px);
-	backdrop-filter: saturate(1.4) blur(16px);
+	z-index: 5;
+	background: var(--p-bg);
 	border-bottom: 1px solid var(--p-line);
 }
+.celb-profile .celb-p-nav::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 100%;
+	height: var(--p-top);
+	background: var(--p-bg);
+	opacity: 0;
+	pointer-events: none;
+}
+.celb-profile .celb-p-nav.is-stuck::before { opacity: 1; }
 .celb-profile .celb-p-nav-in { display: flex; align-items: center; gap: 18px; min-height: 62px; }
 .celb-profile .celb-p-nav-name { flex: 0 0 auto; font-weight: 700; opacity: 0; transform: translateY(4px); transition: opacity .25s ease, transform .25s ease; white-space: nowrap; }
 .celb-profile .celb-p-nav.is-stuck .celb-p-nav-name { opacity: 1; transform: none; }
@@ -427,6 +470,12 @@ body.single-celebrity { overflow-x: clip; }
 }
 @media (max-width: 768px) {
 	.celb-profile .celb-p-hero { min-height: calc(92vh - var(--p-top)); min-height: calc(92svh - var(--p-top)); }
+	.celb-profile .celb-p-hero-media img { animation-duration: 24s; animation-name: celb-p-drift-sm; }
+	@keyframes celb-p-drift-sm {
+		0% { transform: scale(1.04) translate3d(0, 0, 0); }
+		50% { transform: scale(1.09) translate3d(-1.5%, -.8%, 0); }
+		100% { transform: scale(1.07) translate3d(1.5%, .6%, 0); }
+	}
 	.celb-profile .celb-p-hero-shade { background: linear-gradient(to top, rgba(0, 0, 0, .9) 0%, rgba(0, 0, 0, .6) 30%, rgba(0, 0, 0, .1) 58%, rgba(0, 0, 0, 0) 75%); }
 	.celb-profile .celb-p-name { font-size: clamp(2.6rem, 13vw, 4rem); }
 	.celb-profile .celb-p-hero-actions { gap: 10px; }
@@ -474,7 +523,7 @@ body.single-celebrity { overflow-x: clip; }
 		padding: 8px 8px 8px 18px;
 		border: 1px solid var(--p-line);
 		border-radius: 999px;
-		background: color-mix(in srgb, var(--p-bg) 90%, transparent);
+		background: var(--p-bg);
 		color: inherit;
 		-webkit-backdrop-filter: saturate(1.4) blur(18px);
 		backdrop-filter: saturate(1.4) blur(18px);

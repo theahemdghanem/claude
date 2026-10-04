@@ -16,18 +16,30 @@
 	/* ---- Theme background: the colour actually behind the profile -------- */
 	function pageBackground() {
 		// Text colour of the theme (or of the forced mode) for filled buttons.
-		root.style.setProperty('--celb-p-ink', getComputedStyle(root).color);
+		var ink = getComputedStyle(root).color;
+		root.style.setProperty('--celb-p-ink', ink);
 		if (root.classList.contains('is-light') || root.classList.contains('is-dark')) { return; }
+		// First opaque background behind the profile; see-through layers are skipped.
 		var node = root.parentElement;
 		while (node) {
-			var c = getComputedStyle(node).backgroundColor;
-			if (c && c !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(c)) {
-				root.style.setProperty('--celb-p-page-bg', c);
-				return;
+			var m = /rgba?\(([^)]+)\)/.exec(getComputedStyle(node).backgroundColor || '');
+			if (m) {
+				var parts = m[1].split(',').map(parseFloat);
+				if (parts.length < 4 || parts[3] >= 0.95) {
+					root.style.setProperty('--celb-p-page-bg', 'rgb(' + parts.slice(0, 3).join(',') + ')');
+					return;
+				}
 			}
 			node = node.parentElement;
 		}
-		root.style.setProperty('--celb-p-page-bg', '#ffffff');
+		// Nothing opaque: pick light or dark from the theme's text colour.
+		var t = /rgba?\(([^)]+)\)/.exec(ink);
+		var lum = 0;
+		if (t) {
+			var c = t[1].split(',').map(parseFloat);
+			lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+		}
+		root.style.setProperty('--celb-p-page-bg', lum > 0.5 ? '#0b0b0c' : '#ffffff');
 	}
 
 	/* ---- Height of fixed / sticky things at the top (admin bar, header) -- */
@@ -142,6 +154,14 @@
 			}
 		});
 		apply();
+	}
+
+	/* ---- Hero ambient motion: pause while off-screen ----------------------- */
+	var heroEl = root.querySelector('.celb-p-hero');
+	if (heroEl && 'IntersectionObserver' in window) {
+		new IntersectionObserver(function (entries) {
+			heroEl.classList.toggle('is-paused', !entries[0].isIntersecting);
+		}).observe(heroEl);
 	}
 
 	/* ---- Section nav: stuck state + scroll-spy + smooth jump --------------- */
