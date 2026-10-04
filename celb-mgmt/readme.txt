@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 3.1.0
+Stable tag: 3.2.0
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,23 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 3.2.0 =
+* Redesigned celebrity profile pages for desktop and mobile:
+  full-bleed photo hero (role, nationality, call to action, share, socials),
+  sticky section nav with scroll-spy, Overview with biography ("Read more")
+  and an "At a glance" panel (credits, awards, on screen since, known for,
+  nationality, birthday, socials), Career list with type filter and "Show
+  all", Awards cards, a photo-mosaic gallery (lightbox kept), videos, news
+  cards and a closing "Work with …" call to action. On phones the nav scrolls
+  sideways, news swipes and a floating bar keeps the call to action in reach.
+* The profile now inherits the active theme: its body and heading fonts, its
+  page background and text colour, and its accent colour (block themes,
+  Elementor and Salient palettes) unless an accent is set in Settings.
+  Settings → Colours & fonts adds "Theme" next to Light / Dark (the new
+  default; sites still on the old default Light are moved to Theme).
+* The call-to-action button opens the artist contact page with the artist
+  pre-selected when one is configured.
 
 = 3.1.0 =
 * New: CELB Talent app — the talent's own installable app at /celb-talent/

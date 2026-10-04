@@ -3,7 +3,7 @@
  * Plugin Name:       CELB MGMT
  * Plugin URI:        https://ilike.agency
  * Description:       Celebrity management directory for iLike Agency: profiles, grid, carousel, individual pages, awards, galleries, social links, and a password-protected front-end self-submission portal.
- * Version:           3.1.0
+ * Version:           3.2.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            iLike Agency
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CELB_VERSION', '3.1.0' );
+define( 'CELB_VERSION', '3.2.0' );
 define( 'CELB_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CELB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CELB_CPT', 'celebrity' );
@@ -874,8 +874,21 @@ function celb_enqueue_frontend() {
 		(int) $s['grid_cols']
 	);
 	$inline .= celb_custom_theme_vars_css( '.celb-scope' );
-	if ( 'dark' === $s['theme'] ) {
-		$inline .= '.celb-scope.celb-single{--celb-surface:#0a0a0a;--celb-text:#f4f1ea;--celb-muted:rgba(244,241,234,.55);--celb-line:rgba(153,153,153,.22);background:#000;}';
+	if ( is_singular( CELB_CPT ) ) {
+		// Profile page: accent follows the theme unless one is chosen; fonts
+		// follow the theme unless overridden (headings included).
+		if ( '#999999' !== strtolower( celb_accent() ) ) {
+			$inline .= '.celb-profile{--celb-accent:' . esc_attr( celb_accent() ) . ';}';
+		}
+		if ( ! empty( $s['font_display'] ) ) {
+			$inline .= '.celb-profile :is(h1,h2,h3,.celb-p-name,.celb-p-title,.celb-p-closing-title){font-family:' . $s['font_display'] . ';}';
+		}
+		if ( ! empty( $s['bg_color'] ) ) {
+			$inline .= '.celb-scope.celb-profile{background:' . $s['bg_color'] . ';--p-bg:' . $s['bg_color'] . ';}';
+		}
+		if ( ! empty( $s['text_color'] ) ) {
+			$inline .= '.celb-scope.celb-profile{color:' . $s['text_color'] . ';}.celb-profile :is(h2,h3){color:inherit;}';
+		}
 	}
 	// Critical carousel styles emitted inline so they apply even when a CDN /
 	// page cache is still serving an older copy of celb-frontend.css.
@@ -929,6 +942,10 @@ function celb_enqueue_frontend() {
 	wp_localize_script( 'celb-frontend', 'CELB_FRONT', array(
 		'pullHero' => (int) $s['pull_hero'],
 	) );
+	if ( is_singular( CELB_CPT ) ) {
+		wp_enqueue_style( 'celb-profile', CELB_URL . 'assets/celb-profile.css', array( 'celb-frontend' ), CELB_VERSION );
+		wp_enqueue_script( 'celb-profile', CELB_URL . 'assets/celb-profile.js', array(), CELB_VERSION, true );
+	}
 }
 add_action( 'wp_enqueue_scripts', 'celb_enqueue_frontend' );
 
@@ -1001,7 +1018,7 @@ function celb_ensure_frontend_assets( $roster = false ) {
 function celb_default_settings() {
 	return array(
 		'accent'         => '#999999',
-		'theme'          => 'light', // light | dark — profile page background
+		'theme'          => 'auto', // auto (inherit the theme) | light | dark — profile page background
 		'pwa_icon'       => '',      // URL of a square (≥512px) icon for both apps' home-screen install
 		'grid_cols'      => 3,       // desktop grid columns (mobile stays 2)
 		'carousel_items' => 6,       // desktop carousel items visible
@@ -1118,7 +1135,7 @@ function celb_sanitize_settings( $input ) {
 	$accent       = isset( $input['accent'] ) ? sanitize_hex_color( $input['accent'] ) : '';
 	$out['accent'] = $accent ? $accent : $d['accent'];
 
-	$out['theme'] = ( isset( $input['theme'] ) && in_array( $input['theme'], array( 'light', 'dark' ), true ) )
+	$out['theme'] = ( isset( $input['theme'] ) && in_array( $input['theme'], array( 'auto', 'light', 'dark' ), true ) )
 		? $input['theme'] : $d['theme'];
 
 	$out['pwa_icon'] = isset( $input['pwa_icon'] ) ? esc_url_raw( trim( (string) $input['pwa_icon'] ) ) : $d['pwa_icon'];
@@ -2186,6 +2203,14 @@ function celb_maybe_flush_rewrites() {
 			celb_rate_build_slug_map();
 		}
 		flush_rewrite_rules( false );
+		if ( version_compare( (string) get_option( 'celb_rewrite_version' ), '3.2.0', '<' ) ) {
+			// 3.2 profile redesign: the old default "light" becomes "inherit the theme".
+			$st = get_option( 'celb_settings' );
+			if ( is_array( $st ) && ( empty( $st['theme'] ) || 'light' === $st['theme'] ) ) {
+				$st['theme'] = 'auto';
+				update_option( 'celb_settings', $st );
+			}
+		}
 		update_option( 'celb_rewrite_version', CELB_VERSION, false );
 	}
 }

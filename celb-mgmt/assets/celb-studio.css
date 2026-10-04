@@ -592,6 +592,9 @@ html:not(.cs-roster-grid) .cs-screen-list .cs-viewtoggle [data-cs-view="list"] {
 .celb-studio .cs-choice-swatch i:first-child { width: 60%; background: #c9c2b5; }
 .celb-studio .cs-choice-swatch i:last-child { width: 80%; }
 .celb-studio .cs-choice-item--dark .cs-choice-swatch { background: #0a0a0a; }
+.celb-studio .cs-choice-item--auto .cs-choice-swatch { background: linear-gradient(135deg, #fff 0 50%, #0a0a0a 50% 100%); }
+.celb-studio .cs-choice-item--auto .cs-choice-swatch i { background: #8ea1b0; }
+.celb-studio .cs-choice-item--auto .cs-choice-swatch i:first-child { background: #536878; }
 .celb-studio .cs-choice-item--dark .cs-choice-swatch i { background: #3a372f; }
 .celb-studio .cs-choice-item--dark .cs-choice-swatch i:first-child { background: #6a6455; }
 .celb-studio .cs-choice-label { font-size: 12.5px; color: var(--cs-ink-2); }

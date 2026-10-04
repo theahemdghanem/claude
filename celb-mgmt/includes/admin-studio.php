@@ -1516,14 +1516,14 @@ function celb_render_settings_page() {
 					celb_studio_section_open( 'appearance', __( 'Colours & fonts', 'celb-mgmt' ), __( 'Keep these in step with your theme so the whole site feels like one brand.', 'celb-mgmt' ) );
 					celb_studio_card_open( __( 'Accent & background', 'celb-mgmt' ), '', 'palette' );
 					echo '<div class="cs-row-fields">';
-					celb_studio_s_color( 'accent', celb_accent(), __( 'Accent colour', 'celb-mgmt' ), __( 'Roster highlights, Lead badges, links, grid, carousel and profile pages. Default #999999.', 'celb-mgmt' ), '#999999' );
+					celb_studio_s_color( 'accent', celb_accent(), __( 'Accent colour', 'celb-mgmt' ), __( 'Roster highlights, Lead badges, links, grid and carousel. Profile pages follow your theme’s accent while this stays at the default #999999.', 'celb-mgmt' ), '#999999' );
 					celb_studio_field_open( __( 'Profile page background', 'celb-mgmt' ) );
 					echo '<div class="cs-choice">';
-					foreach ( array( 'light' => __( 'Light', 'celb-mgmt' ), 'dark' => __( 'Dark', 'celb-mgmt' ) ) as $k => $lbl ) {
+					foreach ( array( 'auto' => __( 'Theme', 'celb-mgmt' ), 'light' => __( 'Light', 'celb-mgmt' ), 'dark' => __( 'Dark', 'celb-mgmt' ) ) as $k => $lbl ) {
 						echo '<label class="cs-choice-item cs-choice-item--' . esc_attr( $k ) . '"><input type="radio" name="celb_settings[theme]" value="' . esc_attr( $k ) . '" ' . checked( $s['theme'], $k, false ) . ' /><span class="cs-choice-swatch"><i></i><i></i><i></i></span><span class="cs-choice-label">' . esc_html( $lbl ) . '</span></label>';
 					}
 					echo '</div>';
-					celb_studio_field_close( __( 'Match your theme. The hero always keeps its gradient and white name.', 'celb-mgmt' ) );
+					celb_studio_field_close( __( 'Theme uses your site’s own background, text colours and fonts. Light / Dark force a background. The hero always keeps its photo gradient and white name.', 'celb-mgmt' ) );
 					echo '</div>';
 					celb_studio_card_close();
 					celb_studio_card_open( __( 'Custom theme', 'celb-mgmt' ), __( 'Leave everything empty to inherit your theme’s fonts and colours. Fill a field only to override it across the plugin and the standalone pages.', 'celb-mgmt' ), 'text' );

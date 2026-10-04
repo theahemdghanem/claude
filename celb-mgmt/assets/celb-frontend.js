@@ -404,7 +404,7 @@
 	   ---------------------------------------------------------------------- */
 	function fixHeroGap() {
 		if (window.CELB_FRONT && Number(CELB_FRONT.pullHero) === 0) { return; }
-		var single = document.querySelector('.celb-single');
+		var single = document.querySelector('.celb-single, .celb-profile');
 		if (!single) { return; }
 		var node = single.parentElement;
 		while (node && node !== document.body) {
