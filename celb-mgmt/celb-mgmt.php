@@ -3,7 +3,7 @@
  * Plugin Name:       CELB MGMT
  * Plugin URI:        https://ilike.agency
  * Description:       Celebrity management directory for iLike Agency: profiles, grid, carousel, individual pages, awards, galleries, social links, and a password-protected front-end self-submission portal.
- * Version:           3.2.1
+ * Version:           3.3.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            iLike Agency
@@ -16,13 +16,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CELB_VERSION', '3.2.1' );
+define( 'CELB_VERSION', '3.3.0' );
 define( 'CELB_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CELB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CELB_CPT', 'celebrity' );
 
 /* Talent Works Archive module. */
 require_once CELB_PATH . 'includes/works.php';
+require_once CELB_PATH . 'includes/roster.php';
 
 /* Admin UI ("Studio"): celebrity list, celebrity + newsroom editors, settings. */
 require_once CELB_PATH . 'includes/admin-studio.php';
@@ -575,160 +576,9 @@ function celb_roster_filter_script() {
 		. '})();</script>';
 }
 
-/* [CLEB_celebrities] — Casting-Book roster: header, category filters, monogram grid. */
-function celb_shortcode_grid( $atts ) {
-	celb_ensure_frontend_assets( true );
-	$rs   = celb_get_settings();
-	$atts = shortcode_atts( array(
-		'limit'   => -1,
-		'header'  => 'yes',
-		'eyebrow' => $rs['roster_eyebrow'],
-		'title'   => $rs['roster_title'],
-		'intro'   => $rs['roster_intro'],
-		'filters' => 'yes',
-		'orderby' => 'lead_rand', // lead_rand (leads pinned, rest shuffled) | rand | lead | title
-		'full'    => 'yes',  // break out to full viewport width
-		'cols'    => 'auto', // 'auto' fills the row; or a fixed number
-	), $atts, 'CLEB_celebrities' );
-
-	$q = new WP_Query( array(
-		'post_type'      => CELB_CPT,
-		'post_status'    => 'publish',
-		'posts_per_page' => (int) $atts['limit'],
-		'orderby'        => 'title',
-		'order'          => 'ASC',
-		'no_found_rows'  => true,
-	) );
-	if ( ! $q->have_posts() ) {
-		return '';
-	}
-
-	$ids = wp_list_pluck( $q->posts, 'ID' );
-	wp_reset_postdata();
-
-	if ( 'rand' === $atts['orderby'] ) {
-		shuffle( $ids );
-	} elseif ( 'lead' === $atts['orderby'] ) {
-		usort( $ids, function ( $a, $b ) {
-			$la = get_post_meta( $a, '_celb_lead', true ) ? 1 : 0;
-			$lb = get_post_meta( $b, '_celb_lead', true ) ? 1 : 0;
-			if ( $la !== $lb ) {
-				return $lb - $la;
-			}
-			return strcasecmp( get_the_title( $a ), get_the_title( $b ) );
-		} );
-	} else {
-		// Default (lead_rand): Lead talent always first, everyone else shuffled.
-		$leads = array();
-		$rest  = array();
-		foreach ( $ids as $id ) {
-			if ( get_post_meta( $id, '_celb_lead', true ) ) {
-				$leads[] = $id;
-			} else {
-				$rest[] = $id;
-			}
-		}
-		shuffle( $leads );
-		shuffle( $rest );
-		$ids = array_merge( $leads, $rest );
-	}
-
-	$present = array();
-	foreach ( $ids as $id ) {
-		foreach ( celb_roster_categories( $id ) as $c ) {
-			$present[ $c ] = true;
-		}
-	}
-
-	ob_start();
-	$rose_accent = celb_accent();
-	echo '<div class="celb-scope celb-roster' . ( 'no' === $atts['full'] ? '' : ' is-full' ) . '" style="--rose-accent:' . esc_attr( $rose_accent ) . '">';
-
-	if ( 'yes' === $atts['header'] ) {
-		echo '<div class="celb-roster-head">';
-		if ( '' !== $atts['eyebrow'] ) {
-			echo '<span class="celb-roster-eyebrow">' . esc_html( $atts['eyebrow'] ) . '</span>';
-		}
-		if ( '' !== $atts['title'] ) {
-			echo '<h2 class="celb-roster-title">' . esc_html( $atts['title'] ) . '</h2>';
-		}
-		if ( '' !== $atts['intro'] ) {
-			echo '<div class="celb-roster-introwrap"><span class="celb-roster-dot"></span><p class="celb-roster-intro">' . esc_html( $atts['intro'] ) . '</p></div>';
-		}
-		echo '</div>';
-	}
-
-	if ( 'yes' === $atts['filters'] ) {
-		echo '<div class="celb-roster-filters">';
-		echo '<button type="button" class="celb-rfilter is-active" data-filter="all">' . esc_html__( 'All', 'celb-mgmt' ) . '</button>';
-		foreach ( array_keys( celb_roster_cat_defs() ) as $c ) {
-			if ( ! empty( $present[ $c ] ) ) {
-				echo '<button type="button" class="celb-rfilter" data-filter="' . esc_attr( $c ) . '">' . esc_html( celb_roster_cat_label( $c ) ) . '</button>';
-			}
-		}
-		echo '</div>';
-	}
-
-	$grid_style = ( ctype_digit( (string) $atts['cols'] ) && (int) $atts['cols'] > 0 )
-		? ' style="--roster-cols:repeat(' . (int) $atts['cols'] . ',minmax(0,1fr))"'
-		: '';
-	echo '<div class="celb-roster-tiles"' . $grid_style . '>';
-	foreach ( $ids as $id ) {
-		echo celb_render_roster_card( $id ); // phpcs:ignore WordPress.Security.EscapeOutput
-	}
-	echo '</div>';
-	echo '</div>';
-	echo celb_roster_filter_script(); // phpcs:ignore WordPress.Security.EscapeOutput
-	return ob_get_clean();
-}
+/* [CLEB_celebrities] and [CLEB_celebrities_carousel] live in includes/roster.php. */
 add_shortcode( 'CLEB_celebrities', 'celb_shortcode_grid' );
 
-/* [CLEB_celebrities_carousel] — compact homepage carousel, randomized each load. */
-function celb_shortcode_carousel( $atts ) {
-	celb_ensure_frontend_assets( true );
-	$atts = shortcode_atts( array(
-		'limit'         => 12,
-		'viewall'       => '',
-		'viewall_label' => '',
-	), $atts, 'CLEB_celebrities_carousel' );
-
-	$q = new WP_Query( array(
-		'post_type'      => CELB_CPT,
-		'post_status'    => 'publish',
-		'posts_per_page' => (int) $atts['limit'],
-		'orderby'        => 'rand',
-		'no_found_rows'  => true,
-	) );
-
-	if ( ! $q->have_posts() ) {
-		return '';
-	}
-
-	$s        = celb_get_settings();
-	$va_url   = '' !== $atts['viewall'] ? $atts['viewall'] : ( ! empty( $s['carousel_viewall'] ) ? $s['carousel_viewall_url'] : '' );
-	$va_label = '' !== $atts['viewall_label'] ? $atts['viewall_label'] : $s['carousel_viewall_label'];
-
-	ob_start();
-	echo '<div class="celb-scope celb-carousel-wrap">';
-	echo '<div class="celb-carousel" data-celb-carousel>';
-	echo '<button type="button" class="celb-carousel-nav celb-prev" aria-label="Previous">&#8249;</button>';
-	echo '<div class="celb-carousel-track">';
-	while ( $q->have_posts() ) {
-		$q->the_post();
-		echo '<div class="celb-carousel-cell">' . celb_render_roster_card( get_the_ID() ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
-	}
-	echo '</div>';
-	echo '<button type="button" class="celb-carousel-nav celb-next" aria-label="Next">&#8250;</button>';
-	echo '</div>'; // .celb-carousel
-
-	if ( $va_url ) {
-		echo '<div class="celb-carousel-cta"><a class="celb-viewall" href="' . esc_url( $va_url ) . '">' . esc_html( $va_label ) . '</a></div>';
-	}
-
-	echo '</div>'; // .celb-carousel-wrap
-	wp_reset_postdata();
-	return ob_get_clean();
-}
 add_shortcode( 'CLEB_celebrities_carousel', 'celb_shortcode_carousel' );
 
 /* -------------------------------------------------------------------------
@@ -942,6 +792,12 @@ function celb_enqueue_frontend() {
 	wp_localize_script( 'celb-frontend', 'CELB_FRONT', array(
 		'pullHero' => (int) $s['pull_hero'],
 	) );
+	// Roster grid + carousel (small; loaded wherever the frontend assets load).
+	wp_enqueue_style( 'celb-roster', CELB_URL . 'assets/celb-roster.css', array( 'celb-frontend' ), CELB_VERSION );
+	wp_enqueue_script( 'celb-roster', CELB_URL . 'assets/celb-roster.js', array(), CELB_VERSION, true );
+	if ( ! empty( $s['font_display'] ) ) {
+		wp_add_inline_style( 'celb-roster', '.celb-tc .celb-tc-name,.celb-tg .celb-tg-title,.celb-rail .celb-rail-title{font-family:' . $s['font_display'] . ';}' );
+	}
 	if ( is_singular( CELB_CPT ) ) {
 		wp_enqueue_style( 'celb-profile', CELB_URL . 'assets/celb-profile.css', array( 'celb-frontend' ), CELB_VERSION );
 		wp_enqueue_script( 'celb-profile', CELB_URL . 'assets/celb-profile.js', array(), CELB_VERSION, true );
@@ -992,13 +848,15 @@ function celb_ensure_frontend_assets( $roster = false ) {
 	if ( ! $print_hooked ) {
 		$print_hooked = true;
 		$print = function () {
-			foreach ( array( 'celb-fonts', 'celb-roster-fonts', 'celb-frontend' ) as $h ) {
+			foreach ( array( 'celb-fonts', 'celb-roster-fonts', 'celb-frontend', 'celb-roster' ) as $h ) {
 				if ( wp_style_is( $h, 'enqueued' ) && ! wp_style_is( $h, 'done' ) ) {
 					wp_print_styles( $h );
 				}
 			}
-			if ( wp_script_is( 'celb-frontend', 'enqueued' ) && ! wp_script_is( 'celb-frontend', 'done' ) ) {
-				wp_print_scripts( 'celb-frontend' );
+			foreach ( array( 'celb-frontend', 'celb-roster' ) as $h ) {
+				if ( wp_script_is( $h, 'enqueued' ) && ! wp_script_is( $h, 'done' ) ) {
+					wp_print_scripts( $h );
+				}
 			}
 		};
 		if ( did_action( 'wp_footer' ) ) {

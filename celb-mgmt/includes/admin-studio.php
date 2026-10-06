@@ -1755,8 +1755,8 @@ function celb_render_settings_page() {
 					celb_studio_section_open( 'shortcodes', __( 'Shortcodes', 'celb-mgmt' ), __( 'Paste these into page content, a text widget or a builder shortcode block.', 'celb-mgmt' ) );
 					echo '<div class="cs-codes">';
 					foreach ( array(
-						'[CLEB_celebrities]'          => __( 'Full roster grid, randomised each load. Optional limit="9".', 'celb-mgmt' ),
-						'[CLEB_celebrities_carousel]' => __( 'Homepage carousel, randomised each load. Optional limit="12" (pool size).', 'celb-mgmt' ),
+						'[CLEB_celebrities]'          => __( 'Full roster grid with category filters and search; Lead talent first. Options: limit, cols, filters="no", search="no", header="no", full="no", orderby="title".', 'celb-mgmt' ),
+						'[CLEB_celebrities_carousel]' => __( 'Homepage carousel (swipe / drag / arrows, gentle autoplay). Options: limit="12", title, eyebrow, orderby="lead_rand", autoplay="no", viewall, viewall_label.', 'celb-mgmt' ),
 						'[CLEB_newsroom]'             => __( 'Global newsroom with a “Filter by artist” dropdown.', 'celb-mgmt' ),
 						'[CLEB_newsroom_carousel]'    => __( 'Six most recent articles with a “View More” button. Optional title, count, more_url, more_label.', 'celb-mgmt' ),
 						'[ilike_works_archive]'       => __( 'Talent Works Archive — every production with artist / year / type / search filters.', 'celb-mgmt' ),

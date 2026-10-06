@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 3.2.1
+Stable tag: 3.3.0
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,23 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 3.3.0 =
+* Redesigned the talent roster grid [CLEB_celebrities] and the homepage
+  carousel [CLEB_celebrities_carousel] for desktop and mobile, built on one
+  shared card: portrait photo (sharp responsive images), name, role, Lead /
+  Private badges, hover lift with nationality and category, monogram tiles for
+  talent without a photo.
+* Grid: editorial header (eyebrow, title, intro, talent count), category
+  filters with counts, live search by name / role / nationality, empty state,
+  cards fading in as they scroll into view; 2 columns on phones with a
+  swipeable filter row.
+* Carousel: snap scrolling with drag-to-scroll on desktop, arrows, a progress
+  bar and gentle autoplay that pauses on hover, touch and when off-screen;
+  peeking cards on phones; optional title / eyebrow; "View all" button.
+* Both inherit the active theme: heading and body fonts, text colour,
+  background and accent (unless an accent is set in Settings). New shortcode
+  options: search, orderby and autoplay.
 
 = 3.2.1 =
 * Profile: the sticky section bar is now solid and also fills the strip under

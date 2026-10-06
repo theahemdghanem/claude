@@ -1,0 +1,333 @@
+/* =========================================================================
+   CELB MGMT — Talent roster grid [CLEB_celebrities] + carousel
+   [CLEB_celebrities_carousel]
+
+   Inherits the active theme: no font-family is set (names and titles are
+   headings, so the theme's heading font applies), text/lines/surfaces are
+   derived from the theme's text colour, the page background shows through,
+   and the accent follows the theme palette unless chosen in Settings.
+   Card artwork is always photographic: white type on a dark scrim.
+   ========================================================================= */
+
+.celb-scope.celb-tg,
+.celb-scope.celb-rail {
+	--r-ink: var(--celb-r-ink, #111111);
+	--r-bg: var(--celb-r-bg, var(--celb-r-page-bg, #ffffff));
+	--r-accent: var(--celb-accent, var(--wp--preset--color--primary, var(--wp--preset--color--accent, var(--e-global-color-accent, var(--nectar-accent-color, currentColor)))));
+	--r-muted: color-mix(in srgb, currentColor 62%, transparent);
+	--r-faint: color-mix(in srgb, currentColor 40%, transparent);
+	--r-line: color-mix(in srgb, currentColor 14%, transparent);
+	--r-surface: color-mix(in srgb, currentColor 5%, transparent);
+	--r-surface-2: color-mix(in srgb, currentColor 9%, transparent);
+	--r-radius: 16px;
+	--r-gap: clamp(10px, 1.4vw, 20px);
+
+	position: relative;
+	color: inherit;
+	font-size: 1rem;
+	line-height: 1.5;
+	background: transparent;
+}
+.celb-tg :is(h2, h3, p),
+.celb-rail :is(h2, h3, p) { margin: 0; padding: 0; }
+.celb-tg button,
+.celb-rail button { font: inherit; }
+
+/* ------------------------------------------------------------------ Card */
+.celb-tc { position: relative; min-width: 0; }
+.celb-tc-link {
+	position: relative;
+	display: block;
+	aspect-ratio: 4 / 5;
+	overflow: hidden;
+	border-radius: var(--r-radius);
+	background: var(--r-surface-2);
+	color: #fff !important;
+	text-decoration: none !important;
+	isolation: isolate;
+	transform: translateZ(0);
+	transition: transform .5s cubic-bezier(.2, .7, .2, 1), box-shadow .5s cubic-bezier(.2, .7, .2, 1);
+}
+a.celb-tc-link:hover { transform: translateY(-4px); box-shadow: 0 22px 44px -22px rgba(0, 0, 0, .55); }
+a.celb-tc-link:focus-visible { outline: 2px solid var(--r-accent); outline-offset: 3px; }
+.celb-tc-media { position: absolute; inset: 0; z-index: -2; }
+.celb-tc-img {
+	display: block;
+	width: 100% !important;
+	height: 100% !important;
+	max-width: none !important;
+	object-fit: cover;
+	object-position: center 22%;
+	transition: transform 1.1s cubic-bezier(.2, .7, .2, 1), filter .6s ease;
+}
+a.celb-tc-link:hover .celb-tc-img { transform: scale(1.06); }
+.celb-tc-mono {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding-bottom: 18%;
+	background:
+		radial-gradient(120% 90% at 30% 10%, color-mix(in srgb, var(--r-accent) 34%, #1c1c1f) 0%, #111113 70%);
+	color: rgba(255, 255, 255, .5);
+	font-size: clamp(2.4rem, 6vw, 4.4rem);
+	font-weight: 700;
+	letter-spacing: .04em;
+}
+.celb-tc-shade {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: linear-gradient(to top, rgba(0, 0, 0, .84) 0%, rgba(0, 0, 0, .46) 26%, rgba(0, 0, 0, .06) 52%, rgba(0, 0, 0, 0) 64%);
+	transition: opacity .5s ease;
+}
+.celb-tc-badges { position: absolute; top: 12px; left: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.celb-tc-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 26px;
+	padding: 0 10px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .9);
+	color: #0a0a0a;
+	font-size: .7rem;
+	font-weight: 700;
+	letter-spacing: .04em;
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+}
+.celb-tc-badge svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.celb-tc.is-lead .celb-tc-badge:first-child svg { fill: currentColor; }
+.celb-tc-go {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	display: grid;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, .16);
+	border: 1px solid rgba(255, 255, 255, .35);
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	opacity: 0;
+	transform: translate(-6px, 6px) scale(.9);
+	transition: opacity .35s ease, transform .35s ease, background-color .35s ease, color .35s ease;
+}
+.celb-tc-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+a.celb-tc-link:hover .celb-tc-go,
+a.celb-tc-link:focus-visible .celb-tc-go { opacity: 1; transform: none; background: #fff; color: #0a0a0a; }
+.celb-tc-info { position: absolute; left: 0; right: 0; bottom: 0; padding: clamp(14px, 1.6vw, 22px); }
+.celb-tc .celb-tc-name {
+	margin: 0;
+	color: #fff !important;
+	font-size: clamp(1.05rem, 1.55vw, 1.42rem);
+	line-height: 1.12;
+	letter-spacing: -.01em;
+	text-wrap: balance;
+	text-shadow: 0 1px 16px rgba(0, 0, 0, .3);
+}
+.celb-tc-role { display: block; margin-top: 5px; color: rgba(255, 255, 255, .82); font-size: clamp(.78rem, .95vw, .88rem); line-height: 1.3; }
+.celb-tc-meta {
+	display: block;
+	max-height: 0;
+	margin-top: 0;
+	overflow: hidden;
+	color: rgba(255, 255, 255, .66);
+	font-size: .76rem;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	opacity: 0;
+	transition: max-height .4s ease, margin-top .4s ease, opacity .4s ease;
+}
+a.celb-tc-link:hover .celb-tc-meta { max-height: 2em; margin-top: 8px; opacity: 1; }
+.celb-tc.is-private .celb-tc-img { filter: grayscale(.85) brightness(.82); }
+.celb-tc.is-private .celb-tc-link { cursor: default; }
+
+/* Reveal on scroll (added by celb-roster.js). */
+.celb-r-anim .celb-tc { opacity: 0; transform: translateY(18px); transition: opacity .7s cubic-bezier(.2, .7, .2, 1), transform .7s cubic-bezier(.2, .7, .2, 1); transition-delay: var(--d, 0ms); }
+.celb-r-anim .celb-tc.is-in { opacity: 1; transform: none; }
+
+/* ------------------------------------------------------------- Grid page */
+.celb-scope.celb-tg.is-full {
+	width: 100vw;
+	max-width: 100vw;
+	margin-left: calc(50% - 50vw);
+	margin-right: calc(50% - 50vw);
+}
+.celb-tg-in { width: 100%; margin: 0 auto; }
+.celb-tg.is-full .celb-tg-in { max-width: calc(1480px + 2 * clamp(20px, 5vw, 64px)); padding: 0 clamp(20px, 5vw, 64px); }
+.celb-tg { padding: clamp(32px, 5vw, 72px) 0; }
+
+.celb-tg-head { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: end; gap: 24px clamp(32px, 6vw, 96px); margin-bottom: clamp(28px, 4vw, 52px); }
+.celb-tg-eyebrow { margin-bottom: 14px !important; color: var(--r-accent); font-size: .74rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; }
+.celb-tg .celb-tg-title,
+.celb-rail .celb-rail-title { font-size: clamp(2.6rem, 7vw, 6rem); line-height: .95; letter-spacing: -.03em; text-wrap: balance; }
+.celb-rail .celb-rail-title { font-size: clamp(2rem, 4.4vw, 3.6rem); }
+.celb-tg-intro { max-width: 46ch; color: var(--r-muted); font-size: clamp(1rem, 1.2vw, 1.12rem); line-height: 1.65; }
+.celb-tg-total { margin-top: 16px !important; color: var(--r-muted); font-size: .92rem; }
+.celb-tg-total b { color: inherit; font-size: 1.5rem; font-weight: 700; margin-right: 2px; }
+.celb-tg-head-side .celb-tg-total { color: var(--r-muted); }
+
+.celb-tg-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px; margin-bottom: clamp(20px, 2.6vw, 32px); padding-bottom: clamp(16px, 2vw, 24px); border-bottom: 1px solid var(--r-line); }
+.celb-tg-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.celb-tg-pills button {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 40px;
+	padding: 0 16px;
+	border: 1px solid var(--r-line);
+	border-radius: 999px;
+	background: none;
+	color: var(--r-muted);
+	font-size: .9rem;
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+	transition: color .2s ease, background-color .2s ease, border-color .2s ease;
+}
+.celb-tg-pills button span { font-size: .78em; font-weight: 600; opacity: .7; font-variant-numeric: tabular-nums; }
+.celb-tg-pills button:hover { color: inherit; border-color: color-mix(in srgb, currentColor 32%, transparent); }
+.celb-tg-pills button.is-on { background: var(--r-ink); border-color: transparent; color: var(--r-bg); }
+.celb-tg-pills button:focus-visible { outline: 2px solid var(--r-accent); outline-offset: 2px; }
+.celb-tg-search { position: relative; display: flex; align-items: center; flex: 0 1 300px; }
+.celb-tg-search svg { position: absolute; left: 15px; width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; opacity: .55; pointer-events: none; }
+.celb-tg-search input[type="search"] {
+	width: 100%;
+	height: 42px;
+	margin: 0;
+	padding: 0 16px 0 42px !important;
+	border: 1px solid var(--r-line) !important;
+	border-radius: 999px !important;
+	background: var(--r-surface) !important;
+	color: inherit !important;
+	font: inherit;
+	font-size: .92rem;
+	box-shadow: none !important;
+	outline: 0;
+	-webkit-appearance: none;
+	appearance: none;
+	transition: border-color .2s ease, background-color .2s ease;
+}
+.celb-tg-search input[type="search"]::placeholder { color: var(--r-faint); opacity: 1; }
+.celb-tg-search input[type="search"]:focus { border-color: color-mix(in srgb, currentColor 38%, transparent) !important; background: transparent !important; }
+
+.celb-tg-grid { display: grid; grid-template-columns: repeat(var(--tg-cols, 4), minmax(0, 1fr)); gap: var(--r-gap); }
+.celb-tg-grid .celb-tc.is-hidden { display: none; }
+.celb-tg-empty { padding: 56px 20px; text-align: center; color: var(--r-muted); }
+.celb-tg-empty button { margin-top: 14px; height: 40px; padding: 0 18px; border: 1px solid var(--r-line); border-radius: 999px; background: none; color: inherit; font-weight: 600; cursor: pointer; }
+.celb-tg .screen-reader-text,
+.celb-rail .screen-reader-text { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
+
+/* -------------------------------------------------------------- Carousel */
+.celb-rail { padding: clamp(8px, 1vw, 16px) 0; }
+.celb-rail-head { margin-bottom: clamp(20px, 3vw, 36px); }
+.celb-rail-track {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: calc((100% - (var(--rail-n, 6) - 1) * var(--r-gap)) / var(--rail-n, 6));
+	gap: var(--r-gap);
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scroll-snap-type: x mandatory;
+	scroll-behavior: smooth;
+	scrollbar-width: none;
+	padding: 6px 0 14px;
+	margin: -6px 0 -14px;
+	cursor: grab;
+	outline: 0;
+}
+.celb-rail-track::-webkit-scrollbar { display: none; }
+.celb-rail-track.is-dragging { cursor: grabbing; scroll-snap-type: none; scroll-behavior: auto; }
+.celb-rail-track.is-dragging .celb-tc-link { pointer-events: none; }
+.celb-rail-track:focus-visible { outline: 2px solid var(--r-accent); outline-offset: 4px; border-radius: var(--r-radius); }
+.celb-rail-cell { scroll-snap-align: start; min-width: 0; }
+.celb-rail-cell .celb-tc-img { -webkit-user-drag: none; user-select: none; }
+
+.celb-rail-foot { display: flex; align-items: center; gap: 20px; margin-top: clamp(18px, 2.4vw, 28px); }
+.celb-rail-progress { position: relative; flex: 1 1 auto; height: 2px; border-radius: 2px; background: var(--r-line); overflow: hidden; }
+.celb-rail-progress i { position: absolute; top: 0; bottom: 0; left: 0; width: var(--rail-w, 30%); border-radius: 2px; background: currentColor; transform: translateX(var(--rail-x, 0%)); transition: transform .25s ease, width .25s ease; }
+.celb-rail-nav { display: flex; gap: 8px; }
+.celb-rail-btn {
+	display: grid;
+	place-items: center;
+	width: 46px;
+	height: 46px;
+	padding: 0;
+	border: 1px solid var(--r-line);
+	border-radius: 50%;
+	background: none;
+	color: inherit;
+	cursor: pointer;
+	transition: background-color .2s ease, color .2s ease, border-color .2s ease, opacity .2s ease;
+}
+.celb-rail-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.celb-rail-btn.is-next svg { transform: rotate(180deg); }
+.celb-rail-btn:hover:not([disabled]) { background: var(--r-ink); border-color: transparent; color: var(--r-bg); }
+.celb-rail-btn[disabled] { opacity: .35; cursor: default; }
+.celb-rail-btn:focus-visible { outline: 2px solid var(--r-accent); outline-offset: 2px; }
+.celb-rail.is-static .celb-rail-foot { display: none; }
+.celb-rail.is-static .celb-rail-track { cursor: default; }
+
+.celb-rail-cta { display: flex; justify-content: center; margin-top: clamp(24px, 3.4vw, 40px); }
+.celb-rail-all {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	height: 52px;
+	padding: 0 28px;
+	border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+	border-radius: 999px;
+	color: inherit !important;
+	font-size: .95rem;
+	font-weight: 600;
+	text-decoration: none !important;
+	transition: background-color .25s ease, color .25s ease, border-color .25s ease, transform .25s ease;
+}
+.celb-rail-all svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .25s ease; }
+.celb-rail-all:hover { background: var(--r-ink); border-color: transparent; color: var(--r-bg) !important; transform: translateY(-1px); }
+.celb-rail-all:hover svg { transform: translateX(3px); }
+
+/* ------------------------------------------------------------ Responsive */
+@media (max-width: 1024px) {
+	.celb-tg-grid { grid-template-columns: repeat(min(var(--tg-cols, 4), 3), minmax(0, 1fr)); }
+	.celb-rail-track { grid-auto-columns: calc((100% - 2 * var(--r-gap)) / 3.25); }
+	.celb-tg-head { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 680px) {
+	.celb-tg { padding: 28px 0 40px; }
+	.celb-tg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+	.celb-tg .celb-tg-title { font-size: clamp(2.4rem, 13vw, 3.6rem); }
+	.celb-tg-bar { flex-direction: column-reverse; flex-wrap: nowrap; align-items: stretch; gap: 12px; }
+	.celb-tg-pills { width: auto; min-width: 0; }
+	.celb-tg-search { flex: 1 1 auto; }
+	.celb-tg-search input[type="search"] { height: 46px; font-size: 1rem; }
+	.celb-tg-pills { flex-wrap: nowrap; overflow-x: auto; margin: 0 -20px; padding: 0 20px 2px; scrollbar-width: none; }
+	.celb-tg-pills::-webkit-scrollbar { display: none; }
+	.celb-tg-pills button { flex: 0 0 auto; height: 38px; padding: 0 14px; }
+	.celb-tc-link { border-radius: 12px; }
+	.celb-tc-info { padding: 12px; }
+	.celb-tc .celb-tc-name { font-size: clamp(.98rem, 4.4vw, 1.18rem); }
+	.celb-tc-role { font-size: .76rem; margin-top: 3px; }
+	.celb-tc-badges { top: 8px; left: 8px; }
+	.celb-tc-badge { height: 22px; padding: 0 8px; font-size: .62rem; }
+	.celb-tc-go { display: none; }
+
+	.celb-rail-track { grid-auto-columns: 64%; gap: 10px; scroll-padding-left: 0; }
+	.celb-rail-nav { display: none; }
+	.celb-rail-foot { margin-top: 16px; }
+	.celb-rail-all { width: 100%; justify-content: center; }
+}
+@media (hover: none) {
+	a.celb-tc-link:hover { transform: none; box-shadow: none; }
+	a.celb-tc-link:hover .celb-tc-img { transform: none; }
+	.celb-tc-go { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.celb-tg *, .celb-rail * { transition: none !important; animation: none !important; }
+	.celb-r-anim .celb-tc { opacity: 1; transform: none; }
+	.celb-rail-track { scroll-behavior: auto; }
+}
