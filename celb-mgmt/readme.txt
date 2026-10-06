@@ -3,7 +3,7 @@ Contributors: iLike Agency
 Author: iLike Agency
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 3.3.0
+Stable tag: 3.3.1
 License: GPLv2 or later
 
 Celebrity management directory for iLike Agency. Manage and display celebrity
@@ -150,6 +150,12 @@ shortcode to a page. It lists all articles with a small "Filter by artist"
 dropdown on the left.
 
 == Changelog ==
+
+= 3.3.1 =
+* Roster grid + carousel: fixed a grey band above the photos on some themes
+  (theme margins / padding / link decorations pushed the image down). The
+  photo layer is now locked to the card, and the card background is dark so
+  nothing grey can show.
 
 = 3.3.0 =
 * Redesigned the talent roster grid [CLEB_celebrities] and the homepage

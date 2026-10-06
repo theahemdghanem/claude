@@ -40,8 +40,11 @@
 	display: block;
 	aspect-ratio: 4 / 5;
 	overflow: hidden;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
 	border-radius: var(--r-radius);
-	background: var(--r-surface-2);
+	background: #111113;
 	color: #fff !important;
 	text-decoration: none !important;
 	isolation: isolate;
@@ -50,7 +53,13 @@
 }
 a.celb-tc-link:hover { transform: translateY(-4px); box-shadow: 0 22px 44px -22px rgba(0, 0, 0, .55); }
 a.celb-tc-link:focus-visible { outline: 2px solid var(--r-accent); outline-offset: 3px; }
-.celb-tc-media { position: absolute; inset: 0; z-index: -2; }
+.celb-tc-media { position: absolute !important; inset: 0 !important; z-index: -2; display: block !important; margin: 0 !important; padding: 0 !important; overflow: hidden; line-height: 0; }
+/* Theme-proofing: themes often add margins, padding, borders or ::before
+   decorations to img / a / span. None of that may move the photo. */
+.celb-tc-link::before,
+.celb-tc-link::after { content: none !important; display: none !important; }
+.celb-tc .celb-tc-media img,
+.celb-tc .celb-tc-media picture { position: absolute !important; inset: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: none !important; }
 .celb-tc-img {
 	display: block;
 	width: 100% !important;
